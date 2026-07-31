@@ -1,11 +1,15 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
 
-from app.health import get_system_health
 from app.docker_status import get_docker_status
+from app.health import get_system_health
+from app.update_status import get_update_status
+from app.service_status import get_service_status
+
 
 app = FastAPI(
     title="Jarvis Core",
-    version="2.0.0",
+    version="2.1.0",
+    description="Local system, Docker, and update intelligence API for Jarvis.",
 )
 
 
@@ -13,8 +17,14 @@ app = FastAPI(
 def root():
     return {
         "name": "Jarvis Core",
-        "version": "2.0.0",
+        "version": app.version,
         "status": "online",
+        "endpoints": {
+            "health": "/health",
+            "docker": "/docker",
+            "updates": "/updates",
+            "overview": "/overview",
+        },
     }
 
 
@@ -28,9 +38,43 @@ def docker():
     return get_docker_status()
 
 
+@app.get("/updates")
+def updates(
+    force_refresh: bool = Query(
+        default=False,
+        description="Bypass the update-status cache and run a fresh check.",
+    )
+):
+    return get_update_status(force_refresh=force_refresh)
+
+
+@app.get("/services")
+def services():
+    return get_service_status()
+
+
 @app.get("/overview")
-def overview():
-    return {
+def overview(
+    include_updates: bool = Query(
+        default=True,
+        description="Include Ubuntu update intelligence in the overview.",
+    ),
+    force_update_refresh: bool = Query(
+        default=False,
+        description="Bypass the update-status cache when updates are included.",
+    ),
+):
+    response = {
         "system": get_system_health(),
         "docker": get_docker_status(),
     }
+
+    if include_updates:
+        response["updates"] = get_update_status(
+            force_refresh=force_update_refresh
+        )
+
+    return response
+
+
+
