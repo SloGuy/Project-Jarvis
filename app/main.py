@@ -4,6 +4,7 @@ from app.docker_status import get_docker_status
 from app.health import get_system_health
 from app.update_status import get_update_status
 from app.service_status import get_service_status
+from app.market_status import get_market_status
 
 
 app = FastAPI(
@@ -67,6 +68,7 @@ def overview(
     response = {
         "system": get_system_health(),
         "docker": get_docker_status(),
+        "services": get_service_status(),
     }
 
     if include_updates:
@@ -78,3 +80,6 @@ def overview(
 
 
 
+@app.get("/market")
+def market():
+    return get_market_status()
