@@ -7,12 +7,16 @@ import requests
 
 
 ALPHA_VANTAGE_URL = "https://www.alphavantage.co/query"
+FINNHUB_QUOTE_URL = "https://finnhub.io/api/v1/quote"
+ALPHA_VANTAGE_MARKET_STATUS_FUNCTION = "MARKET_STATUS"
 COINGECKO_URL = "https://api.coingecko.com/api/v3/simple/price"
 
-DEFAULT_STOCKS = ["SPY", "QQQ", "DIA"]
+DEFAULT_STOCKS = ["SPY", "QQQ", "DIA", "TSLA", "AAPL"]
 DEFAULT_CRYPTO = {
     "bitcoin": "BTC",
     "ethereum": "ETH",
+    "monero": "XMR",
+    "ripple": "XRP",
 }
 
 REQUEST_TIMEOUT_SECONDS = 10
@@ -37,50 +41,40 @@ def _safe_float(value: Any) -> float | None:
 def _get_stock_quote(symbol: str, api_key: str) -> dict:
     try:
         response = requests.get(
-            ALPHA_VANTAGE_URL,
+            FINNHUB_QUOTE_URL,
             params={
-                "function": "GLOBAL_QUOTE",
                 "symbol": symbol,
-                "apikey": api_key,
+                "token": api_key,
             },
             timeout=REQUEST_TIMEOUT_SECONDS,
         )
         response.raise_for_status()
         payload = response.json()
 
-        quote = payload.get("Global Quote", {})
+        current_price = _safe_float(payload.get("c"))
+        previous_close = _safe_float(payload.get("pc"))
+        change = _safe_float(payload.get("d"))
+        change_percent = _safe_float(payload.get("dp"))
+        quote_timestamp = payload.get("t")
 
-        if not quote:
-            message = (
-                payload.get("Information")
-                or payload.get("Note")
-                or payload.get("Error Message")
-                or "No quote data returned."
-            )
-
+        if current_price is None or current_price <= 0:
             return {
                 "symbol": symbol,
                 "available": False,
-                "error": message,
+                "error": "Finnhub returned no valid quote data.",
             }
-
-        price = _safe_float(quote.get("05. price"))
-        previous_close = _safe_float(quote.get("08. previous close"))
-        change = _safe_float(quote.get("09. change"))
-
-        change_percent_raw = quote.get("10. change percent", "")
-        change_percent = _safe_float(
-            str(change_percent_raw).replace("%", "")
-        )
 
         return {
             "symbol": symbol,
             "available": True,
-            "price_usd": price,
+            "price_usd": current_price,
             "previous_close_usd": previous_close,
             "change_usd": change,
             "change_percent": change_percent,
-            "latest_trading_day": quote.get("07. latest trading day"),
+            "day_open_usd": _safe_float(payload.get("o")),
+            "day_high_usd": _safe_float(payload.get("h")),
+            "day_low_usd": _safe_float(payload.get("l")),
+            "quote_timestamp": quote_timestamp,
         }
 
     except requests.RequestException as error:
@@ -89,12 +83,89 @@ def _get_stock_quote(symbol: str, api_key: str) -> dict:
             "available": False,
             "error": str(error),
         }
+
     except ValueError as error:
         return {
             "symbol": symbol,
             "available": False,
             "error": f"Invalid JSON response: {error}",
         }
+
+
+def _get_market_session_status(api_key: str) -> dict:
+    try:
+        response = requests.get(
+            ALPHA_VANTAGE_URL,
+            params={
+                "function": ALPHA_VANTAGE_MARKET_STATUS_FUNCTION,
+                "apikey": api_key,
+            },
+            timeout=REQUEST_TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+        payload = response.json()
+
+        markets = payload.get("markets", [])
+
+        if not markets:
+            message = (
+                payload.get("Information")
+                or payload.get("Note")
+                or payload.get("Error Message")
+                or "No market-session data returned."
+            )
+
+            return {
+                "available": False,
+                "us_equity": None,
+                "error": message,
+            }
+
+        us_equity = next(
+            (
+                market
+                for market in markets
+                if market.get("market_type") == "Equity"
+                and "United States" in market.get("region", "")
+            ),
+            None,
+        )
+
+        if us_equity is None:
+            return {
+                "available": False,
+                "us_equity": None,
+                "error": "United States equity market status was not found.",
+            }
+
+        return {
+            "available": True,
+            "us_equity": {
+                "market_type": us_equity.get("market_type"),
+                "region": us_equity.get("region"),
+                "primary_exchanges": us_equity.get("primary_exchanges"),
+                "local_open": us_equity.get("local_open"),
+                "local_close": us_equity.get("local_close"),
+                "current_status": us_equity.get("current_status"),
+                "notes": us_equity.get("notes"),
+            },
+            "error": None,
+        }
+
+    except requests.RequestException as error:
+        return {
+            "available": False,
+            "us_equity": None,
+            "error": str(error),
+        }
+
+    except ValueError as error:
+        return {
+            "available": False,
+            "us_equity": None,
+            "error": f"Invalid JSON response: {error}",
+        }
+
 
 
 def _get_crypto_quotes() -> dict:
@@ -173,20 +244,37 @@ def get_market_status() -> dict:
         "",
     ).strip()
 
+    finnhub_api_key = os.getenv(
+        "FINNHUB_API_KEY",
+        "",
+    ).strip()
+
     if alpha_vantage_api_key:
+        market_session = _get_market_session_status(
+            alpha_vantage_api_key
+        )
+        time.sleep(1.1)
+
         stock_quotes = []
 
         for index, symbol in enumerate(DEFAULT_STOCKS):
             stock_quotes.append(
-                _get_stock_quote(symbol, alpha_vantage_api_key)
+                _get_stock_quote(symbol, finnhub_api_key)
             )
 
-            if index < len(DEFAULT_STOCKS) - 1:
-                time.sleep(1.1)
+        if index < len(DEFAULT_STOCKS) - 1:
+            time.sleep(1.1)
 
         stock_error = None
     else:
         stock_quotes = []
+
+        market_session = {
+            "available": False,
+            "us_equity": None,
+            "error": "ALPHA_VANTAGE_API_KEY is not configured.",
+        }
+
         stock_error = (
             "ALPHA_VANTAGE_API_KEY is not configured. "
             "Stock intelligence is currently unavailable."
@@ -221,8 +309,9 @@ def get_market_status() -> dict:
         "status": status,
         "checked_at": _utc_now(),
         "summary": summary,
+        "market_session": market_session,
         "stocks": {
-            "provider": "Alpha Vantage",
+            "provider": "Finnhub",
             "available": stocks_available,
             "watchlist": DEFAULT_STOCKS,
             "quotes": stock_quotes,
