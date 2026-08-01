@@ -1,16 +1,24 @@
+from pathlib import Path
+
 from fastapi import FastAPI, Query
+from fastapi.responses import HTMLResponse
 
 from app.docker_status import get_docker_status
 from app.health import get_system_health
 from app.update_status import get_update_status
 from app.service_status import get_service_status
 from app.market_status import get_market_status
+from app.market_db.recorder import record_market_snapshot
+from app.market_db.history import get_market_history
+from app.market_db.moves import get_latest_market_moves
+from app.market_db.alerts import get_recent_alerts
+from app.market_db.intelligence import get_market_intelligence
 
 
 app = FastAPI(
     title="Jarvis Core",
-    version="2.1.0",
-    description="Local system, Docker, and update intelligence API for Jarvis.",
+    version="2.2.0",
+    description="Local operations and persistent market intelligence API for Jarvis.",
 )
 
 
@@ -25,6 +33,13 @@ def root():
             "docker": "/docker",
             "updates": "/updates",
             "overview": "/overview",
+            "market": "/market",
+            "market_snapshot": "/market/snapshot",
+            "market_history": "/market/history",
+            "market_moves": "/market/moves",
+            "market_alerts": "/market/alerts",
+            "market_intelligence": "/market/intelligence",
+            "market_dashboard": "/market/dashboard",
         },
     }
 
@@ -83,3 +98,120 @@ def overview(
 @app.get("/market")
 def market():
     return get_market_status()
+
+@app.post("/market/snapshot")
+def market_snapshot():
+    snapshot = get_market_status()
+    storage = record_market_snapshot(snapshot)
+
+    return {
+        "status": "success",
+        "message": "Market snapshot processed.",
+        "market_checked_at": snapshot.get("checked_at"),
+        "market_status": snapshot.get("status"),
+        "cached_market_data": snapshot.get("cached", False),
+        "storage": storage,
+    }
+
+@app.get("/market/history")
+def market_history(
+    symbol: str | None = Query(
+        default=None,
+        min_length=1,
+        max_length=20,
+        description="Optional asset symbol, such as BTC, SPY, or AAPL.",
+    ),
+    limit: int = Query(
+        default=100,
+        ge=1,
+        le=1000,
+        description="Maximum number of observations to return.",
+    ),
+):
+    return get_market_history(
+        symbol=symbol,
+        limit=limit,
+    )
+
+@app.get("/market/moves")
+def market_moves(
+    symbol: str | None = Query(
+        default=None,
+        min_length=1,
+        max_length=20,
+        description="Optional asset symbol, such as BTC, SPY, or AAPL.",
+    ),
+    limit: int = Query(
+        default=100,
+        ge=1,
+        le=1000,
+        description="Maximum number of assets to return.",
+    ),
+    minimum_move_percent: float = Query(
+        default=0.0,
+        ge=0.0,
+        le=100.0,
+        description="Only return moves at or above this absolute percentage.",
+    ),
+    comparison_minutes: int = Query(
+        default=15,
+        ge=1,
+        le=1440,
+        description="Compare against an observation at least this many minutes older.",
+    ),
+):
+    return get_latest_market_moves(
+        symbol=symbol,
+        limit=limit,
+        minimum_move_percent=minimum_move_percent,
+        comparison_minutes=comparison_minutes,
+    )
+
+@app.get("/market/alerts")
+def market_alerts(
+    limit: int = Query(
+        default=100,
+        ge=1,
+        le=1000,
+        description="Maximum number of alerts to return.",
+    ),
+):
+    return get_recent_alerts(limit=limit)
+
+@app.get("/market/intelligence")
+def market_intelligence(
+    comparison_minutes: int = Query(
+        default=15,
+        ge=1,
+        le=1440,
+        description="Comparison window used to identify market movers.",
+    ),
+    mover_threshold_percent: float = Query(
+        default=0.25,
+        ge=0.0,
+        le=100.0,
+        description="Minimum absolute move required for the movers section.",
+    ),
+    alert_limit: int = Query(
+        default=20,
+        ge=1,
+        le=100,
+        description="Maximum number of recent alerts to include.",
+    ),
+):
+    return get_market_intelligence(
+        comparison_minutes=comparison_minutes,
+        mover_threshold_percent=mover_threshold_percent,
+        alert_limit=alert_limit,
+    )
+
+@app.get("/market/dashboard", response_class=HTMLResponse)
+def market_dashboard():
+    dashboard_path = (
+        Path(__file__).resolve().parent
+        / "templates"
+        / "market_dashboard.html"
+    )
+
+    return dashboard_path.read_text(encoding="utf-8")
+

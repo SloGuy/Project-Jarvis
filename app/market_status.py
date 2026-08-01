@@ -221,13 +221,14 @@ def _get_crypto_quotes() -> dict:
         }
 
 
-def get_market_status() -> dict:
+def get_market_status(force_refresh: bool = False) -> dict:
     global _market_cache, _market_cache_timestamp
 
     current_time = time.time()
 
     if (
-        _market_cache is not None
+        not force_refresh
+        and _market_cache is not None
         and _market_cache_timestamp is not None
         and current_time - _market_cache_timestamp < CACHE_TTL_SECONDS
     ):
@@ -253,30 +254,25 @@ def get_market_status() -> dict:
         market_session = _get_market_session_status(
             alpha_vantage_api_key
         )
-        time.sleep(1.1)
-
-        stock_quotes = []
-
-        for index, symbol in enumerate(DEFAULT_STOCKS):
-            stock_quotes.append(
-                _get_stock_quote(symbol, finnhub_api_key)
-            )
-
-        if index < len(DEFAULT_STOCKS) - 1:
-            time.sleep(1.1)
-
-        stock_error = None
     else:
-        stock_quotes = []
-
         market_session = {
             "available": False,
             "us_equity": None,
             "error": "ALPHA_VANTAGE_API_KEY is not configured.",
         }
 
+    stock_quotes = []
+
+    if finnhub_api_key:
+        for symbol in DEFAULT_STOCKS:
+            stock_quotes.append(
+                _get_stock_quote(symbol, finnhub_api_key)
+            )
+
+        stock_error = None
+    else:
         stock_error = (
-            "ALPHA_VANTAGE_API_KEY is not configured. "
+            "FINNHUB_API_KEY is not configured. "
             "Stock intelligence is currently unavailable."
         )
 
