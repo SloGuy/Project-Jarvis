@@ -4,7 +4,13 @@ from sqlalchemy import func, select
 
 from app.market_db.alerts import get_recent_alerts
 from app.market_db.database import SessionLocal
-from app.market_db.models import MarketAsset, PriceObservation
+from app.market_db.models import (
+    MarketAlert,
+    MarketAsset,
+    MarketNewsArticle,
+    MarketNewsArticleAsset,
+    PriceObservation,
+)
 from app.market_db.moves import get_latest_market_moves
 
 
@@ -63,12 +69,50 @@ def _database_statistics() -> dict:
             )
         ) or 0
 
+        alert_count = session.scalar(
+            select(func.count(MarketAlert.id))
+        ) or 0
+
+        news_article_count = session.scalar(
+            select(func.count(MarketNewsArticle.id))
+        ) or 0
+
+        processed_news_count = session.scalar(
+            select(func.count(MarketNewsArticle.id)).where(
+                MarketNewsArticle.processed.is_(True)
+            )
+        ) or 0
+
+        news_asset_link_count = session.scalar(
+            select(func.count(MarketNewsArticleAsset.id))
+        ) or 0
+
+        database_size_bytes = session.scalar(
+            select(
+                func.pg_database_size(
+                    func.current_database()
+                )
+            )
+        ) or 0
+
         first_observation = session.scalar(
             select(func.min(PriceObservation.observed_at))
         )
 
         latest_observation = session.scalar(
             select(func.max(PriceObservation.observed_at))
+        )
+
+        latest_news_published = session.scalar(
+            select(func.max(MarketNewsArticle.published_at))
+        )
+
+        latest_news_fetched = session.scalar(
+            select(func.max(MarketNewsArticle.fetched_at))
+        )
+
+        latest_alert = session.scalar(
+            select(func.max(MarketAlert.created_at))
         )
 
     latest_age_seconds = None
@@ -82,6 +126,14 @@ def _database_statistics() -> dict:
     return {
         "active_assets": asset_count,
         "total_observations": observation_count,
+        "total_alerts": alert_count,
+        "news_articles": news_article_count,
+        "processed_news_articles": processed_news_count,
+        "unprocessed_news_articles": (
+            news_article_count - processed_news_count
+        ),
+        "news_asset_links": news_asset_link_count,
+        "database_size_bytes": database_size_bytes,
         "first_observation_at": (
             first_observation.isoformat()
             if first_observation is not None
@@ -90,6 +142,21 @@ def _database_statistics() -> dict:
         "latest_observation_at": (
             latest_observation.isoformat()
             if latest_observation is not None
+            else None
+        ),
+        "latest_news_published_at": (
+            latest_news_published.isoformat()
+            if latest_news_published is not None
+            else None
+        ),
+        "latest_news_fetched_at": (
+            latest_news_fetched.isoformat()
+            if latest_news_fetched is not None
+            else None
+        ),
+        "latest_alert_at": (
+            latest_alert.isoformat()
+            if latest_alert is not None
             else None
         ),
         "latest_observation_age_seconds": (
