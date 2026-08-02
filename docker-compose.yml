@@ -9,6 +9,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "127.0.0.1:${POSTGRES_PORT}:5432"
+      - "10.0.0.244:${POSTGRES_PORT}:5432"
     volumes:
       - jarvis_market_data:/var/lib/postgresql/data
     healthcheck:
