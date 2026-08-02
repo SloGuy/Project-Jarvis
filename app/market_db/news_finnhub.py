@@ -1,0 +1,317 @@
+import hashlib
+import json
+import os
+from datetime import datetime, timezone
+
+import requests
+from sqlalchemy import select
+
+from app.market_db.database import SessionLocal
+from app.market_db.models import (
+    MarketAsset,
+    MarketNewsArticle,
+    MarketNewsArticleAsset,
+)
+
+
+FINNHUB_MARKET_NEWS_URL = "https://finnhub.io/api/v1/news"
+
+NEWS_PROVIDER = "Finnhub"
+ARTICLE_TYPE = "market"
+NEWS_CATEGORY = "general"
+REQUEST_TIMEOUT_SECONDS = 30
+
+
+def _get_api_key() -> str:
+    api_key = os.getenv("FINNHUB_API_KEY", "").strip()
+
+    if not api_key:
+        raise RuntimeError("FINNHUB_API_KEY is not configured.")
+
+    return api_key
+
+
+def _parse_timestamp(value) -> datetime | None:
+    try:
+        timestamp = int(value)
+    except (TypeError, ValueError):
+        return None
+
+    if timestamp <= 0:
+        return None
+
+    try:
+        return datetime.fromtimestamp(
+            timestamp,
+            tz=timezone.utc,
+        )
+    except (OverflowError, OSError, ValueError):
+        return None
+
+
+def _normalize_symbol(value: str | None) -> str | None:
+    if not value:
+        return None
+
+    symbol = value.strip().upper()
+
+    if not symbol or len(symbol) > 20:
+        return None
+
+    allowed_characters = set(
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-"
+    )
+
+    if any(
+        character not in allowed_characters
+        for character in symbol
+    ):
+        return None
+
+    return symbol
+
+
+def _extract_symbols(row: dict) -> list[str]:
+    raw_related = str(row.get("related") or "").strip()
+
+    if not raw_related:
+        return []
+
+    symbols = []
+    seen = set()
+
+    for item in raw_related.split(","):
+        symbol = _normalize_symbol(item)
+
+        if symbol is None or symbol in seen:
+            continue
+
+        seen.add(symbol)
+        symbols.append(symbol)
+
+    return symbols
+
+
+def _build_content_hash(
+    title: str,
+    url: str,
+    published_at: datetime,
+) -> str:
+    hash_input = "|".join(
+        (
+            title.strip().lower(),
+            url.strip().lower(),
+            published_at.isoformat(),
+        )
+    )
+
+    return hashlib.sha256(
+        hash_input.encode("utf-8")
+    ).hexdigest()
+
+
+def _fetch_market_news(
+    api_key: str,
+    category: str = NEWS_CATEGORY,
+) -> list[dict]:
+    response = requests.get(
+        FINNHUB_MARKET_NEWS_URL,
+        params={
+            "category": category,
+            "token": api_key,
+        },
+        timeout=REQUEST_TIMEOUT_SECONDS,
+    )
+
+    if response.status_code != 200:
+        raise RuntimeError(
+            f"Finnhub returned HTTP {response.status_code}."
+        )
+
+    try:
+        payload = response.json()
+    except requests.JSONDecodeError as error:
+        raise RuntimeError(
+            "Finnhub returned invalid JSON."
+        ) from error
+
+    if isinstance(payload, dict):
+        message = (
+            payload.get("error")
+            or payload.get("message")
+        )
+
+        raise RuntimeError(
+            message or "Unexpected Finnhub news response."
+        )
+
+    if not isinstance(payload, list):
+        raise RuntimeError(
+            "Finnhub news response was not a list."
+        )
+
+    return payload
+
+
+def _get_or_create_asset(
+    session,
+    symbol: str,
+) -> MarketAsset:
+    asset = session.scalar(
+        select(MarketAsset).where(
+            MarketAsset.symbol == symbol,
+            MarketAsset.asset_type == "stock",
+        )
+    )
+
+    if asset is not None:
+        return asset
+
+    asset = MarketAsset(
+        symbol=symbol,
+        asset_type="stock",
+        provider_id=symbol,
+        is_active=True,
+    )
+
+    session.add(asset)
+    session.flush()
+
+    return asset
+
+
+def ingest_latest_market_news(
+    category: str = NEWS_CATEGORY,
+) -> dict:
+    api_key = _get_api_key()
+
+    rows = _fetch_market_news(
+        api_key=api_key,
+        category=category,
+    )
+
+    inserted = 0
+    duplicates = 0
+    invalid = 0
+    asset_links_created = 0
+
+    with SessionLocal() as session:
+        for row in rows:
+            title = str(
+                row.get("headline") or ""
+            ).strip()
+
+            url = str(
+                row.get("url") or ""
+            ).strip()
+
+            published_at = _parse_timestamp(
+                row.get("datetime")
+            )
+
+            if not title or not url or published_at is None:
+                invalid += 1
+                continue
+
+            content_hash = _build_content_hash(
+                title=title,
+                url=url,
+                published_at=published_at,
+            )
+
+            existing_article = session.scalar(
+                select(MarketNewsArticle).where(
+                    MarketNewsArticle.content_hash
+                    == content_hash
+                )
+            )
+
+            if existing_article is not None:
+                duplicates += 1
+                continue
+
+            provider_article_id = row.get("id")
+
+            article = MarketNewsArticle(
+                provider=NEWS_PROVIDER,
+                provider_article_id=(
+                    str(provider_article_id)
+                    if provider_article_id is not None
+                    else None
+                ),
+                title=title,
+                summary=(
+                    str(row.get("summary")).strip()
+                    if row.get("summary")
+                    else None
+                ),
+                url=url,
+                image_url=(
+                    str(row.get("image")).strip()
+                    if row.get("image")
+                    else None
+                ),
+                source_name=(
+                    str(row.get("source")).strip()
+                    if row.get("source")
+                    else None
+                ),
+                author=None,
+                article_type=ARTICLE_TYPE,
+                published_at=published_at,
+                content_hash=content_hash,
+                raw_payload=row,
+            )
+
+            session.add(article)
+            session.flush()
+
+            for symbol in _extract_symbols(row):
+                asset = _get_or_create_asset(
+                    session=session,
+                    symbol=symbol,
+                )
+
+                session.add(
+                    MarketNewsArticleAsset(
+                        article_id=article.id,
+                        asset_id=asset.id,
+                    )
+                )
+
+                asset_links_created += 1
+
+            inserted += 1
+
+        session.commit()
+
+    return {
+        "status": "success",
+        "provider": NEWS_PROVIDER,
+        "article_type": ARTICLE_TYPE,
+        "category": category,
+        "articles_received": len(rows),
+        "inserted": inserted,
+        "duplicates_skipped": duplicates,
+        "invalid_skipped": invalid,
+        "asset_links_created": asset_links_created,
+    }
+
+
+if __name__ == "__main__":
+    try:
+        result = ingest_latest_market_news()
+    except Exception as error:
+        result = {
+            "status": "failed",
+            "provider": NEWS_PROVIDER,
+            "error": str(error),
+        }
+
+    print(
+        json.dumps(
+            result,
+            indent=2,
+            default=str,
+        )
+    )

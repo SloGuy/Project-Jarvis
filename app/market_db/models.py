@@ -6,6 +6,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    JSON,
     Numeric,
     String,
     Text,
@@ -47,6 +48,10 @@ class MarketAsset(Base):
     )
 
     observations: Mapped[list["PriceObservation"]] = relationship(
+        back_populates="asset",
+        cascade="all, delete-orphan",
+    )
+    news_links: Mapped[list["MarketNewsArticleAsset"]] = relationship(
         back_populates="asset",
         cascade="all, delete-orphan",
     )
@@ -126,3 +131,143 @@ class MarketAlert(Base):
         nullable=False,
     )
 
+
+class MarketNewsArticle(Base):
+    __tablename__ = "market_news_articles"
+    __table_args__ = (
+        UniqueConstraint(
+            "provider",
+            "provider_article_id",
+            name="uq_market_news_provider_article",
+        ),
+        UniqueConstraint(
+            "content_hash",
+            name="uq_market_news_content_hash",
+        ),
+        Index(
+            "ix_market_news_published_at",
+            "published_at",
+        ),
+        Index(
+            "ix_market_news_provider_published",
+            "provider",
+            "published_at",
+        ),
+        Index(
+            "ix_market_news_type_published",
+            "article_type",
+            "published_at",
+        ),
+        Index(
+            "ix_market_news_processed_published",
+            "processed",
+            "published_at",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    provider: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+    )
+    provider_article_id: Mapped[str | None] = mapped_column(
+        String(255),
+    )
+    title: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+    )
+    summary: Mapped[str | None] = mapped_column(Text)
+    url: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+    )
+    image_url: Mapped[str | None] = mapped_column(Text)
+    source_name: Mapped[str | None] = mapped_column(
+        String(255),
+    )
+    author: Mapped[str | None] = mapped_column(
+        String(255),
+    )
+    article_type: Mapped[str] = mapped_column(
+        String(30),
+        nullable=False,
+    )
+    published_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+    fetched_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utc_now,
+        nullable=False,
+    )
+    sentiment_label: Mapped[str | None] = mapped_column(
+        String(20),
+    )
+    sentiment_score: Mapped[Decimal | None] = mapped_column(
+        Numeric(8, 6),
+    )
+    importance_score: Mapped[Decimal | None] = mapped_column(
+        Numeric(8, 6),
+    )
+    processed: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+    )
+    processing_error: Mapped[str | None] = mapped_column(Text)
+    content_hash: Mapped[str] = mapped_column(
+        String(64),
+        nullable=False,
+    )
+    raw_payload: Mapped[dict | None] = mapped_column(JSON)
+
+    asset_links: Mapped[list["MarketNewsArticleAsset"]] = relationship(
+        back_populates="article",
+        cascade="all, delete-orphan",
+    )
+
+
+class MarketNewsArticleAsset(Base):
+    __tablename__ = "market_news_article_assets"
+    __table_args__ = (
+        UniqueConstraint(
+            "article_id",
+            "asset_id",
+            name="uq_market_news_article_asset",
+        ),
+        Index(
+            "ix_market_news_article_assets_asset_article",
+            "asset_id",
+            "article_id",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    article_id: Mapped[int] = mapped_column(
+        ForeignKey(
+            "market_news_articles.id",
+            ondelete="CASCADE",
+        ),
+        nullable=False,
+    )
+    asset_id: Mapped[int] = mapped_column(
+        ForeignKey(
+            "market_assets.id",
+            ondelete="CASCADE",
+        ),
+        nullable=False,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utc_now,
+        nullable=False,
+    )
+
+    article: Mapped["MarketNewsArticle"] = relationship(
+        back_populates="asset_links",
+    )
+    asset: Mapped["MarketAsset"] = relationship(
+        back_populates="news_links",
+    )
