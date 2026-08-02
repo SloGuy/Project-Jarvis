@@ -24,3 +24,6 @@ venv/
 .env
 __pycache__/
 *.pyc
+
+# Local database backups
+backups/

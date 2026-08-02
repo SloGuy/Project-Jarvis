@@ -151,6 +151,78 @@
             padding: 12px 0;
         }
 
+        .chart-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        select {
+            background: var(--panel-light);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 9px 12px;
+        }
+
+        .chart-wrapper {
+            position: relative;
+            width: 100%;
+            min-height: 340px;
+        }
+
+        #price-chart {
+            display: block;
+            width: 100%;
+            height: 340px;
+        }
+
+        #chart-tooltip {
+            position: absolute;
+            z-index: 10;
+            pointer-events: none;
+            min-width: 150px;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--panel-light);
+            color: var(--text);
+            font-size: 0.85rem;
+            transform: translate(-50%, -110%);
+        }
+
+        #chart-tooltip[hidden] {
+            display: none;
+        }
+
+        #tooltip-price {
+            margin-top: 4px;
+            font-size: 1rem;
+            font-weight: 700;
+        }
+
+        #tooltip-time {
+            margin-top: 3px;
+            color: var(--muted);
+        }
+
+        .chart-stats {
+            display: grid;
+            grid-template-columns:
+                repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .chart-stat {
+            background: var(--panel-light);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+        }
+
         @media (max-width: 700px) {
             header {
                 flex-direction: column;
@@ -175,6 +247,13 @@
             <p class="subtitle" id="summary">
                 Loading intelligence...
             </p>
+            <p
+                id="dashboard-last-updated"
+                class="muted"
+                style="font-size: 0.85rem;"
+            >
+                Last updated: —
+        </p>
         </div>
 
         <div class="status" id="status">
@@ -201,6 +280,106 @@
         <div class="panel">
             <div class="muted">Recent Alerts</div>
             <div class="metric" id="alerts-count">—</div>
+        </div>
+    </section>
+
+    <section
+        class="panel"
+        id="operations-panel"
+        style="margin-bottom: 18px;"
+    >
+        <div
+            style="
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+                gap: 16px;
+                flex-wrap: wrap;
+            "
+        >
+            <div>
+                <h2 style="margin-bottom: 6px;">
+                    Operations Health
+                </h2>
+
+                <div
+                    id="operations-summary"
+                    class="muted"
+                >
+                    Loading operational health...
+                </div>
+
+                <div
+                    id="operations-last-checked"
+                    class="muted"
+                    style="margin-top: 6px; font-size: 0.85rem;"
+                >
+                    Last checked: —
+                </div>
+            </div>
+
+            <div
+                class="status"
+                id="operations-status"
+            >
+                Loading
+            </div>
+        </div>
+
+        <div
+            class="grid summary-grid"
+            style="
+                margin-top: 18px;
+                margin-bottom: 0;
+            "
+        >
+            <div class="chart-stat">
+                <div class="muted">Collector</div>
+                <strong id="collector-status">—</strong>
+                <div
+                    id="collector-details"
+                    class="muted"
+                    style="margin-top: 6px;"
+                >
+                    —
+                </div>
+            </div>
+
+            <div class="chart-stat">
+                <div class="muted">Database</div>
+                <strong id="database-status">—</strong>
+                <div
+                    id="database-details"
+                    class="muted"
+                    style="margin-top: 6px;"
+                >
+                    —
+                </div>
+            </div>
+
+            <div class="chart-stat">
+                <div class="muted">Data Freshness</div>
+                <strong id="freshness-status">—</strong>
+                <div
+                    id="freshness-details"
+                    class="muted"
+                    style="margin-top: 6px;"
+                >
+                    —
+                </div>
+            </div>
+
+            <div class="chart-stat">
+                <div class="muted">Backups</div>
+                <strong id="backup-status">—</strong>
+                <div
+                    id="backup-details"
+                    class="muted"
+                    style="margin-top: 6px;"
+                >
+                    —
+                </div>
+            </div>
         </div>
     </section>
 
@@ -235,6 +414,94 @@
     </section>
 
     <section class="panel" style="margin-bottom: 18px;">
+        <div class="chart-controls">
+            <h2 style="margin: 0; margin-right: auto;">
+                Historical Trend
+                <span
+                    id="chart-window-label"
+                    class="muted"
+                    style="font-size: 0.85rem; margin-left: 8px;"
+                ></span>
+            </h2>
+
+            <label>
+                Asset
+                <select id="chart-symbol">
+                    <option value="BTC">BTC</option>
+                    <option value="ETH">ETH</option>
+                    <option value="XMR">XMR</option>
+                    <option value="XRP">XRP</option>
+                    <option value="SPY">SPY</option>
+                    <option value="QQQ">QQQ</option>
+                    <option value="DIA">DIA</option>
+                    <option value="AAPL">AAPL</option>
+                    <option value="TSLA">TSLA</option>
+                </select>
+            </label>
+
+            <label>
+                Window
+                <select id="chart-hours">
+                    <option value="1">1 hour</option>
+                    <option value="6">6 hours</option>
+                    <option value="24" selected>24 hours</option>
+                    <option value="168">7 days</option>
+                    <option value="720">30 days</option>
+                    <option value="2160">90 days</option>
+                    <option value="8760">1 year</option>
+                    <option value="43800">5 years</option>
+                    <option value="max">Max</option>
+                </select>
+            </label>
+        </div>
+
+        <div class="chart-wrapper">
+            <canvas id="price-chart"></canvas>
+
+            <div id="chart-tooltip" hidden>
+                <strong id="tooltip-symbol">—</strong>
+                <div id="tooltip-price">—</div>
+                <div id="tooltip-time">—</div>
+            </div>
+        </div>
+
+        <div
+            id="chart-coverage"
+            class="muted"
+            style="margin-top: 12px;"
+        >
+            Loading chart coverage...
+        </div>
+
+        <div class="chart-stats">
+            <div class="chart-stat">
+                <div class="muted">Latest</div>
+                <strong id="chart-latest">—</strong>
+            </div>
+
+            <div class="chart-stat">
+                <div class="muted">Change</div>
+                <strong id="chart-change">—</strong>
+            </div>
+
+            <div class="chart-stat">
+                <div class="muted">Low</div>
+                <strong id="chart-low">—</strong>
+            </div>
+
+            <div class="chart-stat">
+                <div class="muted">High</div>
+                <strong id="chart-high">—</strong>
+            </div>
+
+            <div class="chart-stat">
+                <div class="muted">Data Points</div>
+                <strong id="chart-points">—</strong>
+            </div>
+        </div>
+    </section>
+
+    <section class="panel" style="margin-bottom: 18px;">
         <h2>Recent Movers</h2>
         <table>
             <thead>
@@ -257,6 +524,27 @@
 </main>
 
 <script>
+    function statusClass(status) {
+        const normalized = String(status || "").toLowerCase();
+
+        if (normalized === "healthy" || normalized === "fresh") {
+            return "positive";
+        }
+
+        if (normalized === "warning") {
+            return "warning";
+        }
+
+        if (
+            normalized === "critical"
+            || normalized === "unavailable"
+            || normalized === "stale"
+        ) {
+            return "negative";
+        }
+
+        return "neutral";
+    }
     function changeClass(value) {
         if (value > 0) {
             return "positive";
@@ -309,6 +597,598 @@
         `).join("");
     }
 
+    let chartState = {
+        points: [],
+        padding: null,
+        width: 0,
+        height: 0,
+        plotWidth: 0,
+        plotHeight: 0,
+        minimum: 0,
+        maximum: 0,
+    };
+
+    function drawPriceChart(points, hoverIndex = null) {
+        const canvas = document.getElementById("price-chart");
+        const context = canvas.getContext("2d");
+
+        const pixelRatio = window.devicePixelRatio || 1;
+        const width = canvas.clientWidth;
+        const height = canvas.clientHeight;
+
+        canvas.width = width * pixelRatio;
+        canvas.height = height * pixelRatio;
+
+        context.setTransform(
+            pixelRatio,
+            0,
+            0,
+            pixelRatio,
+            0,
+            0
+        );
+
+        context.clearRect(0, 0, width, height);
+
+        if (!points || points.length < 2) {
+            context.fillStyle = "#9ba8c7";
+            context.font = "16px system-ui";
+            context.fillText(
+                "More observations are needed to draw this chart.",
+                24,
+                48
+            );
+            return;
+        }
+
+        const padding = {
+            top: 24,
+            right: 24,
+            bottom: 42,
+            left: 78,
+        };
+
+        const plotWidth =
+            width - padding.left - padding.right;
+
+        const plotHeight =
+            height - padding.top - padding.bottom;
+
+        const prices = points.map(
+            (point) => point.price_usd
+        );
+
+        let minimum = Math.min(...prices);
+        let maximum = Math.max(...prices);
+
+        if (minimum === maximum) {
+            const adjustment =
+                minimum === 0 ? 1 : minimum * 0.001;
+
+            minimum -= adjustment;
+            maximum += adjustment;
+        }
+
+        const priceRange = maximum - minimum;
+
+        chartState = {
+            points,
+            padding,
+            width,
+            height,
+            plotWidth,
+            plotHeight,
+            minimum,
+            maximum,
+        };
+
+        const xForIndex = (index) =>
+            padding.left
+            + (index / (points.length - 1)) * plotWidth;
+
+        const yForPrice = (price) =>
+            padding.top
+            + ((maximum - price) / priceRange) * plotHeight;
+
+        context.strokeStyle = "#2a3652";
+        context.lineWidth = 1;
+        context.fillStyle = "#9ba8c7";
+        context.font = "12px system-ui";
+
+        const gridLines = 4;
+
+        for (let index = 0; index <= gridLines; index += 1) {
+            const ratio = index / gridLines;
+            const y = padding.top + ratio * plotHeight;
+            const value = maximum - ratio * priceRange;
+
+            context.beginPath();
+            context.moveTo(padding.left, y);
+            context.lineTo(width - padding.right, y);
+            context.stroke();
+
+            context.fillText(
+                formatPrice(value),
+                6,
+                y + 4
+            );
+        }
+
+        const firstTime = new Date(
+            points[0].observed_at
+        );
+
+        const latestTime = new Date(
+            points[points.length - 1].observed_at
+        );
+
+        context.fillText(
+            firstTime.toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+            }),
+            padding.left,
+            height - 14
+        );
+
+        const latestLabel =
+            latestTime.toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+            });
+
+        const latestLabelWidth =
+            context.measureText(latestLabel).width;
+
+        context.fillText(
+            latestLabel,
+            width - padding.right - latestLabelWidth,
+            height - 14
+        );
+
+        const firstPrice = prices[0];
+        const latestPrice = prices[prices.length - 1];
+
+        context.strokeStyle =
+            latestPrice >= firstPrice
+                ? "#45d483"
+                : "#ff6b7a";
+
+        context.lineWidth = 3;
+        context.lineJoin = "round";
+        context.lineCap = "round";
+
+        context.beginPath();
+
+        points.forEach((point, index) => {
+            const x = xForIndex(index);
+            const y = yForPrice(point.price_usd);
+
+            if (index === 0) {
+                context.moveTo(x, y);
+            } else {
+                context.lineTo(x, y);
+            }
+        });
+
+        context.stroke();
+
+        const latestX = xForIndex(points.length - 1);
+        const latestY = yForPrice(latestPrice);
+
+        context.fillStyle =
+            latestPrice >= firstPrice
+                ? "#45d483"
+                : "#ff6b7a";
+
+        context.beginPath();
+        context.arc(
+            latestX,
+            latestY,
+            5,
+            0,
+            Math.PI * 2
+        );
+        context.fill();
+
+        if (
+            hoverIndex !== null
+            && hoverIndex >= 0
+            && hoverIndex < points.length
+        ) {
+            const hoverPoint = points[hoverIndex];
+            const hoverX = xForIndex(hoverIndex);
+            const hoverY = yForPrice(hoverPoint.price_usd);
+
+            context.strokeStyle = "#9ba8c7";
+            context.lineWidth = 1;
+
+            context.beginPath();
+            context.moveTo(hoverX, padding.top);
+            context.lineTo(hoverX, height - padding.bottom);
+            context.stroke();
+
+            context.fillStyle = "#f5f7ff";
+            context.beginPath();
+            context.arc(
+                hoverX,
+                hoverY,
+                6,
+                0,
+                Math.PI * 2
+            );
+            context.fill();
+        }
+    }
+
+    function updateChartHover(event) {
+        const canvas = document.getElementById("price-chart");
+        const tooltip = document.getElementById("chart-tooltip");
+        const points = chartState.points;
+
+        if (!points || points.length < 2) {
+            tooltip.hidden = true;
+            return;
+        }
+
+        const rectangle = canvas.getBoundingClientRect();
+
+        const mouseX = event.clientX - rectangle.left;
+
+        const plotStart = chartState.padding.left;
+        const plotEnd = chartState.width - chartState.padding.right;
+
+        if (mouseX < plotStart || mouseX > plotEnd) {
+            tooltip.hidden = true;
+            drawPriceChart(points);
+            return;
+        }
+
+        const ratio = (
+            mouseX - plotStart
+        ) / chartState.plotWidth;
+
+        const index = Math.max(
+            0,
+            Math.min(
+                points.length - 1,
+                Math.round(ratio * (points.length - 1))
+            )
+        );
+
+        const point = points[index];
+        const pointTime = new Date(point.observed_at);
+
+        drawPriceChart(points, index);
+
+        document.getElementById(
+            "tooltip-symbol"
+        ).textContent = document.getElementById(
+            "chart-symbol"
+        ).value;
+
+        document.getElementById(
+            "tooltip-price"
+        ).textContent = formatPrice(point.price_usd);
+
+        document.getElementById(
+            "tooltip-time"
+        ).textContent = pointTime.toLocaleString(
+            [],
+            {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+                hour: "numeric",
+                minute: "2-digit",
+            }
+        );
+
+        const pointX = (
+            chartState.padding.left
+            + (
+                index / (points.length - 1)
+            ) * chartState.plotWidth
+        );
+
+        tooltip.style.left = `${pointX}px`;
+        tooltip.style.top = `${event.clientY - rectangle.top}px`;
+        tooltip.hidden = false;
+    }
+
+
+    function clearChartHover() {
+        const tooltip = document.getElementById("chart-tooltip");
+
+        tooltip.hidden = true;
+
+        if (chartState.points.length) {
+            drawPriceChart(chartState.points);
+        }
+    }
+
+    async function loadTrend() {
+        const symbol =
+            document.getElementById("chart-symbol").value;
+
+        const timeframeSelect =
+            document.getElementById("chart-hours");
+
+        const hours = timeframeSelect.value;
+
+        document.getElementById(
+            "chart-window-label"
+        ).textContent = `· ${timeframeSelect.options[
+            timeframeSelect.selectedIndex
+        ].text}`;
+
+        const query =
+            hours === "max"
+                ? `/market/trend?symbol=${encodeURIComponent(
+                    symbol
+                )}&all_history=true`
+                : `/market/trend?symbol=${encodeURIComponent(
+                    symbol
+                )}&hours=${encodeURIComponent(hours)}`;
+
+        try {
+            const response = await fetch(query);
+
+            if (!response.ok) {
+                throw new Error(
+                    `Trend request failed with status ${response.status}`
+                );
+            }
+
+            const data = await response.json();
+
+            drawPriceChart(data.points);
+
+            const statistics = data.statistics;
+
+            const coverage = document.getElementById(
+                "chart-coverage"
+            );
+
+            const selectedWindow =
+                timeframeSelect.options[
+                    timeframeSelect.selectedIndex
+                ].text;
+
+            if (data.all_history) {
+                coverage.textContent =
+                    `Showing all ${data.available_days.toFixed(1)} `
+                    + `days currently stored for ${data.symbol}.`;
+            } else if (data.window_fully_covered) {
+                coverage.textContent =
+                    `${selectedWindow} is fully covered `
+                    + `for ${data.symbol}.`;
+            } else {
+                coverage.textContent =
+                    `Requested ${selectedWindow}, but Jarvis currently `
+                    + `has ${data.available_days.toFixed(1)} days `
+                    + `of history for ${data.symbol}.`;
+            }
+
+            if (!statistics) {
+                document.getElementById(
+                    "chart-latest"
+                ).textContent = "—";
+
+                document.getElementById(
+                    "chart-change"
+                ).textContent = "—";
+
+                document.getElementById(
+                    "chart-low"
+                ).textContent = "—";
+
+                document.getElementById(
+                    "chart-high"
+                ).textContent = "—";
+
+                document.getElementById(
+                    "chart-points"
+                ).textContent = data.returned || 0;
+
+                return;
+            }
+
+            document.getElementById(
+                "chart-latest"
+            ).textContent = formatPrice(
+                statistics.latest_price_usd
+            );
+
+            const changeElement =
+                document.getElementById("chart-change");
+
+            changeElement.textContent = formatPercent(
+                statistics.change_percent
+            );
+
+            changeElement.className = changeClass(
+                statistics.change_percent
+            );
+
+            document.getElementById(
+                "chart-low"
+            ).textContent = formatPrice(
+                statistics.lowest_price_usd
+            );
+
+            document.getElementById(
+                "chart-high"
+            ).textContent = formatPrice(
+                statistics.highest_price_usd
+            );
+
+            document.getElementById(
+                "chart-points"
+            ).textContent = data.returned;
+        } catch (error) {
+            drawPriceChart([]);
+            console.error(error);
+        }
+    }
+
+    function formatAge(seconds) {
+        if (seconds === null || seconds === undefined) {
+            return "Unavailable";
+        }
+
+        if (seconds < 60) {
+            return `${Math.round(seconds)} seconds ago`;
+        }
+
+        if (seconds < 3600) {
+            return `${Math.round(seconds / 60)} minutes ago`;
+        }
+
+        return `${(seconds / 3600).toFixed(1)} hours ago`;
+    }
+
+    async function loadOperations() {
+        try {
+            const response = await fetch("/market/operations");
+
+            if (!response.ok) {
+                throw new Error(
+                    `Operations request failed with status ${response.status}`
+                );
+            }
+
+            const data = await response.json();
+
+            document.getElementById(
+                "operations-status"
+            ).textContent = data.status;
+
+            document.getElementById(
+                "operations-status"
+            ).className = `status ${statusClass(
+                data.status
+            )}`;
+
+            const operationsPanel =
+                document.getElementById(
+                    "operations-panel"
+                );
+
+            operationsPanel.style.borderColor =
+                data.status === "healthy"
+                    ? "var(--positive)"
+                    : data.status === "warning"
+                        ? "var(--warning)"
+                        : "var(--negative)";
+
+            document.getElementById(
+                "operations-summary"
+            ).textContent = data.summary;
+
+            document.getElementById(
+                "operations-last-checked"
+            ).textContent =
+                "Last checked: "
+                + new Date(
+                    data.generated_at
+            ).toLocaleString([], {
+                hour: "numeric",
+                minute: "2-digit",
+                second: "2-digit",
+                month: "short",
+                day: "numeric",
+            });
+
+            document.getElementById(
+                "collector-status"
+            ).textContent = data.collector.status;
+
+            document.getElementById(
+                "collector-status"
+            ).className = statusClass(
+                data.collector.status
+            );
+
+            document.getElementById(
+                "collector-details"
+            ).textContent = data.collector.timer_active
+                ? `Last run: ${data.collector.last_run_result} · `
+                    + `Exit: ${data.collector.last_run_exit_status} · `
+                    + `Data ${formatAge(
+                        data.collector.last_collection_age_seconds
+                )}`
+                : "Collector timer inactive";
+
+            document.getElementById(
+                "database-status"
+            ).textContent = data.database.status;
+
+            document.getElementById(
+                "database-status"
+            ).className = statusClass(
+                data.database.status
+            );
+
+            document.getElementById(
+                "database-details"
+            ).textContent = data.database.reachable
+                ? `${data.database.statistics.total_observations.toLocaleString()} observations stored`
+                : "Database unavailable";
+
+            document.getElementById(
+                "freshness-status"
+            ).textContent = data.collector.fresh
+                ? "fresh"
+                : "stale";
+
+            document.getElementById(
+                "freshness-status"
+            ).className = statusClass(
+                data.collector.fresh
+                    ? "fresh"
+                    : "stale"
+            );
+
+            document.getElementById(
+                "freshness-details"
+            ).textContent = data.collector.last_collection_at
+                ? `Latest observation ${formatAge(
+                    data.collector.last_collection_age_seconds
+                )}`
+                : "No observations available";
+
+            document.getElementById(
+                "backup-status"
+            ).textContent = data.backup.status;
+
+            document.getElementById(
+                "backup-status"
+            ).className = statusClass(
+                data.backup.status
+            );
+
+            document.getElementById(
+                "backup-details"
+            ).textContent = data.backup.latest_backup
+                ? `${data.backup.backup_count} retained · Latest ${formatAge(
+                    data.backup.latest_backup.age_seconds
+                )}`
+                : "No backups found";
+        } catch (error) {
+            document.getElementById(
+                "operations-status"
+            ).textContent = "unavailable";
+
+            document.getElementById(
+                "operations-summary"
+            ).textContent =
+                "Operational health could not be loaded.";
+
+            console.error(error);
+        }
+    }
+
     async function loadIntelligence() {
         try {
             const response = await fetch("/market/intelligence");
@@ -326,6 +1206,20 @@
 
             document.getElementById("summary").textContent =
                 data.summary;
+
+            document.getElementById(
+                "dashboard-last-updated"
+            ).textContent =
+                "Last updated: "
+                + new Date(
+                    data.generated_at
+                ).toLocaleString([], {
+                    hour: "numeric",
+                    minute: "2-digit",
+                    second: "2-digit",
+                    month: "short",
+                    day: "numeric",
+                });
 
             document.getElementById("tracked-assets").textContent =
                 data.database.active_assets;
@@ -401,15 +1295,101 @@
                 `;
             } else {
                 alerts.innerHTML =
-                    data.alerts.alerts.map((alert) => `
-                        <div class="alert">
-                            <strong>
-                                ${alert.symbol}
-                                · ${alert.severity}
-                            </strong>
-                            <div>${alert.message}</div>
-                        </div>
-                    `).join("");
+                    data.alerts.alerts.map((alert) => {
+                        const move =
+                            alert.move_percent;
+
+                        const direction =
+                            move > 0
+                                ? "▲"
+                                : move < 0
+                                    ? "▼"
+                                    : "•";
+
+                        const observedAt =
+                            alert.created_at
+                            || alert.observed_at
+                            || alert.triggered_at;
+
+                        return `
+                            <div class="alert">
+                                <div
+                                    style="
+                                        display: flex;
+                                        justify-content: space-between;
+                                        gap: 14px;
+                                        align-items: flex-start;
+                                    "
+                                >
+                                    <div>
+                                        <strong>
+                                            ${direction}
+                                            ${alert.symbol}
+                                        </strong>
+
+                                        <span
+                                            class="${statusClass(
+                                                alert.severity
+                                            )}"
+                                            style="
+                                                margin-left: 8px;
+                                                text-transform: uppercase;
+                                                font-size: 0.75rem;
+                                            "
+                                        >
+                                            ${alert.severity}
+                                        </span>
+                                    </div>
+
+                                    <div
+                                        class="muted"
+                                        style="
+                                            font-size: 0.82rem;
+                                            white-space: nowrap;
+                                        "
+                                    >
+                                        ${observedAt
+                                            ? formatAge(
+                                                (
+                                                    Date.now()
+                                                    - new Date(
+                                                        observedAt
+                                                    ).getTime()
+                                                ) / 1000
+                                            )
+                                            : "Time unavailable"
+                                        }
+                                    </div>
+                                </div>
+
+                                <div
+                                    style="
+                                        margin-top: 8px;
+                                        line-height: 1.45;
+                                    "
+                                >
+                                    ${alert.message}
+                                </div>
+
+                                ${
+                                    move !== null
+                                    && move !== undefined
+                                        ? `
+                                            <div
+                                                class="${changeClass(move)}"
+                                                style="
+                                                    margin-top: 8px;
+                                                    font-weight: 700;
+                                                "
+                                            >
+                                                ${formatPercent(move)}
+                                            </div>
+                                        `
+                                        : ""
+                                }
+                            </div>
+                        `;
+                    }).join("");
             }
         } catch (error) {
             document.getElementById("status").textContent =
@@ -420,8 +1400,31 @@
         }
     }
 
+    document.getElementById(
+        "price-chart"
+    ).addEventListener("mousemove", updateChartHover);
+
+    document.getElementById(
+        "price-chart"
+    ).addEventListener("mouseleave", clearChartHover);
+
+    document.getElementById(
+        "chart-symbol"
+    ).addEventListener("change", loadTrend);
+
+    document.getElementById(
+        "chart-hours"
+    ).addEventListener("change", loadTrend);
+
+    window.addEventListener("resize", loadTrend);
+
     loadIntelligence();
+    loadTrend();
+    loadOperations();
+
     setInterval(loadIntelligence, 60000);
+    setInterval(loadTrend, 60000);
+    setInterval(loadOperations, 60000);
 </script>
 </body>
 </html>

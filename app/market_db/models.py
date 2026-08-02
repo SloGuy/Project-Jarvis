@@ -55,6 +55,12 @@ class MarketAsset(Base):
 class PriceObservation(Base):
     __tablename__ = "price_observations"
     __table_args__ = (
+        UniqueConstraint(
+            "asset_id",
+            "provider",
+            "observed_at",
+            name="uq_price_observations_asset_provider_time",
+        ),
         Index(
             "ix_price_observations_asset_observed",
             "asset_id",
