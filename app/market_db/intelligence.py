@@ -238,6 +238,19 @@ def get_market_intelligence(
 
     all_assets = stocks + crypto
 
+    if database["total_alerts"] == 0:
+        insights.append(
+            "No threshold-based market alerts have been triggered."
+        )
+    elif database["total_alerts"] == 1:
+        insights.append(
+            "1 market alert has been recorded."
+        )
+    else:
+        insights.append(
+            f'{database["total_alerts"]} market alerts have been recorded.'
+        )
+
     if all_assets:
         top_mover = max(
             all_assets,
