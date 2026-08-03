@@ -1,3 +1,4 @@
+from datetime import datetime
 from decimal import Decimal
 
 from sqlalchemy import select
@@ -36,12 +37,16 @@ def detect_and_store_alerts(
         for move in analysis["moves"]:
             move_percent = move["interval_change_percent"]
 
+            observed_at = datetime.fromisoformat(
+                move["latest_observed_at"]
+            )
+
             duplicate = session.scalar(
                 select(MarketAlert.id).where(
                     MarketAlert.symbol == move["symbol"],
                     MarketAlert.alert_type == "price_move",
                     MarketAlert.observed_at
-                    == move["latest_observed_at"],
+                    == observed_at,
                     MarketAlert.comparison_minutes
                     == comparison_minutes,
                 )
@@ -69,7 +74,7 @@ def detect_and_store_alerts(
                 ),
                 move_percent=Decimal(str(move_percent)),
                 comparison_minutes=comparison_minutes,
-                observed_at=move["latest_observed_at"],
+                observed_at=observed_at,
             )
 
             session.add(alert)

@@ -209,10 +209,60 @@ def get_market_intelligence(
         if asset["asset_type"] == "crypto"
     ]
 
+    insights = []
+
+    if latest_age is not None and latest_age <= 1800:
+        insights.append(
+            "All market feeds are current."
+        )
+    elif latest_age is not None:
+        insights.append(
+            "Market data may be stale."
+        )
+
+    if database["news_articles"] == 0:
+        insights.append(
+            "No market news articles are currently stored."
+        )
+    elif database["unprocessed_news_articles"] > 0:
+        insights.append(
+            (
+                f'{database["unprocessed_news_articles"]} market news '
+                "articles are waiting to be processed."
+            )
+        )
+    else:
+        insights.append(
+            "All stored market news articles have been processed."
+        )
+
+    all_assets = stocks + crypto
+
+    if all_assets:
+        top_mover = max(
+            all_assets,
+            key=lambda asset: abs(
+                asset["provider_change_percent"] or 0
+            ),
+        )
+
+        top_move = top_mover["provider_change_percent"]
+
+        if top_move is not None:
+            direction = "up" if top_move > 0 else "down"
+
+            insights.append(
+                (
+                    f'{top_mover["symbol"]} is the strongest current '
+                    f'mover, {direction} {abs(top_move):.3f}%.'
+                )
+            )
+
     return {
         "status": status,
         "generated_at": generated_at.isoformat(),
         "summary": summary,
+        "insights": insights,
         "comparison_minutes": comparison_minutes,
         "mover_threshold_percent": mover_threshold_percent,
         "database": database,

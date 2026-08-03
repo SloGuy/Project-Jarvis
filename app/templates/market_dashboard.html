@@ -278,15 +278,26 @@
         </div>
 
         <div class="panel">
-            <div class="muted">Recent Alerts</div>
-            <div class="metric" id="alerts-count">—</div>
+            <div class="muted">Stored News Articles</div>
+            <div class="metric" id="news-count">—</div>
+        </div>
+    </section>
+
+    <section
+        class="panel"
+        style="margin-bottom: 18px;"
+    >
+        <h2>Jarvis Insights</h2>
+        <div id="insights">
+            <div class="empty">
+                Loading insights...
+            </div>
         </div>
     </section>
 
     <section
         class="panel"
         id="operations-panel"
-        style="margin-bottom: 18px;"
     >
         <div
             style="
@@ -1225,13 +1236,13 @@
                 data.database.active_assets;
 
             document.getElementById("observations").textContent =
-                data.database.total_observations;
+                data.database.total_observations.toLocaleString();
 
             document.getElementById("movers-count").textContent =
                 data.movers.count;
 
-            document.getElementById("alerts-count").textContent =
-                data.alerts.returned;
+            document.getElementById("news-count").textContent =
+                data.database.news_articles.toLocaleString();
 
             renderAssets(
                 "stocks-body",
@@ -1282,6 +1293,23 @@
                             </td>
                         </tr>
                     `).join("");
+            }
+
+            const insights =
+                document.getElementById("insights");
+
+            if (!data.insights || data.insights.length === 0) {
+                insights.innerHTML = `
+                    <div class="empty">
+                        No market insights are available.
+                    </div>
+                `;
+            } else {
+                insights.innerHTML = data.insights.map((insight) => `
+                    <div class="alert">
+                        ${insight}
+                    </div>
+                `).join("");
             }
 
             const alerts =
