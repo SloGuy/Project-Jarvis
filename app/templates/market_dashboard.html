@@ -528,6 +528,11 @@
         </table>
     </section>
 
+    <section class="panel" style="margin-bottom: 18px;">
+        <h2>Recent Linked News</h2>
+        <div id="recent-news"></div>
+    </section>
+
     <section class="panel">
         <h2>Alerts</h2>
         <div id="alerts"></div>
@@ -1310,6 +1315,84 @@
                         ${insight}
                     </div>
                 `).join("");
+            }
+
+            const recentNews =
+                document.getElementById("recent-news");
+
+            const newsArticles =
+                data.recent_news?.articles || [];
+
+            if (newsArticles.length === 0) {
+                recentNews.innerHTML = `
+                    <div class="empty">
+                        No recent news is linked to tracked assets.
+                    </div>
+                `;
+            } else {
+                recentNews.innerHTML = newsArticles.map((article) => {
+                    const publishedAt = article.published_at
+                        ? new Date(article.published_at).toLocaleString([], {
+                            month: "short",
+                            day: "numeric",
+                            hour: "numeric",
+                            minute: "2-digit",
+                        })
+                        : "Unknown time";
+
+                    const source =
+                        article.source_name
+                        || article.provider
+                        || "Unknown source";
+
+                    return `
+                        <div class="alert">
+                            <div
+                                style="
+                                    display: flex;
+                                    justify-content: space-between;
+                                    gap: 14px;
+                                    align-items: flex-start;
+                                "
+                            >
+                                <div>
+                                    <strong>${article.symbol}</strong>
+
+                                    <a
+                                        href="${article.url}"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        style="
+                                            margin-left: 8px;
+                                            color: inherit;
+                                            font-weight: 600;
+                                        "
+                                    >
+                                        ${article.title}
+                                    </a>
+
+                                    <div
+                                        class="muted"
+                                        style="margin-top: 8px;"
+                                    >
+                                        ${article.summary || "No summary available."}
+                                    </div>
+                                </div>
+
+                                <div
+                                    class="muted"
+                                    style="
+                                        white-space: nowrap;
+                                        text-align: right;
+                                    "
+                                >
+                                    ${source}<br>
+                                    ${publishedAt}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join("");
             }
 
             const alerts =

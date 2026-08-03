@@ -12,6 +12,7 @@ from app.market_db.models import (
     PriceObservation,
 )
 from app.market_db.moves import get_latest_market_moves
+from app.market_db.news_queries import get_recent_market_news
 
 
 def _utc_now() -> datetime:
@@ -184,6 +185,8 @@ def get_market_intelligence(
 
     alerts = get_recent_alerts(limit=alert_limit)
 
+    recent_news = get_recent_market_news(limit=10)
+
     latest_age = database["latest_observation_age_seconds"]
 
     if latest_age is None:
@@ -234,6 +237,22 @@ def get_market_intelligence(
     else:
         insights.append(
             "All stored market news articles have been processed."
+        )
+
+    if database["news_asset_links"] == 0:
+        insights.append(
+            "No market news articles are currently linked to tracked assets."
+        )
+    elif database["news_asset_links"] == 1:
+        insights.append(
+            "1 market news article is linked to a tracked asset."
+        )
+    else:
+        insights.append(
+            (
+                f'{database["news_asset_links"]} market news links '
+                "have been created for tracked assets."
+            )
         )
 
     all_assets = stocks + crypto
@@ -288,4 +307,5 @@ def get_market_intelligence(
             "assets": moves["moves"],
         },
         "alerts": alerts,
+        "recent_news": recent_news,
     }

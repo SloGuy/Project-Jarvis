@@ -16,6 +16,7 @@ from app.market_db.intelligence import get_market_intelligence
 from app.market_db.trends import get_asset_trend
 from app.market_db.backup_status import get_market_backup_status
 from app.market_db.operations import get_market_operations
+from app.market_db.news_queries import get_recent_market_news
 
 
 app = FastAPI(
@@ -183,6 +184,26 @@ def market_alerts(
     ),
 ):
     return get_recent_alerts(limit=limit)
+
+@app.get("/market/news")
+def market_news(
+    symbol: str | None = Query(
+        default=None,
+        min_length=1,
+        max_length=20,
+        description="Optional tracked asset symbol, such as AAPL, SPY, or BTC.",
+    ),
+    limit: int = Query(
+        default=25,
+        ge=1,
+        le=100,
+        description="Maximum number of linked news articles to return.",
+    ),
+):
+    return get_recent_market_news(
+        symbol=symbol,
+        limit=limit,
+    )
 
 @app.get("/market/intelligence")
 def market_intelligence(

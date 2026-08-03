@@ -12,6 +12,7 @@ from app.market_db.models import (
     MarketNewsArticle,
     MarketNewsArticleAsset,
 )
+from app.market_db.news_linker import link_news_articles
 
 
 FINNHUB_MARKET_NEWS_URL = "https://finnhub.io/api/v1/news"
@@ -285,6 +286,8 @@ def ingest_latest_market_news(
 
         session.commit()
 
+    linking_result = link_news_articles()
+
     return {
         "status": "success",
         "provider": NEWS_PROVIDER,
@@ -295,6 +298,7 @@ def ingest_latest_market_news(
         "duplicates_skipped": duplicates,
         "invalid_skipped": invalid,
         "asset_links_created": asset_links_created,
+        "news_processing": linking_result,
     }
 
 
