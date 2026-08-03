@@ -464,6 +464,16 @@
                     <option value="max">Max</option>
                 </select>
             </label>
+
+            <label>
+                News Lookback
+                <select id="news-lookback-hours">
+                    <option value="24">24 hours</option>
+                    <option value="72">3 days</option>
+                    <option value="168" selected>7 days</option>
+                    <option value="720">30 days</option>
+                </select>
+            </label>
         </div>
 
         <div class="chart-wrapper">
@@ -509,6 +519,14 @@
                 <div class="muted">Data Points</div>
                 <strong id="chart-points">—</strong>
             </div>
+        </div>
+    </section>
+
+    <section class="panel" style="margin-bottom:18px;">
+        <h2>Move Explanation</h2>
+
+        <div id="move-explanation" class="muted">
+            Select an asset to load an explanation.
         </div>
     </section>
 
@@ -1048,6 +1066,90 @@
         }
     }
 
+    async function loadMoveExplanation() {
+        const symbol =
+            document.getElementById("chart-symbol").value;
+
+        const newsLookbackHours =
+            document.getElementById(
+                "news-lookback-hours"
+            ).value;
+
+        const explanation =
+            document.getElementById("move-explanation");
+
+        explanation.textContent =
+            "Loading explanation...";
+
+        try {
+            const response = await fetch(
+                `/market/explain?symbol=${encodeURIComponent(symbol)}`
+                + `&comparison_minutes=1440`
+                + `&news_lookback_hours=${encodeURIComponent(
+                    newsLookbackHours
+                )}`
+            );
+
+            if (!response.ok) {
+                throw new Error(
+                    `Explain request failed with status ${response.status}`
+                );
+            }
+
+            const data = await response.json();
+
+            let html = `
+                <div class="alert">
+                    <strong>${data.symbol}</strong><br>
+                    ${data.summary}
+                </div>
+            `;
+
+            if (data.provider_context) {
+                html += `
+                    <div class="alert">
+                        ${data.provider_context}
+                    </div>
+                `;
+            }
+
+            if (data.related_news.length > 0) {
+                html += data.related_news.map(article => `
+                    <div class="alert">
+                        <strong>${article.symbol}</strong><br>
+                        <a
+                            href="${article.url}"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            ${article.title}
+                        </a>
+                        <div class="muted">
+                            ${article.timing_relevance.toUpperCase()}
+                            relevance •
+                            ${article.hours_before_latest_observation}
+                            hours before observation
+                        </div>
+                    </div>
+                `).join("");
+            }
+
+            html += `
+                <div class="muted" style="margin-top:12px;">
+                    ${data.disclaimer}
+                </div>
+            `;
+
+            explanation.innerHTML = html;
+
+        } catch (error) {
+            console.error(error);
+
+            explanation.textContent =
+                "Unable to load move explanation.";
+        }
+    }
+
     function formatAge(seconds) {
         if (seconds === null || seconds === undefined) {
             return "Unavailable";
@@ -1521,20 +1623,32 @@
 
     document.getElementById(
         "chart-symbol"
-    ).addEventListener("change", loadTrend);
+    ).addEventListener("change", () => {
+        loadTrend();
+        loadMoveExplanation();
+    });
 
     document.getElementById(
         "chart-hours"
     ).addEventListener("change", loadTrend);
 
+    document.getElementById(
+        "news-lookback-hours"
+    ).addEventListener(
+        "change",
+        loadMoveExplanation
+    );
+
     window.addEventListener("resize", loadTrend);
 
     loadIntelligence();
     loadTrend();
+    loadMoveExplanation();
     loadOperations();
 
     setInterval(loadIntelligence, 60000);
     setInterval(loadTrend, 60000);
+    setInterval(loadMoveExplanation, 60000);
     setInterval(loadOperations, 60000);
 </script>
 </body>

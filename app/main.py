@@ -17,6 +17,7 @@ from app.market_db.trends import get_asset_trend
 from app.market_db.backup_status import get_market_backup_status
 from app.market_db.operations import get_market_operations
 from app.market_db.news_queries import get_recent_market_news
+from app.market_db.move_explainer import explain_market_move
 
 
 app = FastAPI(
@@ -203,6 +204,41 @@ def market_news(
     return get_recent_market_news(
         symbol=symbol,
         limit=limit,
+    )
+
+
+@app.get("/market/explain")
+def market_explain(
+    symbol: str = Query(
+        ...,
+        min_length=1,
+        max_length=20,
+        description="Tracked asset symbol such as AAPL, TSLA, BTC, or SPY.",
+    ),
+    comparison_minutes: int = Query(
+        default=1440,
+        ge=1,
+        le=43800,
+        description="Price comparison interval in minutes.",
+    ),
+    news_lookback_hours: int = Query(
+        default=72,
+        ge=1,
+        le=720,
+        description="How far back to search for linked news.",
+    ),
+    news_limit: int = Query(
+        default=25,
+        ge=1,
+        le=100,
+        description="Maximum number of linked articles to consider.",
+    ),
+):
+    return explain_market_move(
+        symbol=symbol,
+        comparison_minutes=comparison_minutes,
+        news_lookback_hours=news_lookback_hours,
+        news_limit=news_limit,
     )
 
 @app.get("/market/intelligence")
