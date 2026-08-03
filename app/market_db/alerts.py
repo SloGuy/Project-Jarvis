@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 from sqlalchemy import select
@@ -24,6 +24,7 @@ def _severity(move_percent: float) -> str:
 def detect_and_store_alerts(
     comparison_minutes: int = 15,
     threshold_percent: float = 0.75,
+    cooldown_minutes: int = 60,
 ) -> dict:
     analysis = get_latest_market_moves(
         comparison_minutes=comparison_minutes,
@@ -32,6 +33,12 @@ def detect_and_store_alerts(
 
     created = []
     skipped_duplicates = 0
+    skipped_cooldowns = 0
+
+    cooldown_started_at = (
+        datetime.now(timezone.utc)
+        - timedelta(minutes=cooldown_minutes)
+    )
 
     with SessionLocal() as session:
         for move in analysis["moves"]:
@@ -58,6 +65,47 @@ def detect_and_store_alerts(
 
             direction = move["direction"]
             severity = _severity(move_percent)
+
+            recent_alert = session.scalar(
+                select(MarketAlert)
+                .where(
+                    MarketAlert.symbol == move["symbol"],
+                    MarketAlert.alert_type == "price_move",
+                    MarketAlert.comparison_minutes
+                    == comparison_minutes,
+                    MarketAlert.created_at
+                    >= cooldown_started_at,
+                )
+                .order_by(MarketAlert.created_at.desc())
+                .limit(1)
+            )
+
+            if recent_alert is not None:
+                recent_direction = (
+                    "up"
+                    if recent_alert.move_percent > 0
+                    else "down"
+                )
+
+                severity_rank = {
+                    "low": 1,
+                    "medium": 2,
+                    "high": 3,
+                    "critical": 4,
+                }
+
+                same_direction = (
+                    recent_direction == direction
+                )
+
+                severity_increased = (
+                    severity_rank[severity]
+                    > severity_rank[recent_alert.severity]
+                )
+
+                if same_direction and not severity_increased:
+                    skipped_cooldowns += 1
+                    continue
 
             alert = MarketAlert(
                 symbol=move["symbol"],
@@ -95,6 +143,8 @@ def detect_and_store_alerts(
         "comparison_minutes": comparison_minutes,
         "alerts_created": len(created),
         "duplicates_skipped": skipped_duplicates,
+        "cooldown_minutes": cooldown_minutes,
+        "cooldowns_skipped": skipped_cooldowns,
         "alerts": created,
     }
 
