@@ -19,6 +19,11 @@ def get_recent_market_news(
             select(
                 MarketNewsArticle,
                 MarketAsset.symbol,
+                MarketNewsArticleAsset.link_type,
+                MarketNewsArticleAsset.linked_by,
+                MarketNewsArticleAsset.match_reason,
+                MarketNewsArticleAsset.matched_text,
+                MarketNewsArticleAsset.confidence_score,
             )
             .join(
                 MarketNewsArticleAsset,
@@ -49,7 +54,15 @@ def get_recent_market_news(
 
         articles = []
 
-        for article, asset_symbol in rows:
+        for (
+            article,
+            asset_symbol,
+            link_type,
+            linked_by,
+            match_reason,
+            matched_text,
+            confidence_score,
+        ) in rows:
             articles.append(
                 {
                     "id": article.id,
@@ -65,6 +78,15 @@ def get_recent_market_news(
                     ),
                     "provider": article.provider,
                     "article_type": article.article_type,
+                    "link_type": link_type,
+                    "linked_by": linked_by,
+                    "match_reason": match_reason,
+                    "matched_text": matched_text,
+                    "link_confidence_score": (
+                        float(confidence_score)
+                        if confidence_score is not None
+                        else None
+                    ),
                 }
             )
 

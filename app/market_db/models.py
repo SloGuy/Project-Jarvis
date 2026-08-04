@@ -259,6 +259,23 @@ class MarketNewsArticleAsset(Base):
         ),
         nullable=False,
     )
+    link_type: Mapped[str] = mapped_column(
+        String(30),
+        default="legacy",
+        nullable=False,
+    )
+    linked_by: Mapped[str] = mapped_column(
+        String(30),
+        default="legacy",
+        nullable=False,
+    )
+    match_reason: Mapped[str | None] = mapped_column(Text)
+    matched_text: Mapped[str | None] = mapped_column(Text)
+    confidence_score: Mapped[Decimal] = mapped_column(
+        Numeric(5, 4),
+        default=Decimal("0.5000"),
+        nullable=False,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=utc_now,

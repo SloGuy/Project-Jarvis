@@ -2,6 +2,11 @@ from datetime import datetime, timezone
 
 from app.market_db.moves import get_latest_market_moves
 from app.market_db.news_queries import get_recent_market_news
+from app.market_db.evidence_fusion import (
+    build_evidence_summary,
+    fuse_evidence,
+    rank_evidence,
+)
 
 
 def _parse_datetime(value: str | None) -> datetime | None:
@@ -50,6 +55,72 @@ def _rank_news(
         else:
             relevance = "low"
 
+        link_confidence = float(
+            article.get("link_confidence_score") or 0.0
+        )
+
+        matched_text = str(
+            article.get("matched_text") or ""
+        ).strip()
+
+        title_text = str(
+            article.get("title") or ""
+        ).lower()
+
+        summary_text = str(
+            article.get("summary") or ""
+        ).lower()
+
+        normalized_match = matched_text.lower()
+
+        competitor_phrases = (
+            f"{normalized_match} rival",
+            f"{normalized_match} competitor",
+        )
+
+        if (
+            normalized_match
+            and any(
+                phrase in title_text
+                for phrase in competitor_phrases
+            )
+        ):
+            focus_score = 0.55
+            focus_relevance = "competitor_reference"
+        elif normalized_match and normalized_match in title_text:
+            focus_score = 1.0
+            focus_relevance = "headline"
+        elif normalized_match and normalized_match in summary_text:
+            focus_score = 0.70
+            focus_relevance = "summary"
+        elif article.get("link_type") == "company_feed":
+            focus_score = 0.40
+            focus_relevance = "provider_context"
+        else:
+            focus_score = 0.50
+            focus_relevance = "indirect"
+
+        if age_hours <= 6:
+            timing_score = 1.0
+        elif age_hours <= 24:
+            timing_score = 0.75
+        else:
+            timing_score = 0.50
+
+        evidence_score = round(
+            (link_confidence * 0.55)
+            + (timing_score * 0.20)
+            + (focus_score * 0.25),
+            4,
+        )
+
+        if evidence_score >= 0.85:
+            evidence_strength = "high"
+        elif evidence_score >= 0.65:
+            evidence_strength = "medium"
+        else:
+            evidence_strength = "low"
+
         ranked.append(
             {
                 **article,
@@ -58,16 +129,15 @@ def _rank_news(
                     2,
                 ),
                 "timing_relevance": relevance,
+                "timing_score": timing_score,
+                "focus_score": focus_score,
+                "focus_relevance": focus_relevance,
+                "evidence_score": evidence_score,
+                "evidence_strength": evidence_strength,
             }
         )
 
-    ranked.sort(
-        key=lambda article: article[
-            "hours_before_latest_observation"
-        ]
-    )
-
-    return ranked
+    return rank_evidence(ranked)
 
 
 def explain_market_move(
@@ -111,9 +181,18 @@ def explain_market_move(
         news_lookback_hours=news_lookback_hours,
     )
 
+    fusion = fuse_evidence(related_news)
+
     interval_move_percent = (
         move["interval_change_percent"] or 0.0
     )
+
+    evidence_summary = build_evidence_summary(
+        symbol=normalized_symbol,
+        move_percent=interval_move_percent,
+        fusion=fusion,
+    )
+
     provider_move_percent = move.get(
         "provider_change_percent"
     )
@@ -184,9 +263,14 @@ def explain_market_move(
             timezone.utc
         ).isoformat(),
         "symbol": normalized_symbol,
-        "summary": summary,
+        "summary": evidence_summary,
+        "legacy_summary": summary,
         "provider_context": provider_context,
         "confidence": confidence,
+        "evidence_confidence": fusion[
+            "overall_confidence"
+        ],
+        "evidence_fusion": fusion,
         "comparison_minutes": comparison_minutes,
         "news_lookback_hours": news_lookback_hours,
         "move": move,
