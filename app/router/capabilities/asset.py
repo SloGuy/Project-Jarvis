@@ -1,4 +1,5 @@
 import re
+from datetime import datetime
 from typing import Any
 
 from app.market_db.alerts import get_recent_alerts
@@ -38,11 +39,15 @@ REASONING_PATTERNS = (
     r"\bwhy\b",
     r"\bshould\s+i\b",
     r"\bwhat\s+do\s+you\s+think\b",
-    r"\bpredict\b",
+    r"\bpredict(?:ion)?\b",
     r"\bforecast\b",
     r"\boutlook\b",
     r"\bwill\b",
     r"\bcould\b",
+    r"\bwould\b",
+    r"\bbuy\b",
+    r"\bsell\b",
+    r"\binvest\b",
 )
 
 
@@ -51,8 +56,12 @@ DIRECT_ASSET_PATTERNS = (
     r"\bhow(?:'s| is)\b.*\b(?:doing|performing)\b",
     r"\bgive\s+me\b.*\b(?:status|update|report)\b",
     r"\btell\s+me\s+about\b",
-    r"\bshow\s+me\b.*\b(?:price|status|update)\b",
+    r"\bshow\s+me\b.*\b(?:price|status|update|report)\b",
     r"\bcurrent\b.*\bprice\b",
+    r"\blatest\b.*\b(?:price|status|update)\b",
+    r"\bprice\s+of\b",
+    r"\bupdate\s+on\b",
+    r"\bstatus\s+of\b",
 )
 
 
@@ -61,30 +70,48 @@ class AssetCapability(RouterCapability):
     endpoint = "/market/intelligence"
     patterns: tuple[str, ...] = ()
 
+    def _normalize_message(self, message: str) -> str:
+        return " ".join(message.lower().strip().split())
+
     def _extract_symbol(self, message: str) -> str | None:
+        normalized_message = self._normalize_message(message)
+
         for symbol, aliases in ASSET_ALIASES.items():
+            ticker_pattern = rf"(?<!\w)\${re.escape(symbol.lower())}(?!\w)"
+
+            if re.search(ticker_pattern, normalized_message):
+                return symbol
+
             for alias in aliases:
                 pattern = rf"(?<!\w){re.escape(alias)}(?!\w)"
 
-                if re.search(pattern, message):
+                if re.search(pattern, normalized_message):
                     return symbol
 
         return None
 
     def match(self, message: str) -> dict[str, Any] | None:
+        if not isinstance(message, str):
+            return None
+
+        normalized_message = self._normalize_message(message)
+
+        if not normalized_message:
+            return None
+
         if any(
-            re.search(pattern, message)
+            re.search(pattern, normalized_message)
             for pattern in REASONING_PATTERNS
         ):
             return None
 
-        symbol = self._extract_symbol(message)
+        symbol = self._extract_symbol(normalized_message)
 
         if symbol is None:
             return None
 
         if not any(
-            re.search(pattern, message)
+            re.search(pattern, normalized_message)
             for pattern in DIRECT_ASSET_PATTERNS
         ):
             return None
@@ -107,16 +134,21 @@ class AssetCapability(RouterCapability):
         )
 
         market = intelligence.get("market", {})
-        all_assets = (
-            market.get("stocks", [])
-            + market.get("crypto", [])
-        )
+        stocks = market.get("stocks", [])
+        crypto = market.get("crypto", [])
+
+        all_assets = [
+            item
+            for item in stocks + crypto
+            if isinstance(item, dict)
+        ]
 
         asset = next(
             (
                 item
                 for item in all_assets
-                if item.get("symbol") == normalized_symbol
+                if str(item.get("symbol", "")).upper()
+                == normalized_symbol
             ),
             None,
         )
@@ -133,7 +165,8 @@ class AssetCapability(RouterCapability):
         asset_alerts = [
             alert
             for alert in all_alerts.get("alerts", [])
-            if alert.get("symbol") == normalized_symbol
+            if str(alert.get("symbol", "")).upper()
+            == normalized_symbol
         ][:3]
 
         news = get_recent_market_news(
@@ -142,11 +175,17 @@ class AssetCapability(RouterCapability):
         )
 
         return {
+            "status": (
+                "success"
+                if isinstance(asset, dict)
+                else "no_current_observation"
+            ),
             "symbol": normalized_symbol,
             "name": ASSET_NAMES.get(
                 normalized_symbol,
                 normalized_symbol,
             ),
+            "available": isinstance(asset, dict),
             "asset": asset,
             "moves": moves,
             "alerts": {
@@ -158,23 +197,42 @@ class AssetCapability(RouterCapability):
             "generated_at": intelligence.get("generated_at"),
         }
 
-    def _format_price(self, price: float | None) -> str:
-        if price is None:
+    def _format_price(self, price: Any) -> str:
+        try:
+            numeric_price = float(price)
+        except (TypeError, ValueError):
             return "Unavailable"
 
-        if price < 10:
-            return f"${price:,.4f}"
-
-        return f"${price:,.2f}"
-
-    def _format_percent(
-        self,
-        value: float | None,
-    ) -> str:
-        if value is None:
+        if numeric_price < 0:
             return "Unavailable"
 
-        return f"{value:+.2f}%"
+        if numeric_price < 0.01:
+            return f"${numeric_price:,.8f}"
+
+        if numeric_price < 1:
+            return f"${numeric_price:,.6f}"
+
+        if numeric_price < 10:
+            return f"${numeric_price:,.4f}"
+
+        return f"${numeric_price:,.2f}"
+
+    def _format_percent(self, value: Any) -> str:
+        try:
+            numeric_value = float(value)
+        except (TypeError, ValueError):
+            return "Unavailable"
+
+        return f"{numeric_value:+.2f}%"
+
+    def _format_timestamp(self, value: Any) -> str:
+        if not value:
+            return "Unknown"
+
+        if isinstance(value, datetime):
+            return value.isoformat()
+
+        return str(value)
 
     def format_response(
         self,
@@ -187,29 +245,57 @@ class AssetCapability(RouterCapability):
                 "Asset capability expected dictionary data."
             )
 
+        normalized_symbol = symbol.upper().strip()
+        asset_name = data.get(
+            "name",
+            ASSET_NAMES.get(normalized_symbol, normalized_symbol),
+        )
+
+        if data.get("status") == "unavailable":
+            return (
+                f"{asset_name} ({normalized_symbol})\n\n"
+                "This asset is not currently supported by Jarvis."
+            )
+
         asset = data.get("asset")
-        asset_name = data.get("name", symbol)
 
         if not isinstance(asset, dict):
             return (
-                f"{asset_name} ({symbol})\n\n"
+                f"{asset_name} ({normalized_symbol})\n\n"
                 "No current market observation is available."
             )
 
-        moves = data.get("moves", {}).get("moves", [])
-        latest_move = moves[0] if moves else None
+        moves_data = data.get("moves", {})
+        moves = (
+            moves_data.get("moves", [])
+            if isinstance(moves_data, dict)
+            else []
+        )
+
+        latest_move = (
+            moves[0]
+            if moves and isinstance(moves[0], dict)
+            else None
+        )
 
         alerts = data.get("alerts", {})
+        if not isinstance(alerts, dict):
+            alerts = {}
+
         news = data.get("news", {})
-        articles = news.get("articles", [])
+        if not isinstance(news, dict):
+            news = {}
+
+        articles = [
+            article
+            for article in news.get("articles", [])
+            if isinstance(article, dict)
+        ]
 
         lines = [
-            f"{asset_name} ({symbol})",
+            f"{asset_name} ({normalized_symbol})",
             "",
-            (
-                f"Price: "
-                f"{self._format_price(asset.get('price_usd'))}"
-            ),
+            f"Price: {self._format_price(asset.get('price_usd'))}",
             (
                 "Provider change: "
                 f"{self._format_percent(
@@ -219,6 +305,10 @@ class AssetCapability(RouterCapability):
         ]
 
         if latest_move:
+            direction = str(
+                latest_move.get("direction", "unknown")
+            ).lower()
+
             lines.append(
                 (
                     "15-minute move: "
@@ -227,7 +317,7 @@ class AssetCapability(RouterCapability):
                             'interval_change_percent'
                         )
                     )} "
-                    f"({latest_move.get('direction', 'unknown')})"
+                    f"({direction})"
                 )
             )
         else:
@@ -237,18 +327,45 @@ class AssetCapability(RouterCapability):
 
         lines.extend(
             [
-                f"Data source: {asset.get('provider', 'Unknown')}",
-                f"Last observed: {asset.get('observed_at', 'Unknown')}",
+                f"Data source: {asset.get('provider') or 'Unknown'}",
                 (
-                    f"Recent alerts: "
+                    "Last observed: "
+                    f"{self._format_timestamp(
+                        asset.get('observed_at')
+                    )}"
+                ),
+                (
+                    "Recent alerts: "
                     f"{alerts.get('returned', 0)}"
                 ),
                 (
-                    f"Linked news returned: "
+                    "Linked news returned: "
                     f"{news.get('count', 0)}"
                 ),
             ]
         )
+
+        alert_items = [
+            alert
+            for alert in alerts.get("alerts", [])
+            if isinstance(alert, dict)
+        ]
+
+        if alert_items:
+            lines.extend(["", "Recent alerts:"])
+
+            for alert in alert_items[:2]:
+                severity = str(
+                    alert.get("severity", "unknown")
+                ).upper()
+                message = alert.get(
+                    "message",
+                    "Alert details unavailable.",
+                )
+
+                lines.append(
+                    f"- [{severity}] {message}"
+                )
 
         if articles:
             lines.extend(["", "Latest linked news:"])
@@ -263,6 +380,8 @@ class AssetCapability(RouterCapability):
                     "Unknown source",
                 )
 
-                lines.append(f"- {title} — {source}")
+                lines.append(
+                    f"- {title} — {source}"
+                )
 
         return "\n".join(lines)
