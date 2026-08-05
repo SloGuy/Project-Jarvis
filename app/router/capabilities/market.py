@@ -18,14 +18,18 @@ class MarketCapability(RouterCapability):
         r"\bgive\s+me\s+(a\s+)?market\s+brief\b",
     )
 
-    def execute(self) -> dict[str, Any]:
+    def execute(self, **parameters: Any) -> dict[str, Any]:
         return get_market_intelligence(
             comparison_minutes=15,
             mover_threshold_percent=0.25,
             alert_limit=10,
         )
 
-    def format_response(self, data: Any) -> str:
+    def format_response(
+        self,
+        data: Any,
+        **parameters: Any,
+    ) -> str:
         if not isinstance(data, dict):
             raise TypeError("Market capability expected dictionary data.")
 

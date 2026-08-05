@@ -19,7 +19,7 @@ class OverviewCapability(RouterCapability):
         r"\bcurrent\s+(system|server|jarvis)\s+status\b",
     )
 
-    def execute(self) -> dict[str, Any]:
+    def execute(self, **parameters: Any) -> dict[str, Any]:
         return {
             "system": get_system_health(),
             "docker": get_docker_status(),
@@ -27,7 +27,11 @@ class OverviewCapability(RouterCapability):
             "updates": get_update_status(force_refresh=False),
         }
 
-    def format_response(self, data: Any) -> str:
+    def format_response(
+        self,
+        data: Any,
+        **parameters: Any,
+    ) -> str:
         if not isinstance(data, dict):
             raise TypeError("Overview capability expected dictionary data.")
 

@@ -11,6 +11,7 @@ def route_message(message: str) -> dict:
         "intent": decision.intent,
         "endpoint": decision.endpoint,
         "confidence": decision.confidence,
+        "parameters": decision.parameters,
     }
 
     if decision.route_type == RouteType.DIRECT:

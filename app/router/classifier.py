@@ -1,5 +1,3 @@
-import re
-
 from app.router.models import RouteDecision, RouteType
 from app.router.registry import CAPABILITIES
 
@@ -12,18 +10,21 @@ def classify_message(message: str) -> RouteDecision:
     normalized = normalize_message(message)
 
     for capability in CAPABILITIES:
-        for pattern in capability.patterns:
-            if re.search(pattern, normalized):
-                return RouteDecision(
-                    route_type=RouteType.DIRECT,
-                    intent=capability.name,
-                    endpoint=capability.endpoint,
-                    confidence=1.0,
-                )
+        parameters = capability.match(normalized)
+
+        if parameters is not None:
+            return RouteDecision(
+                route_type=RouteType.DIRECT,
+                intent=capability.name,
+                endpoint=capability.endpoint,
+                confidence=1.0,
+                parameters=parameters,
+            )
 
     return RouteDecision(
         route_type=RouteType.LLM,
         intent="general_reasoning",
         endpoint=None,
         confidence=0.0,
+        parameters={},
     )

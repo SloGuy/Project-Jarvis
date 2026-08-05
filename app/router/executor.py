@@ -12,10 +12,13 @@ def execute_direct_route(decision: RouteDecision) -> Any:
             f"Unsupported direct-route intent: {decision.intent}"
         )
 
-    data = capability.execute()
+    data = capability.execute(**decision.parameters)
 
     return {
         "status": "success",
-        "summary": capability.format_response(data),
+        "summary": capability.format_response(
+            data,
+            **decision.parameters,
+        ),
         "data": data,
     }
