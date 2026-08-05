@@ -2,10 +2,12 @@ from app.router.capabilities import (
     AssetCapability,
     MarketCapability,
     OverviewCapability,
+    WatchlistCapability,
 )
 
 
 CAPABILITIES = (
+    WatchlistCapability(),
     AssetCapability(),
     OverviewCapability(),
     MarketCapability(),
