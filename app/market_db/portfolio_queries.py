@@ -2,19 +2,22 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.market_db.database import SessionLocal
 from app.market_db.models import (
     MarketAsset,
     Portfolio,
     PortfolioPosition,
+    PortfolioTransaction,
     PriceObservation,
 )
 
 
 DEFAULT_PORTFOLIO_NAME = "Primary Portfolio"
 DEFAULT_STARTING_CASH = Decimal("100000.00")
+DEFAULT_TRANSACTION_LIMIT = 20
+ZERO = Decimal("0")
 
 
 def _utc_now() -> datetime:
@@ -61,13 +64,126 @@ def _latest_price_observation(
     return session.scalar(
         select(PriceObservation)
         .where(PriceObservation.asset_id == asset_id)
-        .order_by(PriceObservation.observed_at.desc())
+        .order_by(
+            PriceObservation.observed_at.desc(),
+            PriceObservation.id.desc(),
+        )
         .limit(1)
     )
 
 
+def _get_realized_gain_loss(
+    session: Any,
+    portfolio_id: int,
+) -> Decimal:
+    realized_gain_loss = session.scalar(
+        select(
+            func.coalesce(
+                func.sum(
+                    PortfolioTransaction.realized_gain_loss_usd
+                ),
+                ZERO,
+            )
+        ).where(
+            PortfolioTransaction.portfolio_id == portfolio_id,
+            PortfolioTransaction.transaction_type == "sell",
+        )
+    )
+
+    if realized_gain_loss is None:
+        return ZERO
+
+    return Decimal(realized_gain_loss)
+
+
+def _get_transaction_count(
+    session: Any,
+    portfolio_id: int,
+) -> int:
+    transaction_count = session.scalar(
+        select(func.count(PortfolioTransaction.id)).where(
+            PortfolioTransaction.portfolio_id == portfolio_id
+        )
+    )
+
+    return int(transaction_count or 0)
+
+
+def _get_recent_transactions(
+    session: Any,
+    portfolio_id: int,
+    limit: int = DEFAULT_TRANSACTION_LIMIT,
+) -> list[dict[str, Any]]:
+    safe_limit = max(1, min(limit, 100))
+
+    rows = session.execute(
+        select(
+            PortfolioTransaction,
+            MarketAsset,
+        )
+        .outerjoin(
+            MarketAsset,
+            MarketAsset.id == PortfolioTransaction.asset_id,
+        )
+        .where(
+            PortfolioTransaction.portfolio_id == portfolio_id
+        )
+        .order_by(
+            PortfolioTransaction.created_at.desc(),
+            PortfolioTransaction.id.desc(),
+        )
+        .limit(safe_limit)
+    ).all()
+
+    transactions = []
+
+    for transaction, asset in rows:
+        transactions.append(
+            {
+                "id": transaction.id,
+                "portfolio_id": transaction.portfolio_id,
+                "asset_id": transaction.asset_id,
+                "symbol": (
+                    asset.symbol
+                    if asset is not None
+                    else None
+                ),
+                "asset_type": (
+                    asset.asset_type
+                    if asset is not None
+                    else None
+                ),
+                "transaction_type": (
+                    transaction.transaction_type
+                ),
+                "quantity": _to_float(
+                    transaction.quantity
+                ),
+                "price_usd": _to_float(
+                    transaction.price_usd
+                ),
+                "total_usd": _to_float(
+                    transaction.total_usd
+                ),
+                "fees_usd": _to_float(
+                    transaction.fees_usd
+                ),
+                "realized_gain_loss_usd": _to_float(
+                    transaction.realized_gain_loss_usd
+                ),
+                "notes": transaction.notes,
+                "created_at": (
+                    transaction.created_at.isoformat()
+                ),
+            }
+        )
+
+    return transactions
+
+
 def get_portfolio_summary(
     portfolio_id: int | None = None,
+    transaction_limit: int = DEFAULT_TRANSACTION_LIMIT,
 ) -> dict[str, Any]:
     if portfolio_id is None:
         default_portfolio = get_or_create_default_portfolio()
@@ -88,6 +204,7 @@ def get_portfolio_summary(
                 "generated_at": _utc_now().isoformat(),
                 "summary": "Portfolio was not found.",
                 "positions": [],
+                "recent_transactions": [],
             }
 
         rows = session.execute(
@@ -101,15 +218,15 @@ def get_portfolio_summary(
             )
             .where(
                 PortfolioPosition.portfolio_id == portfolio.id,
-                PortfolioPosition.quantity > 0,
+                PortfolioPosition.quantity > ZERO,
             )
             .order_by(MarketAsset.symbol)
         ).all()
 
         positions = []
-        invested_cost_usd = Decimal("0")
-        market_value_usd = Decimal("0")
-        unrealized_gain_loss_usd = Decimal("0")
+        invested_cost_usd = ZERO
+        market_value_usd = ZERO
+        unrealized_gain_loss_usd = ZERO
 
         for position, asset in rows:
             latest = _latest_price_observation(
@@ -143,7 +260,7 @@ def get_portfolio_summary(
 
             if (
                 position_gain_loss is not None
-                and cost_basis != 0
+                and cost_basis != ZERO
             ):
                 position_gain_loss_percent = (
                     position_gain_loss
@@ -157,7 +274,9 @@ def get_portfolio_summary(
                 market_value_usd += position_market_value
 
             if position_gain_loss is not None:
-                unrealized_gain_loss_usd += position_gain_loss
+                unrealized_gain_loss_usd += (
+                    position_gain_loss
+                )
 
             positions.append(
                 {
@@ -205,12 +324,37 @@ def get_portfolio_summary(
             )
 
         cash_balance = portfolio.cash_balance_usd
-        total_value_usd = cash_balance + market_value_usd
+        total_value_usd = (
+            cash_balance + market_value_usd
+        )
+
+        realized_gain_loss_usd = (
+            _get_realized_gain_loss(
+                session=session,
+                portfolio_id=portfolio.id,
+            )
+        )
+
+        total_gain_loss_usd = (
+            realized_gain_loss_usd
+            + unrealized_gain_loss_usd
+        )
+
+        transaction_count = _get_transaction_count(
+            session=session,
+            portfolio_id=portfolio.id,
+        )
+
+        recent_transactions = _get_recent_transactions(
+            session=session,
+            portfolio_id=portfolio.id,
+            limit=transaction_limit,
+        )
 
         cash_allocation_percent = None
         invested_allocation_percent = None
 
-        if total_value_usd != 0:
+        if total_value_usd != ZERO:
             cash_allocation_percent = (
                 cash_balance
                 / total_value_usd
@@ -231,7 +375,7 @@ def get_portfolio_summary(
 
             if (
                 position_value is not None
-                and total_value_usd != 0
+                and total_value_usd != ZERO
             ):
                 allocation_percent = (
                     Decimal(str(position_value))
@@ -266,6 +410,12 @@ def get_portfolio_summary(
             "unrealized_gain_loss_usd": _to_float(
                 unrealized_gain_loss_usd
             ),
+            "realized_gain_loss_usd": _to_float(
+                realized_gain_loss_usd
+            ),
+            "total_gain_loss_usd": _to_float(
+                total_gain_loss_usd
+            ),
             "total_value_usd": _to_float(
                 total_value_usd
             ),
@@ -276,5 +426,7 @@ def get_portfolio_summary(
                 invested_allocation_percent
             ),
             "position_count": len(positions),
+            "transaction_count": transaction_count,
             "positions": positions,
+            "recent_transactions": recent_transactions,
         }

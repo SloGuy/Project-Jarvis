@@ -420,9 +420,9 @@ class PortfolioTransaction(Base):
         ForeignKey("portfolios.id", ondelete="CASCADE"),
         nullable=False,
     )
-    asset_id: Mapped[int] = mapped_column(
+    asset_id: Mapped[int | None] = mapped_column(
         ForeignKey("market_assets.id", ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,
     )
     transaction_type: Mapped[str] = mapped_column(
         String(20),
@@ -445,6 +445,9 @@ class PortfolioTransaction(Base):
         nullable=False,
         default=Decimal("0"),
     )
+    realized_gain_loss_usd: Mapped[Decimal | None] = mapped_column(
+        Numeric(20, 8),
+    )
     notes: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -455,6 +458,6 @@ class PortfolioTransaction(Base):
     portfolio: Mapped["Portfolio"] = relationship(
         back_populates="transactions",
     )
-    asset: Mapped["MarketAsset"] = relationship(
+    asset: Mapped["MarketAsset | None"] = relationship(
         back_populates="portfolio_transactions",
     )
