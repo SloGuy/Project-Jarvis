@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
-from app.router_service import route_message
+from app.router import route_message
 
 
 router = APIRouter(
