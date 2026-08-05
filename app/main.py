@@ -18,6 +18,7 @@ from app.market_db.backup_status import get_market_backup_status
 from app.market_db.operations import get_market_operations
 from app.market_db.news_queries import get_recent_market_news
 from app.market_db.move_explainer import explain_market_move
+from app.router_api import router as lightweight_router
 
 
 app = FastAPI(
@@ -25,6 +26,8 @@ app = FastAPI(
     version="2.2.0",
     description="Local operations and persistent market intelligence API for Jarvis.",
 )
+
+app.include_router(lightweight_router)
 
 
 @app.get("/")
@@ -102,6 +105,153 @@ def overview(
     return response
 
 
+
+@app.get("/overview/compact")
+def overview_compact(
+    include_updates: bool = Query(
+        default=True,
+        description="Include compact Ubuntu update intelligence.",
+    ),
+    force_update_refresh: bool = Query(
+        default=False,
+        description="Bypass the update-status cache when updates are included.",
+    ),
+):
+    system = get_system_health()
+    docker = get_docker_status()
+    services = get_service_status()
+
+    system_details = system.get("system", {})
+    cpu = system.get("cpu", {})
+    memory = system.get("memory", {})
+    swap = system.get("swap", {})
+    disk = system.get("disk", {})
+    docker_summary = docker.get("summary", {})
+    service_counts = services.get("counts", {})
+
+    response = {
+        "status": (
+            "healthy"
+            if all(
+                section.get("status") == "healthy"
+                for section in (system, docker, services)
+            )
+            else "attention"
+        ),
+        "hostname": system_details.get("hostname"),
+        "uptime_seconds": system_details.get("uptime_seconds"),
+        "cpu_percent": cpu.get("percent_used"),
+        "cpu_temperature_celsius": (
+            cpu.get("temperature", {}).get("celsius")
+            if cpu.get("temperature", {}).get("available")
+            else None
+        ),
+        "memory_percent": memory.get("percent_used"),
+        "swap_percent": swap.get("percent_used"),
+        "disk_percent": disk.get("percent_used"),
+        "docker": {
+            "status": docker.get("status"),
+            "running_containers": docker_summary.get("running"),
+            "total_containers": docker_summary.get("total_containers"),
+        },
+        "services": {
+            "status": services.get("status"),
+            "healthy": service_counts.get("healthy"),
+            "monitored": service_counts.get("monitored"),
+            "critical_failures": service_counts.get("critical_failures"),
+            "warnings": service_counts.get("warnings"),
+            "summary": services.get("summary"),
+        },
+    }
+
+    if include_updates:
+        updates = get_update_status(force_refresh=force_update_refresh)
+        ubuntu = updates.get("ubuntu", {})
+        reboot = updates.get("reboot", {})
+
+        response["updates"] = {
+            "status": updates.get("status"),
+            "available": ubuntu.get("updates_available"),
+            "security": ubuntu.get("security_updates"),
+            "regular": ubuntu.get("regular_updates"),
+            "reboot_required": reboot.get("required"),
+            "summary": updates.get("summary"),
+        }
+
+    return response
+
+
+@app.get("/overview/summary")
+def overview_summary(
+    include_updates: bool = Query(
+        default=True,
+        description="Include Ubuntu update intelligence in the summary.",
+    ),
+    force_update_refresh: bool = Query(
+        default=False,
+        description="Bypass the update-status cache when updates are included.",
+    ),
+):
+    system = get_system_health()
+    docker = get_docker_status()
+    services = get_service_status()
+
+    cpu = system.get("cpu", {})
+    memory = system.get("memory", {})
+    disk = system.get("disk", {})
+    docker_summary = docker.get("summary", {})
+    service_counts = services.get("counts", {})
+
+    section_statuses = (
+        system.get("status"),
+        docker.get("status"),
+        services.get("status"),
+    )
+
+    overall = (
+        "Healthy"
+        if all(status == "healthy" for status in section_statuses)
+        else "Attention required"
+    )
+
+    lines = [
+        f"Overall: {overall}",
+        (
+            f"CPU: {cpu.get('percent_used')}% | "
+            f"Memory: {memory.get('percent_used')}% | "
+            f"Disk: {disk.get('percent_used')}%"
+        ),
+        (
+            f"Docker: {docker_summary.get('running')}/"
+            f"{docker_summary.get('total_containers')} running | "
+            f"Services: {service_counts.get('healthy')}/"
+            f"{service_counts.get('monitored')} healthy"
+        ),
+    ]
+
+    if include_updates:
+        updates = get_update_status(force_refresh=force_update_refresh)
+        ubuntu = updates.get("ubuntu", {})
+        reboot = updates.get("reboot", {})
+
+        lines.extend(
+            [
+                (
+                    f"Updates: {ubuntu.get('updates_available')} available, "
+                    f"{ubuntu.get('security_updates')} security"
+                ),
+                (
+                    "Reboot: Required"
+                    if reboot.get("required")
+                    else "Reboot: Not required"
+                ),
+            ]
+        )
+
+    return {
+        "status": system.get("status"),
+        "summary": "\n".join(lines),
+    }
 
 @app.get("/market")
 def market():
