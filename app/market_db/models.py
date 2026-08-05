@@ -55,6 +55,16 @@ class MarketAsset(Base):
         back_populates="asset",
         cascade="all, delete-orphan",
     )
+    portfolio_positions: Mapped[list["PortfolioPosition"]] = relationship(
+        back_populates="asset",
+        cascade="all, delete-orphan",
+    )
+    portfolio_transactions: Mapped[
+        list["PortfolioTransaction"]
+    ] = relationship(
+        back_populates="asset",
+        cascade="all, delete-orphan",
+    )
 
 
 class PriceObservation(Base):
@@ -287,4 +297,164 @@ class MarketNewsArticleAsset(Base):
     )
     asset: Mapped["MarketAsset"] = relationship(
         back_populates="news_links",
+    )
+
+
+class Portfolio(Base):
+    __tablename__ = "portfolios"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(
+        String(120),
+        nullable=False,
+        default="Primary Portfolio",
+    )
+    portfolio_type: Mapped[str] = mapped_column(
+        String(30),
+        nullable=False,
+        default="paper",
+    )
+    cash_balance_usd: Mapped[Decimal] = mapped_column(
+        Numeric(20, 8),
+        nullable=False,
+        default=Decimal("100000.00"),
+    )
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utc_now,
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utc_now,
+        onupdate=utc_now,
+        nullable=False,
+    )
+
+    positions: Mapped[list["PortfolioPosition"]] = relationship(
+        back_populates="portfolio",
+        cascade="all, delete-orphan",
+    )
+    transactions: Mapped[list["PortfolioTransaction"]] = relationship(
+        back_populates="portfolio",
+        cascade="all, delete-orphan",
+    )
+
+
+class PortfolioPosition(Base):
+    __tablename__ = "portfolio_positions"
+    __table_args__ = (
+        UniqueConstraint(
+            "portfolio_id",
+            "asset_id",
+            name="uq_portfolio_positions_portfolio_asset",
+        ),
+        Index(
+            "ix_portfolio_positions_portfolio_asset",
+            "portfolio_id",
+            "asset_id",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    portfolio_id: Mapped[int] = mapped_column(
+        ForeignKey("portfolios.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    asset_id: Mapped[int] = mapped_column(
+        ForeignKey("market_assets.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    quantity: Mapped[Decimal] = mapped_column(
+        Numeric(28, 12),
+        nullable=False,
+        default=Decimal("0"),
+    )
+    average_cost_usd: Mapped[Decimal] = mapped_column(
+        Numeric(20, 8),
+        nullable=False,
+        default=Decimal("0"),
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utc_now,
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utc_now,
+        onupdate=utc_now,
+        nullable=False,
+    )
+
+    portfolio: Mapped["Portfolio"] = relationship(
+        back_populates="positions",
+    )
+    asset: Mapped["MarketAsset"] = relationship(
+        back_populates="portfolio_positions",
+    )
+
+
+class PortfolioTransaction(Base):
+    __tablename__ = "portfolio_transactions"
+    __table_args__ = (
+        Index(
+            "ix_portfolio_transactions_portfolio_created",
+            "portfolio_id",
+            "created_at",
+        ),
+        Index(
+            "ix_portfolio_transactions_asset_created",
+            "asset_id",
+            "created_at",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    portfolio_id: Mapped[int] = mapped_column(
+        ForeignKey("portfolios.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    asset_id: Mapped[int] = mapped_column(
+        ForeignKey("market_assets.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    transaction_type: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+    )
+    quantity: Mapped[Decimal] = mapped_column(
+        Numeric(28, 12),
+        nullable=False,
+    )
+    price_usd: Mapped[Decimal] = mapped_column(
+        Numeric(20, 8),
+        nullable=False,
+    )
+    total_usd: Mapped[Decimal] = mapped_column(
+        Numeric(20, 8),
+        nullable=False,
+    )
+    fees_usd: Mapped[Decimal] = mapped_column(
+        Numeric(20, 8),
+        nullable=False,
+        default=Decimal("0"),
+    )
+    notes: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utc_now,
+        nullable=False,
+    )
+
+    portfolio: Mapped["Portfolio"] = relationship(
+        back_populates="transactions",
+    )
+    asset: Mapped["MarketAsset"] = relationship(
+        back_populates="portfolio_transactions",
     )

@@ -4,6 +4,7 @@ from app.router.capabilities.market import MarketCapability
 from app.router.capabilities.news import NewsCapability
 from app.router.capabilities.overview import OverviewCapability
 from app.router.capabilities.watchlist import WatchlistCapability
+from app.router.capabilities.portfolio import PortfolioCapability
 
 __all__ = [
     "RouterCapability",
@@ -12,5 +13,6 @@ __all__ = [
     "AssetCapability",
     "WatchlistCapability",
     "NewsCapability",
+    "PortfolioCapability",
 
 ]

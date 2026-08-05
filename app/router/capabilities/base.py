@@ -18,7 +18,7 @@ class RouterCapability(ABC):
         Return None when it does not match.
         """
         for pattern in self.patterns:
-            if re.search(pattern, message):
+            if re.search(pattern, message, flags=re.IGNORECASE):
                 return {}
 
         return None
