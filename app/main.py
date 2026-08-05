@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import HTMLResponse
 
 from app.docker_status import get_docker_status
@@ -18,6 +18,14 @@ from app.market_db.backup_status import get_market_backup_status
 from app.market_db.operations import get_market_operations
 from app.market_db.news_queries import get_recent_market_news
 from app.market_db.move_explainer import explain_market_move
+from app.market_db.paper_trading import (
+    PaperTradingError,
+    buy_asset,
+    deposit_cash,
+    sell_asset,
+    withdraw_cash,
+)
+from app.market_db.portfolio_queries import get_portfolio_summary
 from app.router_api import router as lightweight_router
 
 
@@ -28,6 +36,23 @@ app = FastAPI(
 )
 
 app.include_router(lightweight_router)
+
+
+from pydantic import BaseModel
+
+
+class CashRequest(BaseModel):
+    amount_usd: float
+    portfolio_id: int | None = None
+    notes: str | None = None
+
+
+class TradeRequest(BaseModel):
+    symbol: str
+    quantity: float
+    portfolio_id: int | None = None
+    fees_usd: float = 0.0
+    notes: str | None = None
 
 
 @app.get("/")
@@ -417,6 +442,80 @@ def market_intelligence(
         mover_threshold_percent=mover_threshold_percent,
         alert_limit=alert_limit,
     )
+
+@app.get("/market/portfolio")
+def market_portfolio(
+    portfolio_id: int | None = Query(default=None),
+    transaction_limit: int = Query(default=20, ge=1, le=100),
+):
+    return get_portfolio_summary(
+        portfolio_id=portfolio_id,
+        transaction_limit=transaction_limit,
+    )
+
+
+@app.post("/market/portfolio/deposit")
+def market_portfolio_deposit(request: CashRequest):
+    try:
+        return deposit_cash(
+            amount_usd=request.amount_usd,
+            portfolio_id=request.portfolio_id,
+            notes=request.notes,
+        )
+    except PaperTradingError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        )
+
+
+@app.post("/market/portfolio/withdraw")
+def market_portfolio_withdraw(request: CashRequest):
+    try:
+        return withdraw_cash(
+            amount_usd=request.amount_usd,
+            portfolio_id=request.portfolio_id,
+            notes=request.notes,
+        )
+    except PaperTradingError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        )
+
+
+@app.post("/market/portfolio/buy")
+def market_portfolio_buy(request: TradeRequest):
+    try:
+        return buy_asset(
+            symbol=request.symbol,
+            quantity=request.quantity,
+            portfolio_id=request.portfolio_id,
+            fees_usd=request.fees_usd,
+            notes=request.notes,
+        )
+    except PaperTradingError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        )
+
+
+@app.post("/market/portfolio/sell")
+def market_portfolio_sell(request: TradeRequest):
+    try:
+        return sell_asset(
+            symbol=request.symbol,
+            quantity=request.quantity,
+            portfolio_id=request.portfolio_id,
+            fees_usd=request.fees_usd,
+            notes=request.notes,
+        )
+    except PaperTradingError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        )
 
 @app.get("/market/dashboard", response_class=HTMLResponse)
 def market_dashboard():
