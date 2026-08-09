@@ -223,6 +223,195 @@
             padding: 12px;
         }
 
+        .action-button {
+            background: var(--panel-light);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px 14px;
+            font: inherit;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .action-button:hover {
+            border-color: var(--muted);
+        }
+
+        .action-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.68);
+        }
+
+        .action-modal[hidden] {
+            display: none;
+        }
+
+        .action-palette {
+            width: min(640px, 100%);
+            max-height: 80vh;
+            overflow-y: auto;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 18px;
+            box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
+        }
+
+        .action-palette-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 14px;
+        }
+
+        .action-close {
+            background: transparent;
+            color: var(--muted);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            width: 36px;
+            height: 36px;
+            cursor: pointer;
+            font-size: 1.1rem;
+        }
+
+        .action-search {
+            width: 100%;
+            background: var(--panel-light);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 14px;
+            font: inherit;
+            margin-bottom: 14px;
+        }
+
+        .action-list {
+            display: grid;
+            gap: 10px;
+        }
+
+        .action-item {
+            width: 100%;
+            text-align: left;
+            background: var(--panel-light);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px;
+            cursor: pointer;
+        }
+
+        .action-item[disabled] {
+            cursor: not-allowed;
+            opacity: 0.55;
+        }
+
+        .action-item-title {
+            display: block;
+            font-weight: 800;
+            margin-bottom: 4px;
+        }
+
+        .action-item-description {
+            display: block;
+            color: var(--muted);
+            font-size: 0.88rem;
+        }
+
+        .portfolio-explanation-palette {
+            width: min(760px, 100%);
+        }
+
+        .portfolio-explanation-loading {
+            background: var(--panel-light);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 18px;
+            color: var(--muted);
+            line-height: 1.6;
+        }
+
+        .portfolio-explanation-error {
+            background: var(--panel-light);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            color: var(--negative);
+            line-height: 1.6;
+        }
+
+        .portfolio-explanation-section {
+            background: var(--panel-light);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+
+        .portfolio-explanation-section h3 {
+            margin-top: 0;
+            margin-bottom: 8px;
+        }
+
+        .portfolio-explanation-section p {
+            margin: 0;
+            line-height: 1.65;
+        }
+
+        .portfolio-watch-list {
+            margin: 0;
+            padding-left: 20px;
+            line-height: 1.65;
+        }
+
+        .portfolio-watch-list li + li {
+            margin-top: 6px;
+        }
+
+        .portfolio-analysis-status-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .portfolio-analysis-status-card {
+            background: var(--panel-light);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px;
+        }
+
+        .portfolio-analysis-status-value {
+            margin-top: 6px;
+            font-size: 1.05rem;
+            font-weight: 800;
+        }
+
+        @media (max-width: 760px) {
+            .portfolio-analysis-status-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        .portfolio-explanation-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: wrap;
+            margin-top: 16px;
+        }
+
         @media (max-width: 700px) {
             header {
                 flex-direction: column;
@@ -280,6 +469,209 @@
         <div class="panel">
             <div class="muted">Stored News Articles</div>
             <div class="metric" id="news-count">—</div>
+        </div>
+    </section>
+
+    <section style="margin-bottom: 18px;">
+        <div
+            style="
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+                gap: 16px;
+                flex-wrap: wrap;
+                margin-bottom: 14px;
+            "
+        >
+            <div>
+                <h2 style="margin-bottom: 6px;">
+                    Portfolio Intelligence
+                </h2>
+
+                <div
+                    id="portfolio-summary"
+                    class="muted"
+                >
+                    Loading paper portfolio...
+                </div>
+            </div>
+
+            <div
+                style="
+                    display: flex;
+                    gap: 10px;
+                    align-items: center;
+                    flex-wrap: wrap;
+                "
+            >
+                <button
+                    type="button"
+                    class="action-button"
+                    id="jarvis-actions-button"
+                >
+                    Jarvis Actions
+                </button>
+
+                <div
+                    class="status"
+                    id="portfolio-status"
+                >
+                    Loading
+                </div>
+            </div>
+        </div>
+
+        <div class="grid summary-grid">
+            <div class="panel">
+                <div class="muted">Total Value</div>
+                <div
+                    class="metric"
+                    id="portfolio-total-value"
+                >
+                    —
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="muted">Cash Balance</div>
+                <div
+                    class="metric"
+                    id="portfolio-cash"
+                >
+                    —
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="muted">Invested Value</div>
+                <div
+                    class="metric"
+                    id="portfolio-market-value"
+                >
+                    —
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="muted">Total Gain / Loss</div>
+                <div
+                    class="metric"
+                    id="portfolio-total-gain-loss"
+                >
+                    —
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="muted">Unrealized P/L</div>
+                <div
+                    class="metric"
+                    id="portfolio-unrealized"
+                >
+                    —
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="muted">Realized P/L</div>
+                <div
+                    class="metric"
+                    id="portfolio-realized"
+                >
+                    —
+                </div>
+            </div>
+        </div>
+
+        <div class="grid market-grid">
+            <div class="panel">
+                <h2>Current Positions</h2>
+
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Symbol</th>
+                        <th>Quantity</th>
+                        <th>Average Cost</th>
+                        <th>Latest Price</th>
+                        <th>Market Value</th>
+                        <th>Unrealized P/L</th>
+                    </tr>
+                    </thead>
+
+                    <tbody id="portfolio-positions-body">
+                        <tr>
+                            <td colspan="6" class="empty">
+                                Loading positions...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="panel">
+                <h2>Recent Transactions</h2>
+
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Asset</th>
+                        <th>Quantity</th>
+                        <th>Total</th>
+                        <th>Realized P/L</th>
+                        <th>Time</th>
+                    </tr>
+                    </thead>
+
+                    <tbody id="portfolio-transactions-body">
+                        <tr>
+                            <td colspan="6" class="empty">
+                                Loading transactions...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div
+                style="
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: flex-start;
+                    gap: 16px;
+                    flex-wrap: wrap;
+                    margin-bottom: 14px;
+                "
+            >
+                <div>
+                    <h2 style="margin-bottom: 6px;">
+                        Jarvis Portfolio Insight
+                    </h2>
+
+                    <div
+                        id="portfolio-insight-summary"
+                        class="muted"
+                    >
+                        Loading portfolio insight...
+                    </div>
+                </div>
+
+                <div
+                    class="status"
+                    id="portfolio-risk-level"
+                >
+                    Loading
+                </div>
+            </div>
+
+            <div id="portfolio-insights">
+                <div class="empty">
+                    Loading portfolio commentary...
+                </div>
+            </div>
         </div>
     </section>
 
@@ -557,8 +949,732 @@
     </section>
 </main>
 
+<div
+    class="action-modal"
+    id="jarvis-actions-modal"
+    hidden
+>
+    <div
+        class="action-palette"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="jarvis-actions-title"
+    >
+        <div class="action-palette-header">
+            <div>
+                <h2
+                    id="jarvis-actions-title"
+                    style="margin-bottom: 4px;"
+                >
+                    Jarvis Actions
+                </h2>
+
+                <div class="muted">
+                    Choose a portfolio action.
+                </div>
+            </div>
+
+            <button
+                type="button"
+                class="action-close"
+                id="jarvis-actions-close"
+                aria-label="Close Jarvis Actions"
+            >
+                ×
+            </button>
+        </div>
+
+        <input
+            type="search"
+            class="action-search"
+            id="jarvis-actions-search"
+            placeholder="Search portfolio actions..."
+        >
+
+        <div
+            class="action-list"
+            id="jarvis-actions-list"
+        >
+            <button
+                type="button"
+                class="action-item"
+                data-action="explain-portfolio"
+            >
+                <span class="action-item-title">
+                    Portfolio Analysis
+                </span>
+
+                <span class="action-item-description">
+                    Review allocation, performance, risk, and key watch items.
+                </span>
+            </button>
+
+            <button
+                type="button"
+                class="action-item"
+                disabled
+            >
+                <span class="action-item-title">
+                    Allocation Breakdown
+                </span>
+
+                <span class="action-item-description">
+                    Coming soon.
+                </span>
+            </button>
+
+            <button
+                type="button"
+                class="action-item"
+                disabled
+            >
+                <span class="action-item-title">
+                    Export Portfolio
+                </span>
+
+                <span class="action-item-description">
+                    Coming soon.
+                </span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<div
+    class="action-modal"
+    id="portfolio-explanation-modal"
+    hidden
+>
+    <div
+        class="action-palette portfolio-explanation-palette"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="portfolio-explanation-title"
+    >
+        <div class="action-palette-header">
+            <div>
+                <h2
+                    id="portfolio-explanation-title"
+                    style="margin-bottom: 4px;"
+                >
+                    Portfolio Analysis
+                </h2>
+
+                <div
+                    class="muted"
+                    id="portfolio-explanation-subtitle"
+                >
+                    Jarvis Portfolio Intelligence
+                </div>
+            </div>
+
+            <button
+                type="button"
+                class="action-close"
+                id="portfolio-explanation-close"
+                aria-label="Close portfolio explanation"
+            >
+                ×
+            </button>
+        </div>
+
+        <div id="portfolio-explanation-loading">
+            <div class="portfolio-explanation-loading">
+                Jarvis is reviewing your allocation, performance,
+                risk, and open positions...
+            </div>
+        </div>
+
+        <div
+            id="portfolio-explanation-error"
+            class="portfolio-explanation-error"
+            hidden
+        ></div>
+
+        <div
+            id="portfolio-explanation-content"
+            hidden
+        >
+
+
+            <div class="portfolio-analysis-status-grid">
+                <div class="portfolio-analysis-status-card">
+                    <div class="muted">
+                        Confidence
+                    </div>
+
+                    <div
+                        class="portfolio-analysis-status-value"
+                        id="portfolio-analysis-confidence"
+                    >
+                        —
+                    </div>
+                </div>
+
+                <div class="portfolio-analysis-status-card">
+                    <div class="muted">
+                        Risk
+                    </div>
+
+                    <div
+                        class="portfolio-analysis-status-value"
+                        id="portfolio-analysis-risk"
+                    >
+                        —
+                    </div>
+                </div>
+
+                <div class="portfolio-analysis-status-card">
+                    <div class="muted">
+                        Market Data
+                    </div>
+
+                    <div
+                        class="portfolio-analysis-status-value"
+                        id="portfolio-analysis-freshness"
+                    >
+                        —
+                    </div>
+                </div>
+
+                <div class="portfolio-analysis-status-card">
+                    <div class="muted">
+                        Analysis
+                    </div>
+
+                    <div
+                        class="portfolio-analysis-status-value"
+                        id="portfolio-analysis-mode"
+                    >
+                        —
+                    </div>
+                </div>
+            </div>
+
+            <section class="portfolio-explanation-section">
+                <h3>Portfolio Overview</h3>
+                <p id="portfolio-explanation-overview"></p>
+            </section>
+
+            <section class="portfolio-explanation-section">
+                <h3>Allocation</h3>
+                <p id="portfolio-explanation-allocation"></p>
+            </section>
+
+            <section class="portfolio-explanation-section">
+                <h3>Performance</h3>
+                <p id="portfolio-explanation-performance"></p>
+            </section>
+
+            <section class="portfolio-explanation-section">
+                <h3>Risk Assessment</h3>
+                <p id="portfolio-explanation-risk"></p>
+            </section>
+
+            <section class="portfolio-explanation-section">
+                <h3>What to Watch</h3>
+
+                <ul
+                    class="portfolio-watch-list"
+                    id="portfolio-explanation-watch-items"
+                ></ul>
+            </section>
+
+            <div class="portfolio-explanation-footer">
+                <div
+                    class="muted"
+                    id="portfolio-explanation-model-status"
+                ></div>
+
+                <button
+                    type="button"
+                    class="action-button"
+                    id="portfolio-deeper-analysis-button"
+                >
+                    Generate Deeper AI Analysis
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
-    function statusClass(status) {
+const jarvisActionsButton =
+    document.getElementById(
+        "jarvis-actions-button"
+    );
+
+const jarvisActionsModal =
+    document.getElementById(
+        "jarvis-actions-modal"
+    );
+
+const jarvisActionsClose =
+    document.getElementById(
+        "jarvis-actions-close"
+    );
+
+const jarvisActionsSearch =
+    document.getElementById(
+        "jarvis-actions-search"
+    );
+
+const jarvisActionItems = [
+    ...document.querySelectorAll(
+        ".action-item"
+    ),
+];
+
+function openJarvisActions() {
+    jarvisActionsModal.hidden = false;
+
+    jarvisActionsSearch.value = "";
+
+    filterJarvisActions("");
+
+    setTimeout(() => {
+        jarvisActionsSearch.focus();
+    }, 20);
+}
+
+function closeJarvisActions() {
+    jarvisActionsModal.hidden = true;
+}
+
+function filterJarvisActions(query) {
+    const search =
+        query.trim().toLowerCase();
+
+    jarvisActionItems.forEach((item) => {
+        const text =
+            item.innerText.toLowerCase();
+
+        item.hidden =
+            !text.includes(search);
+    });
+}
+
+jarvisActionsButton.addEventListener(
+    "click",
+    openJarvisActions
+);
+
+jarvisActionsClose.addEventListener(
+    "click",
+    closeJarvisActions
+);
+
+jarvisActionsSearch.addEventListener(
+    "input",
+    (event) => {
+        filterJarvisActions(
+            event.target.value
+        );
+    }
+);
+
+jarvisActionsModal.addEventListener(
+    "click",
+    (event) => {
+        if (
+            event.target
+            === jarvisActionsModal
+        ) {
+            closeJarvisActions();
+        }
+    }
+);
+
+document.addEventListener(
+    "keydown",
+    (event) => {
+        if (event.key !== "Escape") {
+            return;
+        }
+
+        if (!portfolioExplanationModal.hidden) {
+            closePortfolioExplanation();
+            return;
+        }
+
+        if (!jarvisActionsModal.hidden) {
+            closeJarvisActions();
+        }
+    }
+);
+
+const tradeHistoryAction =
+    document.querySelector(
+        '[data-action="trade-history"]'
+    );
+
+if (tradeHistoryAction) {
+    tradeHistoryAction.addEventListener(
+        "click",
+        () => {
+            closeJarvisActions();
+
+            const transactionsSection =
+                document.getElementById(
+                    "portfolio-transactions-body"
+                );
+
+            if (transactionsSection) {
+                transactionsSection.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start",
+                });
+            }
+        }
+    );
+}
+
+const portfolioExplanationModal =
+    document.getElementById(
+        "portfolio-explanation-modal"
+    );
+
+const portfolioExplanationClose =
+    document.getElementById(
+        "portfolio-explanation-close"
+    );
+
+const portfolioExplanationLoading =
+    document.getElementById(
+        "portfolio-explanation-loading"
+    );
+
+const portfolioExplanationError =
+    document.getElementById(
+        "portfolio-explanation-error"
+    );
+
+const portfolioExplanationContent =
+    document.getElementById(
+        "portfolio-explanation-content"
+    );
+
+const portfolioExplanationOverview =
+    document.getElementById(
+        "portfolio-explanation-overview"
+    );
+
+const portfolioExplanationAllocation =
+    document.getElementById(
+        "portfolio-explanation-allocation"
+    );
+
+const portfolioExplanationPerformance =
+    document.getElementById(
+        "portfolio-explanation-performance"
+    );
+
+const portfolioExplanationRisk =
+    document.getElementById(
+        "portfolio-explanation-risk"
+    );
+
+const portfolioExplanationWatchItems =
+    document.getElementById(
+        "portfolio-explanation-watch-items"
+    );
+
+const portfolioExplanationModelStatus =
+    document.getElementById(
+        "portfolio-explanation-model-status"
+    );
+
+const portfolioAnalysisConfidence =
+    document.getElementById(
+        "portfolio-analysis-confidence"
+    );
+
+const portfolioAnalysisRisk =
+    document.getElementById(
+        "portfolio-analysis-risk"
+    );
+
+const portfolioAnalysisFreshness =
+    document.getElementById(
+        "portfolio-analysis-freshness"
+    );
+
+const portfolioAnalysisMode =
+    document.getElementById(
+        "portfolio-analysis-mode"
+    );
+
+const portfolioDeeperAnalysisButton =
+    document.getElementById(
+        "portfolio-deeper-analysis-button"
+    );
+
+const explainPortfolioAction =
+    document.querySelector(
+        '[data-action="explain-portfolio"]'
+    );
+
+function openPortfolioExplanation() {
+    portfolioExplanationModal.hidden = false;
+}
+
+function closePortfolioExplanation() {
+    portfolioExplanationModal.hidden = true;
+}
+
+function setPortfolioExplanationLoading(
+    message = (
+        "Jarvis is reviewing your allocation, "
+        + "performance, risk, and open positions..."
+    ),
+) {
+    portfolioExplanationLoading.hidden = false;
+    portfolioExplanationError.hidden = true;
+    portfolioExplanationContent.hidden = true;
+
+    portfolioExplanationLoading.innerHTML = `
+        <div class="portfolio-explanation-loading">
+            ${message}
+        </div>
+    `;
+}
+
+function renderPortfolioExplanation(data) {
+    const explanation = data.explanation || {};
+    const watchItems = Array.isArray(
+        explanation.watch_items
+    )
+        ? explanation.watch_items
+        : [];
+
+    portfolioExplanationOverview.textContent =
+        explanation.overview
+        || "Portfolio overview is unavailable.";
+
+    portfolioExplanationAllocation.textContent =
+        explanation.allocation
+        || "Allocation analysis is unavailable.";
+
+    portfolioExplanationPerformance.textContent =
+        explanation.performance
+        || "Performance analysis is unavailable.";
+
+    portfolioExplanationRisk.textContent =
+        explanation.risk
+        || "Risk analysis is unavailable.";
+
+    portfolioExplanationWatchItems.innerHTML = "";
+
+    if (watchItems.length === 0) {
+        const item = document.createElement("li");
+        item.textContent =
+            "No portfolio watch items are currently available.";
+
+        portfolioExplanationWatchItems.appendChild(item);
+    } else {
+        watchItems.forEach((watchItem) => {
+            const item = document.createElement("li");
+            item.textContent = watchItem;
+
+            portfolioExplanationWatchItems.appendChild(item);
+        });
+    }
+
+    const model = data.model || {};
+    const usedLlm = Boolean(model.used_llm);
+
+    const insight = data.insight || {};
+    const portfolio = data.portfolio || {};
+    const positions = Array.isArray(portfolio.positions)
+        ? portfolio.positions
+        : [];
+
+    const confidence =
+        insight.confidence_percent;
+
+    portfolioAnalysisConfidence.textContent =
+        confidence !== null
+        && confidence !== undefined
+            ? `${confidence}%`
+            : "Unknown";
+
+    const riskLevel =
+        String(
+            insight.risk_level || "unknown"
+        ).toUpperCase();
+
+    portfolioAnalysisRisk.textContent =
+        riskLevel;
+
+    portfolioAnalysisMode.textContent =
+        usedLlm
+            ? "AI Deep Dive"
+            : "Verified Data";
+
+    let latestPriceTime = null;
+
+    positions.forEach((position) => {
+        if (!position || !position.price_observed_at) {
+            return;
+        }
+
+        const observedAt =
+            new Date(position.price_observed_at);
+
+        if (
+            Number.isNaN(observedAt.getTime())
+        ) {
+            return;
+        }
+
+        if (
+            latestPriceTime === null
+            || observedAt > latestPriceTime
+        ) {
+            latestPriceTime = observedAt;
+        }
+    });
+
+    if (latestPriceTime === null) {
+        portfolioAnalysisFreshness.textContent =
+            "Unavailable";
+    } else {
+        const ageSeconds = Math.max(
+            0,
+            Math.floor(
+                (Date.now() - latestPriceTime.getTime())
+                / 1000
+            )
+        );
+
+        if (ageSeconds < 60) {
+            portfolioAnalysisFreshness.textContent =
+                `${ageSeconds}s ago`;
+        } else if (ageSeconds < 3600) {
+            portfolioAnalysisFreshness.textContent =
+                `${Math.floor(ageSeconds / 60)}m ago`;
+        } else {
+                portfolioAnalysisFreshness.textContent =
+                    `${Math.floor(ageSeconds / 3600)}h ago`;
+            }
+        }
+
+    portfolioExplanationModelStatus.textContent =
+        usedLlm
+            ? `Generated by ${model.name || "Jarvis AI"}.`
+            : "Generated instantly from verified portfolio data.";
+
+    portfolioDeeperAnalysisButton.hidden = usedLlm;
+
+    portfolioExplanationLoading.hidden = true;
+    portfolioExplanationError.hidden = true;
+    portfolioExplanationContent.hidden = false;
+}
+
+function showPortfolioExplanationError(message) {
+    portfolioExplanationLoading.hidden = true;
+    portfolioExplanationContent.hidden = true;
+    portfolioExplanationError.hidden = false;
+    portfolioExplanationError.textContent = message;
+}
+
+async function loadPortfolioExplanation(
+    useLlm = false,
+) {
+    setPortfolioExplanationLoading(
+        useLlm
+            ? (
+                "Jarvis is generating a deeper AI analysis. "
+                + "This may take about 25 seconds..."
+            )
+            : (
+                "Jarvis is reviewing your allocation, "
+                + "performance, risk, and open positions..."
+            ),
+    );
+
+    portfolioDeeperAnalysisButton.disabled = useLlm;
+
+    try {
+        const endpoint = useLlm
+            ? "/market/portfolio/explain?use_llm=true"
+            : "/market/portfolio/explain";
+
+        const response = await fetch(endpoint);
+
+        if (!response.ok) {
+            throw new Error(
+                `Request failed with status ${response.status}.`
+            );
+        }
+
+        const data = await response.json();
+
+        if (data.status !== "success") {
+            throw new Error(
+                data.summary
+                || "Portfolio explanation is unavailable."
+            );
+        }
+
+        renderPortfolioExplanation(data);
+    } catch (error) {
+        console.error(
+            "Portfolio explanation failed:",
+            error,
+        );
+
+        showPortfolioExplanationError(
+            "Jarvis could not load the portfolio explanation. "
+            + "Please try again."
+        );
+    } finally {
+        portfolioDeeperAnalysisButton.disabled = false;
+    }
+}
+
+if (explainPortfolioAction) {
+    explainPortfolioAction.addEventListener(
+        "click",
+        () => {
+            closeJarvisActions();
+            openPortfolioExplanation();
+            loadPortfolioExplanation(false);
+        }
+    );
+}
+
+if (portfolioExplanationClose) {
+    portfolioExplanationClose.addEventListener(
+        "click",
+        closePortfolioExplanation
+    );
+}
+
+if (portfolioExplanationModal) {
+    portfolioExplanationModal.addEventListener(
+        "click",
+        (event) => {
+            if (
+                event.target
+                === portfolioExplanationModal
+            ) {
+                closePortfolioExplanation();
+            }
+        }
+    );
+}
+
+if (portfolioDeeperAnalysisButton) {
+    portfolioDeeperAnalysisButton.addEventListener(
+        "click",
+        () => {
+            loadPortfolioExplanation(true);
+        }
+    );
+}
+
+  function statusClass(status) {
         const normalized = String(status || "").toLowerCase();
 
         if (normalized === "healthy" || normalized === "fresh") {
@@ -1307,6 +2423,555 @@
         }
     }
 
+    async function loadPortfolioInsight() {
+        const summary =
+            document.getElementById(
+                "portfolio-insight-summary"
+            );
+
+        const riskLevel =
+            document.getElementById(
+                "portfolio-risk-level"
+            );
+
+        const insights =
+            document.getElementById(
+                "portfolio-insights"
+            );
+
+        try {
+            const response = await fetch(
+                "/market/portfolio/insight"
+            );
+
+            if (!response.ok) {
+                throw new Error(
+                    `Portfolio insight request failed with status ${response.status}`
+                );
+            }
+
+            const data = await response.json();
+
+            if (data.status !== "success") {
+                throw new Error(
+                    data.summary
+                    || "Portfolio insight was unavailable."
+                );
+            }
+
+            summary.textContent =
+                data.executive_summary
+                || data.summary;
+
+            riskLevel.textContent =
+                `${data.risk_level} risk`;
+
+            riskLevel.className =
+                `status ${
+                    data.risk_level === "low"
+                        ? "positive"
+                        : data.risk_level === "moderate"
+                            ? "warning"
+                            : data.risk_level === "elevated"
+                            || data.risk_level === "high"
+                                ? "negative"
+                                : "neutral"
+                }`;
+
+            const confidenceReasons =
+                Array.isArray(data.confidence_reasons)
+                    ? data.confidence_reasons
+                    : [];
+
+            const keyObservations =
+                Array.isArray(data.key_observations)
+                    ? data.key_observations
+                    : [];
+
+            const strengths = keyObservations.filter(
+                (observation) =>
+                    observation.type === "positive"
+            );
+
+            const watchItems = keyObservations.filter(
+                (observation) =>
+                    observation.type === "warning"
+                    || observation.type === "negative"
+            );
+
+            const neutralObservations = keyObservations.filter(
+                (observation) =>
+                    observation.type !== "positive"
+                    && observation.type !== "warning"
+                    && observation.type !== "negative"
+            );
+
+            insights.innerHTML = `
+                <div
+                    class="grid summary-grid"
+                    style="margin-bottom: 18px;"
+                >
+                    <div class="chart-stat">
+                        <div class="muted">
+                            Assessment Confidence
+                        </div>
+
+                        <strong>
+                            ${data.confidence_percent ?? 0}%
+                        </strong>
+                    </div>
+
+                    <div class="chart-stat">
+                        <div class="muted">
+                            Open Positions
+                        </div>
+
+                        <strong>
+                            ${data.position_count ?? 0}
+                        </strong>
+                    </div>
+
+                    <div class="chart-stat">
+                        <div class="muted">
+                            Market Exposure
+                        </div>
+
+                        <strong>
+                            ${formatPercent(
+                                data.invested_allocation_percent
+                            )}
+                        </strong>
+                    </div>
+
+                    <div class="chart-stat">
+                        <div class="muted">
+                            Total Gain / Loss
+                        </div>
+
+                        <strong
+                            class="${changeClass(
+                                data.total_gain_loss_usd
+                            )}"
+                        >
+                            ${formatPrice(
+                                data.total_gain_loss_usd
+                            )}
+                        </strong>
+                    </div>
+                </div>
+
+                <div
+                    class="grid market-grid"
+                    style="margin-bottom: 0;"
+                >
+                <div>
+                    <h3 style="margin-top: 0;">
+                        Strengths
+                    </h3>
+
+                    ${
+                        strengths.length
+                            ? strengths.map(
+                                (observation) => `
+                                    <div class="alert">
+                                        <strong class="positive">
+                                            ${observation.title}
+                                        </strong>
+
+                                        <div
+                                            class="muted"
+                                            style="
+                                                margin-top: 6px;
+                                                line-height: 1.45;
+                                            "
+                                        >
+                                            ${observation.detail}
+                                        </div>
+                                    </div>
+                                `
+                            ).join("")
+                            : `
+                                <div class="empty">
+                                    No portfolio strengths are currently identified.
+                                </div>
+                            `
+                    }
+
+                    <h3 style="margin-top: 20px;">
+                        Watch Items
+                    </h3>
+
+                    ${
+                        watchItems.length
+                            ? watchItems.map(
+                                (observation) => `
+                                    <div class="alert">
+                                        <strong
+                                            class="${
+                                                observation.type
+                                                === "negative"
+                                                    ? "negative"
+                                                    : "warning"
+                                            }"
+                                        >
+                                            ${observation.title}
+                                        </strong>
+
+                                        <div
+                                            class="muted"
+                                            style="
+                                                margin-top: 6px;
+                                                line-height: 1.45;
+                                            "
+                                        >
+                                            ${observation.detail}
+                                        </div>
+                                    </div>
+                                `
+                            ).join("")
+                            : `
+                                <div class="empty">
+                                    No immediate watch items are currently identified.
+                                </div>
+                            `
+                    }
+
+                    ${
+                        neutralObservations.length
+                            ? `
+                                <h3 style="margin-top: 20px;">
+                                    Additional Observations
+                                </h3>
+
+                                ${neutralObservations.map(
+                                    (observation) => `
+                                        <div class="alert">
+                                            <strong class="neutral">
+                                                ${observation.title}
+                                            </strong>
+
+                                            <div
+                                                class="muted"
+                                                style="
+                                                    margin-top: 6px;
+                                                    line-height: 1.45;
+                                                "
+                                            >
+                                                ${observation.detail}
+                                                </div>
+                                            </div>
+                                        `
+                                    ).join("")}
+                                `
+                                : ""
+                        }
+                    </div>
+
+                    <div>
+                        <h3 style="margin-top: 0;">
+                            Confidence Evidence
+                        </h3>
+
+                        ${
+                            confidenceReasons.length
+                                ? confidenceReasons.map(
+                                    (reason) => `
+                                        <div class="alert">
+                                            ${reason}
+                                        </div>
+                                    `
+                                ).join("")
+                                : `
+                                    <div class="empty">
+                                        No confidence evidence is available.
+                                    </div>
+                                `
+                        }
+                    </div>
+                </div>
+            `;
+        } catch (error) {
+            summary.textContent = error.message;
+
+            riskLevel.textContent = "Error";
+            riskLevel.className = "status negative";
+
+            insights.innerHTML = `
+                <div class="empty">
+                    Unable to load portfolio commentary.
+                </div>
+            `;
+        }
+    }
+
+    async function loadPortfolio() {
+        const portfolioStatus =
+            document.getElementById("portfolio-status");
+
+        const portfolioSummary =
+            document.getElementById("portfolio-summary");
+
+        try {
+            const response = await fetch(
+                "/market/portfolio?transaction_limit=10"
+            );
+
+            if (!response.ok) {
+                throw new Error(
+                    `Portfolio request failed with status ${response.status}`
+                );
+            }
+
+            const data = await response.json();
+
+            if (data.status !== "success") {
+                throw new Error(
+                    data.summary || "Portfolio was unavailable."
+                );
+            }
+
+            portfolioStatus.textContent = "Active";
+            portfolioStatus.className = "status positive";
+
+            portfolioSummary.textContent =
+                `${data.portfolio.name} · `
+                + `${data.position_count} open position`
+                + `${data.position_count === 1 ? "" : "s"} · `
+                + `${data.transaction_count} transactions`;
+
+            document.getElementById(
+                "portfolio-total-value"
+            ).textContent = formatPrice(
+                data.total_value_usd
+            );
+
+            document.getElementById(
+                "portfolio-cash"
+            ).textContent = formatPrice(
+                data.cash_balance_usd
+            );
+
+            document.getElementById(
+                "portfolio-market-value"
+            ).textContent = formatPrice(
+                data.market_value_usd
+            );
+
+            const totalGainLoss =
+                document.getElementById(
+                    "portfolio-total-gain-loss"
+                );
+
+            totalGainLoss.textContent = formatPrice(
+                data.total_gain_loss_usd
+            );
+
+            totalGainLoss.className =
+                `metric ${changeClass(
+                    data.total_gain_loss_usd
+                )}`;
+
+            const unrealized =
+                document.getElementById(
+                    "portfolio-unrealized"
+                );
+
+            unrealized.textContent = formatPrice(
+                data.unrealized_gain_loss_usd
+            );
+
+            unrealized.className =
+                `metric ${changeClass(
+                    data.unrealized_gain_loss_usd
+                )}`;
+
+            const realized =
+                document.getElementById(
+                    "portfolio-realized"
+                );
+
+            realized.textContent = formatPrice(
+                data.realized_gain_loss_usd
+            );
+
+            realized.className =
+                `metric ${changeClass(
+                    data.realized_gain_loss_usd
+                )}`;
+
+            const positionsBody =
+                document.getElementById(
+                    "portfolio-positions-body"
+                );
+
+            if (!data.positions.length) {
+                positionsBody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="empty">
+                            No open paper positions.
+                        </td>
+                    </tr>
+                `;
+            } else {
+                positionsBody.innerHTML =
+                    data.positions.map((position) => `
+                        <tr>
+                            <td>
+                                <strong>${position.symbol}</strong>
+                            </td>
+
+                            <td>
+                                ${position.quantity}
+                            </td>
+
+                            <td>
+                                ${formatPrice(
+                                    position.average_cost_usd
+                                )}
+                            </td>
+
+                            <td>
+                                ${formatPrice(
+                                    position.latest_price_usd
+                                )}
+                            </td>
+
+                            <td>
+                                ${formatPrice(
+                                    position.market_value_usd
+                                )}
+                            </td>
+
+                            <td
+                                class="${changeClass(
+                                    position.unrealized_gain_loss_usd
+                                )}"
+                            >
+                                ${formatPrice(
+                                    position.unrealized_gain_loss_usd
+                                )}
+
+                                <div
+                                    class="muted"
+                                    style="font-size: 0.8rem;"
+                                >
+                                    ${formatPercent(
+                                        position.unrealized_gain_loss_percent
+                                    )}
+                                </div>
+                            </td>
+                        </tr>
+                    `).join("");
+            }
+
+            const transactionsBody =
+                document.getElementById(
+                    "portfolio-transactions-body"
+                );
+
+            if (!data.recent_transactions.length) {
+                transactionsBody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="empty">
+                            No paper transactions recorded.
+                        </td>
+                    </tr>
+                `;
+            } else {
+                transactionsBody.innerHTML =
+                    data.recent_transactions.map(
+                        (transaction) => {
+                            const createdAt =
+                                transaction.created_at
+                                    ? new Date(
+                                        transaction.created_at
+                                    ).toLocaleString([], {
+                                        month: "short",
+                                        day: "numeric",
+                                        hour: "numeric",
+                                        minute: "2-digit",
+                                    })
+                                    : "—";
+
+                            const realizedGainLoss =
+                                transaction
+                                    .realized_gain_loss_usd;
+
+                            return `
+                                <tr>
+                                    <td>
+                                        <strong>
+                                            ${transaction
+                                                .transaction_type
+                                                .toUpperCase()}
+                                        </strong>
+                                    </td>
+
+                                    <td>
+                                        ${transaction.symbol || "Cash"}
+                                    </td>
+
+                                    <td>
+                                        ${transaction.quantity}
+                                    </td>
+
+                                    <td>
+                                        ${formatPrice(
+                                            transaction.total_usd
+                                        )}
+                                    </td>
+
+                                    <td
+                                        class="${changeClass(
+                                            realizedGainLoss
+                                        )}"
+                                    >
+                                        ${
+                                            realizedGainLoss === null
+                                            || realizedGainLoss === undefined
+                                                ? "—"
+                                                : formatPrice(
+                                                    realizedGainLoss
+                                                )
+                                        }
+                                    </td>
+
+                                    <td class="muted">
+                                        ${createdAt}
+                                    </td>
+                                </tr>
+                            `;
+                        }
+                    ).join("");
+            }
+        } catch (error) {
+            portfolioStatus.textContent = "Error";
+            portfolioStatus.className = "status negative";
+
+            portfolioSummary.textContent = error.message;
+
+            document.getElementById(
+                "portfolio-positions-body"
+            ).innerHTML = `
+                <tr>
+                    <td colspan="6" class="empty">
+                        Unable to load portfolio positions.
+                    </td>
+                </tr>
+            `;
+
+            document.getElementById(
+                "portfolio-transactions-body"
+            ).innerHTML = `
+                <tr>
+                    <td colspan="6" class="empty">
+                        Unable to load portfolio transactions.
+                    </td>
+                </tr>
+            `;
+        }
+    }
+
     async function loadIntelligence() {
         try {
             const response = await fetch("/market/intelligence");
@@ -1641,11 +3306,15 @@
 
     window.addEventListener("resize", loadTrend);
 
+    loadPortfolio();
+    loadPortfolioInsight();
     loadIntelligence();
     loadTrend();
     loadMoveExplanation();
     loadOperations();
 
+    setInterval(loadPortfolio, 60000);
+    setInterval(loadPortfolioInsight, 60000);
     setInterval(loadIntelligence, 60000);
     setInterval(loadTrend, 60000);
     setInterval(loadMoveExplanation, 60000);

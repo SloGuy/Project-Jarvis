@@ -26,6 +26,8 @@ from app.market_db.paper_trading import (
     withdraw_cash,
 )
 from app.market_db.portfolio_queries import get_portfolio_summary
+from app.market_db.portfolio_insights import get_portfolio_insight
+from app.market_db.portfolio_explainer import explain_portfolio
 from app.router_api import router as lightweight_router
 
 
@@ -452,6 +454,27 @@ def market_portfolio(
         portfolio_id=portfolio_id,
         transaction_limit=transaction_limit,
     )
+
+
+@app.get("/market/portfolio/insight")
+def market_portfolio_insight(
+    portfolio_id: int | None = Query(default=None),
+):
+    return get_portfolio_insight(
+        portfolio_id=portfolio_id,
+    )
+
+
+@app.get("/market/portfolio/explain")
+def market_portfolio_explain(
+    portfolio_id: int | None = Query(default=None),
+    use_llm: bool = Query(default=False),
+):
+    return explain_portfolio(
+        portfolio_id=portfolio_id,
+        use_llm=use_llm,
+    )
+
 
 
 @app.post("/market/portfolio/deposit")
