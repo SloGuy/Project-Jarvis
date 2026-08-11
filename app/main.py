@@ -1,3 +1,5 @@
+import asyncio
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query
@@ -29,12 +31,41 @@ from app.market_db.portfolio_queries import get_portfolio_summary
 from app.market_db.portfolio_insights import get_portfolio_insight
 from app.market_db.portfolio_explainer import explain_portfolio
 from app.router_api import router as lightweight_router
+from app.live_market.coingecko_poller import run_coingecko_poller
+from app.live_market.finnhub_stream import run_finnhub_stream
+from app.live_market.live_state import get_live_market_status
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    finnhub_task = asyncio.create_task(
+        run_finnhub_stream()
+    )
+
+    coingecko_task = asyncio.create_task(
+        run_coingecko_poller()
+    )
+
+    try:
+        yield
+    finally:
+        finnhub_task.cancel()
+        coingecko_task.cancel()
+
+        for task in (
+            finnhub_task,
+            coingecko_task,
+        ):
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
 
 app = FastAPI(
     title="Jarvis Core",
     version="2.2.0",
     description="Local operations and persistent market intelligence API for Jarvis.",
+    lifespan=lifespan,
 )
 
 app.include_router(lightweight_router)
@@ -599,3 +630,8 @@ def market_operations():
 @app.get("/market/backup-status")
 def market_backup_status():
     return get_market_backup_status()
+
+
+@app.get("/market/live-quotes")
+def market_live_quotes():
+    return get_live_market_status()
