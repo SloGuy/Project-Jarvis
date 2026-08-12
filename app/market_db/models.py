@@ -461,3 +461,191 @@ class PortfolioTransaction(Base):
     asset: Mapped["MarketAsset | None"] = relationship(
         back_populates="portfolio_transactions",
     )
+
+
+class AutonomousTradeDecision(Base):
+    __tablename__ = "autonomous_trade_decisions"
+    __table_args__ = (
+        Index(
+            "ix_autonomous_trade_decisions_portfolio_created",
+            "portfolio_id",
+            "created_at",
+        ),
+        Index(
+            "ix_autonomous_trade_decisions_asset_created",
+            "asset_id",
+            "created_at",
+        ),
+        Index(
+            "ix_autonomous_trade_decisions_approved_created",
+            "approved",
+            "created_at",
+        ),
+        Index(
+            "ix_autonomous_trade_decisions_execution_status",
+            "execution_status",
+            "created_at",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+    portfolio_id: Mapped[int] = mapped_column(
+        ForeignKey("portfolios.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    asset_id: Mapped[int] = mapped_column(
+        ForeignKey("market_assets.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    policy_name: Mapped[str] = mapped_column(
+        String(120),
+        nullable=False,
+    )
+
+    strategy_name: Mapped[str] = mapped_column(
+        String(120),
+        nullable=False,
+    )
+
+    action: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+    )
+
+    quantity: Mapped[Decimal] = mapped_column(
+        Numeric(28, 12),
+        nullable=False,
+    )
+
+    reference_price_usd: Mapped[Decimal] = mapped_column(
+        Numeric(20, 8),
+        nullable=False,
+    )
+
+    price_observed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+
+    confidence_percent: Mapped[Decimal] = mapped_column(
+        Numeric(8, 4),
+        nullable=False,
+    )
+
+    rationale: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+    )
+
+    approved: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+    )
+
+    rejection_reasons: Mapped[list] = mapped_column(
+        JSON,
+        nullable=False,
+        default=list,
+    )
+
+    execution_status: Mapped[str] = mapped_column(
+        String(30),
+        nullable=False,
+        default="not_executed",
+    )
+
+    execution_attempted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+    )
+
+    executed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+    )
+
+    portfolio_transaction_id: Mapped[int | None] = mapped_column(
+        ForeignKey(
+            "portfolio_transactions.id",
+            ondelete="SET NULL",
+        ),
+    )
+
+    execution_error: Mapped[str | None] = mapped_column(
+        Text,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+
+    evaluated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+
+
+class AutonomousStrategyState(Base):
+    __tablename__ = "autonomous_strategy_state"
+    __table_args__ = (
+        UniqueConstraint(
+            "asset_id",
+            "strategy_name",
+            name=(
+                "uq_autonomous_strategy_state_"
+                "asset_strategy"
+            ),
+        ),
+        Index(
+            "ix_autonomous_strategy_state_strategy_action",
+            "strategy_name",
+            "pending_action",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(
+        primary_key=True,
+    )
+
+    asset_id: Mapped[int] = mapped_column(
+        ForeignKey(
+            "market_assets.id",
+            ondelete="CASCADE",
+        ),
+        nullable=False,
+    )
+
+    strategy_name: Mapped[str] = mapped_column(
+        String(120),
+        nullable=False,
+    )
+
+    pending_action: Mapped[str | None] = mapped_column(
+        String(20),
+    )
+
+    confirmation_count: Mapped[int] = mapped_column(
+        nullable=False,
+        default=0,
+    )
+
+    first_confirmed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+    )
+
+    last_confirmed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+    )
+
+    last_observation_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utc_now,
+        onupdate=utc_now,
+        nullable=False,
+    )
