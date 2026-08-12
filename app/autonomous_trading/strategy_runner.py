@@ -1,3 +1,4 @@
+from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
@@ -19,6 +20,8 @@ from app.autonomous_trading.execution_state import (
 )
 from app.autonomous_trading.momentum_strategy import (
     evaluate_momentum_strategy,
+    get_momentum_snapshot,
+    has_negative_momentum_reversal,
 )
 from app.autonomous_trading.policy import (
     INITIAL_1000_POLICY,
@@ -26,9 +29,14 @@ from app.autonomous_trading.policy import (
 from app.autonomous_trading.risk_governor import (
     evaluate_trade_proposal,
 )
+from app.autonomous_trading.exit_rules import (
+    ExitRule,
+    evaluate_exit_rules,
+)
 from app.autonomous_trading.strategy import (
     PositionContext,
     StrategyAction,
+    create_strategy_candidate,
 )
 from app.market_db.database import SessionLocal
 from app.market_db.models import MarketAsset
@@ -93,6 +101,7 @@ def run_momentum_strategy_cycle() -> dict[str, Any]:
                 allocation_percent=Decimal("0"),
                 unrealized_gain_loss_usd=Decimal("0"),
                 unrealized_gain_loss_percent=Decimal("0"),
+                opened_at=None,
             )
         else:
             position_context = PositionContext(
@@ -125,12 +134,60 @@ def run_momentum_strategy_cycle() -> dict[str, Any]:
                         or 0
                     )
                 ),
+                opened_at=(
+                    datetime.fromisoformat(
+                        str(position["created_at"]).replace(
+                            "Z",
+                            "+00:00",
+                        )
+                    )
+                    if position.get("created_at")
+                    else None
+                ),
             )
 
-        candidate = evaluate_momentum_strategy(
+        momentum_snapshot = get_momentum_snapshot(
             symbol=normalized_symbol,
-            position_context=position_context,
         )
+
+        momentum_reversal = False
+
+        if (
+            position_context.has_position
+            and momentum_snapshot.usable
+            and momentum_snapshot.short_term_percent is not None
+            and momentum_snapshot.trend_percent is not None
+        ):
+            momentum_reversal = has_negative_momentum_reversal(
+                short_term_percent=(
+                    momentum_snapshot.short_term_percent
+                ),
+                trend_percent=(
+                    momentum_snapshot.trend_percent
+                ),
+            )
+
+        exit_decision = evaluate_exit_rules(
+            position_context=position_context,
+            policy=INITIAL_1000_POLICY,
+            momentum_reversal=momentum_reversal,
+        )
+
+        if exit_decision.should_exit:
+            candidate = create_strategy_candidate(
+                symbol=normalized_symbol,
+                action=StrategyAction.SELL,
+                confidence_percent=Decimal("100.00"),
+                rationale=exit_decision.rationale,
+                suggested_position_percent=Decimal("0"),
+                strategy_name="exit_risk_management_v1",
+            )
+        else:
+            candidate = evaluate_momentum_strategy(
+                symbol=normalized_symbol,
+                position_context=position_context,
+                snapshot=momentum_snapshot,
+            )
 
         result: dict[str, Any] = {
             "symbol": candidate.symbol,
@@ -139,6 +196,8 @@ def run_momentum_strategy_cycle() -> dict[str, Any]:
                 candidate.confidence_percent
             ),
             "rationale": candidate.rationale,
+            "exit_rule": exit_decision.rule.value,
+            "exit_triggered": exit_decision.should_exit,
             "has_position": position_context.has_position,
             "position_quantity": float(
                 position_context.quantity

@@ -22,6 +22,10 @@ class RiskPolicy:
 
     max_price_age_seconds: int
     minimum_confidence_percent: Decimal
+    max_position_duration_days: int
+
+    stop_loss_percent: Decimal
+    take_profit_percent: Decimal
 
     require_rationale: bool = True
     require_confidence: bool = True
@@ -41,6 +45,10 @@ INITIAL_1000_POLICY = RiskPolicy(
 
     max_price_age_seconds=120,
     minimum_confidence_percent=Decimal("70.00"),
+
+    stop_loss_percent=Decimal("5.00"),
+    take_profit_percent=Decimal("10.00"),
+    max_position_duration_days=30,
 
     require_rationale=True,
     require_confidence=True,

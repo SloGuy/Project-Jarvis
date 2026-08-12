@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 from decimal import Decimal
 from enum import Enum
 
@@ -102,6 +103,7 @@ class PositionContext:
     allocation_percent: Decimal
     unrealized_gain_loss_usd: Decimal
     unrealized_gain_loss_percent: Decimal
+    opened_at: datetime | None
 
     @property
     def has_position(self) -> bool:

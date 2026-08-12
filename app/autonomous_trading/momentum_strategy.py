@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 
@@ -25,6 +26,144 @@ BASE_CONFIDENCE_PERCENT = Decimal("70.00")
 MAX_CONFIDENCE_PERCENT = Decimal("95.00")
 
 
+@dataclass(frozen=True)
+class MomentumSnapshot:
+    symbol: str
+    observation_at: datetime | None
+    short_term_percent: Decimal | None
+    trend_percent: Decimal | None
+    usable: bool
+    reason: str | None
+
+
+def get_momentum_snapshot(
+    *,
+    symbol: str,
+) -> MomentumSnapshot:
+    normalized_symbol = symbol.strip().upper()
+
+    if not normalized_symbol:
+        raise ValueError(
+            "symbol must not be empty."
+        )
+
+    moves = get_latest_market_moves(
+        symbol=normalized_symbol,
+        comparison_minutes=15,
+        minimum_move_percent=0.0,
+        limit=1,
+    )
+
+    trend = get_asset_trend(
+        symbol=normalized_symbol,
+        hours=24,
+    )
+
+    move_rows = moves.get("moves") or []
+
+    if not move_rows:
+        return MomentumSnapshot(
+            symbol=normalized_symbol,
+            observation_at=None,
+            short_term_percent=None,
+            trend_percent=None,
+            usable=False,
+            reason=(
+                "No usable 15-minute move is available."
+            ),
+        )
+
+    move = move_rows[0]
+
+    observed_at_value = move.get(
+        "latest_observed_at"
+    )
+
+    if observed_at_value is None:
+        return MomentumSnapshot(
+            symbol=normalized_symbol,
+            observation_at=None,
+            short_term_percent=None,
+            trend_percent=None,
+            usable=False,
+            reason=(
+                "Latest market observation timestamp "
+                "is unavailable."
+            ),
+        )
+
+    observation_at = datetime.fromisoformat(
+        str(observed_at_value).replace(
+            "Z",
+            "+00:00",
+        )
+    )
+
+    if trend.get("status") != "healthy":
+        return MomentumSnapshot(
+            symbol=normalized_symbol,
+            observation_at=observation_at,
+            short_term_percent=None,
+            trend_percent=None,
+            usable=False,
+            reason=(
+                "24-hour trend data is unavailable."
+            ),
+        )
+
+    if not trend.get("window_fully_covered"):
+        return MomentumSnapshot(
+            symbol=normalized_symbol,
+            observation_at=observation_at,
+            short_term_percent=None,
+            trend_percent=None,
+            usable=False,
+            reason=(
+                "The requested 24-hour trend window "
+                "is not fully covered."
+            ),
+        )
+
+    short_term_value = move.get(
+        "interval_change_percent"
+    )
+
+    statistics = trend.get("statistics") or {}
+
+    trend_value = statistics.get(
+        "change_percent"
+    )
+
+    if (
+        short_term_value is None
+        or trend_value is None
+    ):
+        return MomentumSnapshot(
+            symbol=normalized_symbol,
+            observation_at=observation_at,
+            short_term_percent=None,
+            trend_percent=None,
+            usable=False,
+            reason=(
+                "Required momentum measurements "
+                "are unavailable."
+            ),
+        )
+
+    return MomentumSnapshot(
+        symbol=normalized_symbol,
+        observation_at=observation_at,
+        short_term_percent=Decimal(
+            str(short_term_value)
+        ),
+        trend_percent=Decimal(
+            str(trend_value)
+        ),
+        usable=True,
+        reason=None,
+    )
+
+
 def _confidence_from_signals(
     *,
     short_term_percent: Decimal,
@@ -43,6 +182,19 @@ def _confidence_from_signals(
     return min(
         confidence,
         MAX_CONFIDENCE_PERCENT,
+    )
+
+
+def has_negative_momentum_reversal(
+    *,
+    short_term_percent: Decimal,
+    trend_percent: Decimal,
+) -> bool:
+    return (
+        short_term_percent
+        <= -SHORT_TERM_MINIMUM_PERCENT
+        and trend_percent
+        <= -TREND_MINIMUM_PERCENT
     )
 
 
@@ -66,6 +218,7 @@ def evaluate_momentum_strategy(
     *,
     symbol: str,
     position_context: PositionContext,
+    snapshot: MomentumSnapshot | None = None,
 ) -> StrategyCandidate:
     normalized_symbol = symbol.strip().upper()
 
@@ -74,122 +227,50 @@ def evaluate_momentum_strategy(
             "symbol must not be empty."
         )
 
-    moves = get_latest_market_moves(
-        symbol=normalized_symbol,
-        comparison_minutes=15,
-        minimum_move_percent=0.0,
-        limit=1,
-    )
-
-    trend = get_asset_trend(
-        symbol=normalized_symbol,
-        hours=24,
-    )
-
-    move_rows = moves.get("moves") or []
-
-    if not move_rows:
-        return _hold_candidate(
+    if snapshot is None:
+        snapshot = get_momentum_snapshot(
             symbol=normalized_symbol,
-            confidence_percent=Decimal("0"),
-            rationale=(
-                "No usable 15-minute move is available."
-            ),
         )
 
-    move = move_rows[0]
-
-    latest_observed_at_value = move.get(
-        "latest_observed_at"
-    )
-
-    if latest_observed_at_value is None:
-        return _hold_candidate(
-            symbol=normalized_symbol,
-            confidence_percent=Decimal("0"),
-            rationale=(
-                "Latest market observation timestamp "
-                "is unavailable."
-            ),
+    if snapshot.symbol != normalized_symbol:
+        raise ValueError(
+            "snapshot symbol does not match strategy symbol."
         )
 
-    latest_observed_at = datetime.fromisoformat(
-        str(latest_observed_at_value).replace(
-            "Z",
-            "+00:00",
-        )
-    )
-
-    if trend.get("status") != "healthy":
-        update_signal_confirmation(
-            symbol=normalized_symbol,
-            strategy_name=STRATEGY_NAME,
-            action=StrategyAction.HOLD,
-            observation_at=latest_observed_at,
-        )
+    if not snapshot.usable:
+        if snapshot.observation_at is not None:
+            update_signal_confirmation(
+                symbol=normalized_symbol,
+                strategy_name=STRATEGY_NAME,
+                action=StrategyAction.HOLD,
+                observation_at=snapshot.observation_at,
+            )
 
         return _hold_candidate(
             symbol=normalized_symbol,
             confidence_percent=Decimal("0"),
             rationale=(
-                "24-hour trend data is unavailable."
+                snapshot.reason
+                or "Momentum snapshot is unusable."
             ),
         )
-
-    if not trend.get("window_fully_covered"):
-        update_signal_confirmation(
-            symbol=normalized_symbol,
-            strategy_name=STRATEGY_NAME,
-            action=StrategyAction.HOLD,
-            observation_at=latest_observed_at,
-        )
-
-        return _hold_candidate(
-            symbol=normalized_symbol,
-            confidence_percent=Decimal("0"),
-            rationale=(
-                "The requested 24-hour trend window "
-                "is not fully covered."
-            ),
-        )
-
-    short_term_value = move.get(
-        "interval_change_percent"
-    )
-
-    statistics = trend.get("statistics") or {}
-
-    trend_value = statistics.get(
-        "change_percent"
-    )
 
     if (
-        short_term_value is None
-        or trend_value is None
+        snapshot.observation_at is None
+        or snapshot.short_term_percent is None
+        or snapshot.trend_percent is None
     ):
-        update_signal_confirmation(
-            symbol=normalized_symbol,
-            strategy_name=STRATEGY_NAME,
-            action=StrategyAction.HOLD,
-            observation_at=latest_observed_at,
-        )
-
         return _hold_candidate(
             symbol=normalized_symbol,
             confidence_percent=Decimal("0"),
             rationale=(
-                "Required momentum measurements "
-                "are unavailable."
+                "Momentum snapshot is incomplete."
             ),
         )
 
-    short_term_percent = Decimal(
-        str(short_term_value)
-    )
-
-    trend_percent = Decimal(
-        str(trend_value)
-    )
+    latest_observed_at = snapshot.observation_at
+    short_term_percent = snapshot.short_term_percent
+    trend_percent = snapshot.trend_percent
 
     buy_signal = (
         short_term_percent
