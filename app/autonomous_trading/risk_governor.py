@@ -2,6 +2,10 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from decimal import Decimal
 
+from app.autonomous_trading.asset_risk_metadata import (
+    get_asset_risk_metadata,
+)
+
 from app.autonomous_trading.policy import RiskPolicy
 from app.autonomous_trading.proposals import (
     TradeAction,
@@ -141,6 +145,10 @@ def evaluate_trade_proposal(
 
     positions = portfolio_summary.get("positions") or []
 
+    proposal_metadata = get_asset_risk_metadata(
+        proposal.symbol
+    )
+
     existing_position = next(
         (
             position
@@ -199,6 +207,86 @@ def evaluate_trade_proposal(
                     "Projected total exposure exceeds "
                     "the policy maximum."
                 )
+
+            if proposal_metadata is not None:
+                current_sector_value = ZERO
+                current_correlation_value = ZERO
+
+                for position in positions:
+                    position_symbol = str(
+                        position.get("symbol", "")
+                    ).upper()
+
+                    position_metadata = (
+                        get_asset_risk_metadata(
+                            position_symbol
+                        )
+                    )
+
+                    if position_metadata is None:
+                        continue
+
+                    position_value = _to_decimal(
+                        position.get(
+                            "market_value_usd"
+                        )
+                    )
+
+                    if (
+                        position_metadata.sector
+                        == proposal_metadata.sector
+                    ):
+                        current_sector_value += (
+                            position_value
+                        )
+
+                    if (
+                        position_metadata.correlation_group
+                        == proposal_metadata.correlation_group
+                    ):
+                        current_correlation_value += (
+                            position_value
+                        )
+
+                projected_sector_value = (
+                    current_sector_value
+                    + proposed_trade_value
+                )
+
+                projected_sector_percent = (
+                    projected_sector_value
+                    / total_value
+                    * ONE_HUNDRED
+                )
+
+                if (
+                    projected_sector_percent
+                    > policy.max_sector_exposure_percent
+                ):
+                    reasons.append(
+                        "Projected sector exposure exceeds "
+                        "the policy maximum."
+                    )
+
+                projected_correlation_value = (
+                    current_correlation_value
+                    + proposed_trade_value
+                )
+
+                projected_correlation_percent = (
+                    projected_correlation_value
+                    / total_value
+                    * ONE_HUNDRED
+                )
+
+                if (
+                    projected_correlation_percent
+                    > policy.max_correlation_group_exposure_percent
+                ):
+                    reasons.append(
+                        "Projected correlation-group exposure "
+                        "exceeds the policy maximum."
+                    )
 
             projected_cash = (
                 cash_balance

@@ -18,6 +18,9 @@ class RiskPolicy:
     max_total_exposure_percent: Decimal
     minimum_cash_reserve_percent: Decimal
 
+    max_sector_exposure_percent: Decimal
+    max_correlation_group_exposure_percent: Decimal
+
     max_open_positions: int
 
     max_price_age_seconds: int
@@ -40,6 +43,9 @@ INITIAL_1000_POLICY = RiskPolicy(
     max_position_percent=Decimal("20.00"),
     max_total_exposure_percent=Decimal("60.00"),
     minimum_cash_reserve_percent=Decimal("40.00"),
+
+    max_sector_exposure_percent=Decimal("35.00"),
+    max_correlation_group_exposure_percent=Decimal("40.00"),
 
     max_open_positions=4,
 
