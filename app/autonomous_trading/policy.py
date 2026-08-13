@@ -59,5 +59,5 @@ INITIAL_1000_POLICY = RiskPolicy(
     require_rationale=True,
     require_confidence=True,
 
-    autonomous_execution_enabled=False,
+    autonomous_execution_enabled=True,
 )
