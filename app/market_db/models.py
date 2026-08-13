@@ -587,6 +587,177 @@ class AutonomousTradeDecision(Base):
     )
 
 
+class AutonomousTradeJournal(Base):
+    __tablename__ = "autonomous_trade_journal"
+    __table_args__ = (
+        Index(
+            "ix_autonomous_trade_journal_portfolio_status",
+            "portfolio_id",
+            "status",
+        ),
+        Index(
+            "ix_autonomous_trade_journal_asset_status",
+            "asset_id",
+            "status",
+        ),
+        Index(
+            "ix_autonomous_trade_journal_opened_at",
+            "opened_at",
+        ),
+        Index(
+            "ix_autonomous_trade_journal_closed_at",
+            "closed_at",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(
+        primary_key=True,
+    )
+
+    portfolio_id: Mapped[int] = mapped_column(
+        ForeignKey(
+            "portfolios.id",
+            ondelete="CASCADE",
+        ),
+        nullable=False,
+    )
+
+    asset_id: Mapped[int] = mapped_column(
+        ForeignKey(
+            "market_assets.id",
+            ondelete="CASCADE",
+        ),
+        nullable=False,
+    )
+
+    status: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="open",
+    )
+
+    strategy_name: Mapped[str] = mapped_column(
+        String(120),
+        nullable=False,
+    )
+
+    entry_decision_id: Mapped[int] = mapped_column(
+        ForeignKey(
+            "autonomous_trade_decisions.id",
+            ondelete="CASCADE",
+        ),
+        nullable=False,
+    )
+
+    entry_transaction_id: Mapped[int] = mapped_column(
+        ForeignKey(
+            "portfolio_transactions.id",
+            ondelete="CASCADE",
+        ),
+        nullable=False,
+    )
+
+    entry_quantity: Mapped[Decimal] = mapped_column(
+        Numeric(28, 12),
+        nullable=False,
+    )
+
+    entry_price_usd: Mapped[Decimal] = mapped_column(
+        Numeric(20, 8),
+        nullable=False,
+    )
+
+    entry_confidence_percent: Mapped[Decimal] = mapped_column(
+        Numeric(8, 4),
+        nullable=False,
+    )
+
+    entry_rationale: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+    )
+
+    entry_market_context: Mapped[dict] = mapped_column(
+        JSON,
+        nullable=False,
+        default=dict,
+    )
+
+    expected_outcome: Mapped[str | None] = mapped_column(
+        Text,
+    )
+
+    opened_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+
+    exit_decision_id: Mapped[int | None] = mapped_column(
+        ForeignKey(
+            "autonomous_trade_decisions.id",
+            ondelete="SET NULL",
+        ),
+    )
+
+    exit_transaction_id: Mapped[int | None] = mapped_column(
+        ForeignKey(
+            "portfolio_transactions.id",
+            ondelete="SET NULL",
+        ),
+    )
+
+    exit_price_usd: Mapped[Decimal | None] = mapped_column(
+        Numeric(20, 8),
+    )
+
+    exit_rationale: Mapped[str | None] = mapped_column(
+        Text,
+    )
+
+    exit_rule: Mapped[str | None] = mapped_column(
+        String(60),
+    )
+
+    exit_market_context: Mapped[dict | None] = mapped_column(
+        JSON,
+    )
+
+    closed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+    )
+
+    holding_duration_seconds: Mapped[int | None] = mapped_column()
+
+    realized_gain_loss_usd: Mapped[Decimal | None] = mapped_column(
+        Numeric(20, 8),
+    )
+
+    return_percent: Mapped[Decimal | None] = mapped_column(
+        Numeric(12, 6),
+    )
+
+    actual_outcome: Mapped[str | None] = mapped_column(
+        Text,
+    )
+
+    thesis_correct: Mapped[bool | None] = mapped_column(
+        Boolean,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utc_now,
+        nullable=False,
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utc_now,
+        onupdate=utc_now,
+        nullable=False,
+    )
+
+
 class AutonomousStrategyState(Base):
     __tablename__ = "autonomous_strategy_state"
     __table_args__ = (

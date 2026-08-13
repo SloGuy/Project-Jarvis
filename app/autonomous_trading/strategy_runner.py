@@ -38,6 +38,10 @@ from app.autonomous_trading.strategy import (
     StrategyAction,
     create_strategy_candidate,
 )
+from app.autonomous_trading.trade_journal import (
+    close_trade_journal,
+    open_trade_journal,
+)
 from app.market_db.database import SessionLocal
 from app.market_db.models import MarketAsset
 from app.market_db.portfolio_queries import (
@@ -318,6 +322,91 @@ def run_momentum_strategy_cycle() -> dict[str, Any]:
                 decision_id=record.id,
                 portfolio_transaction_id=transaction_id,
             )
+
+            if candidate.action == StrategyAction.BUY:
+                open_trade_journal(
+                    decision_id=record.id,
+                    transaction_id=transaction_id,
+                    entry_market_context={
+                        "short_term_percent": (
+                            float(
+                                momentum_snapshot.short_term_percent
+                            )
+                            if (
+                                momentum_snapshot.short_term_percent
+                                is not None
+                            )
+                            else None
+                        ),
+                        "trend_percent": (
+                            float(
+                                momentum_snapshot.trend_percent
+                            )
+                            if (
+                                momentum_snapshot.trend_percent
+                                is not None
+                            )
+                            else None
+                        ),
+                        "position_allocation_percent": float(
+                            position_context.allocation_percent
+                        ),
+                        "portfolio_total_value_usd": float(
+                            portfolio["total_value_usd"]
+                        ),
+                        "cash_balance_usd": float(
+                            portfolio["cash_balance_usd"]
+                        ),
+                    },
+                    expected_outcome=(
+                        "Positive momentum continues after entry."
+                    ),
+                )
+
+            if candidate.action == StrategyAction.SELL:
+                close_trade_journal(
+                    decision_id=record.id,
+                    transaction_id=transaction_id,
+                    exit_rule=(
+                        exit_decision.rule.value
+                        if exit_decision.should_exit
+                        else None
+                    ),
+                    exit_market_context={
+                        "short_term_percent": (
+                            float(
+                                momentum_snapshot.short_term_percent
+                            )
+                            if (
+                                momentum_snapshot.short_term_percent
+                                is not None
+                            )
+                            else None
+                        ),
+                        "trend_percent": (
+                            float(
+                                momentum_snapshot.trend_percent
+                            )
+                            if (
+                                momentum_snapshot.trend_percent
+                                is not None
+                            )
+                            else None
+                        ),
+                        "position_allocation_percent": float(
+                            position_context.allocation_percent
+                        ),
+                        "position_unrealized_gain_loss_percent": float(
+                            position_context.unrealized_gain_loss_percent
+                        ),
+                        "portfolio_total_value_usd": float(
+                            portfolio["total_value_usd"]
+                        ),
+                        "cash_balance_usd": float(
+                            portfolio["cash_balance_usd"]
+                        ),
+                    },
+                )
 
             result["execution_status"] = "executed"
             result["execution_reason"] = (
