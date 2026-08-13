@@ -327,6 +327,22 @@
             font-size: 0.88rem;
         }
 
+        .live-status-badge {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 2px 6px;
+            border-radius: 999px;
+            font-size: 0.65rem;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            border: 1px solid var(--border);
+            color: var(--muted);
+        }
+
+        .live-status-badge.positive {
+            color: var(--positive);
+        }
+
         .portfolio-explanation-palette {
             width: min(760px, 100%);
         }
@@ -469,6 +485,254 @@
         <div class="panel">
             <div class="muted">Stored News Articles</div>
             <div class="metric" id="news-count">—</div>
+        </div>
+    </section>
+
+    <section style="margin-bottom: 24px;">
+        <div
+            class="panel"
+            style="
+                padding: 22px;
+                margin-bottom: 18px;
+            "
+        >
+            <div
+                style="
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: flex-start;
+                    gap: 16px;
+                    flex-wrap: wrap;
+                    margin-bottom: 20px;
+                "
+            >
+                <div>
+                    <div
+                        class="muted"
+                        style="
+                            font-size: 0.78rem;
+                            text-transform: uppercase;
+                            font-weight: 800;
+                            letter-spacing: 0.08em;
+                            margin-bottom: 6px;
+                        "
+                    >
+                        Autonomous Trading
+                    </div>
+
+                    <h2 style="margin-bottom: 6px;">
+                        Experiment Status
+                    </h2>
+
+                    <div
+                        id="experiment-summary"
+                        class="muted"
+                    >
+                        Loading autonomous experiment...
+                    </div>
+                </div>
+
+                <div
+                    class="status"
+                    id="experiment-execution-status"
+                >
+                    Loading
+                </div>
+            </div>
+
+            <div
+                style="
+                    display: flex;
+                    justify-content: space-between;
+                    gap: 14px;
+                    align-items: center;
+                    flex-wrap: wrap;
+                    margin-bottom: 10px;
+                "
+            >
+                <div>
+                    <strong id="experiment-day">
+                        Day — / 180
+                    </strong>
+                </div>
+
+                <div
+                    class="muted"
+                    id="experiment-strategy"
+                    style="font-size: 0.9rem;"
+                >
+                    Strategy: —
+                </div>
+            </div>
+
+            <div
+                style="
+                    height: 10px;
+                    overflow: hidden;
+                    background: var(--panel-light);
+                    border: 1px solid var(--border);
+                    border-radius: 999px;
+                    margin-bottom: 22px;
+                "
+            >
+                <div
+                    id="experiment-progress-bar"
+                    style="
+                        width: 0%;
+                        height: 100%;
+                        background: var(--positive);
+                        border-radius: 999px;
+                        transition: width 0.35s ease;
+                    "
+                ></div>
+            </div>
+
+            <div class="grid summary-grid">
+                <div class="chart-stat">
+                    <div class="muted">
+                        Starting Capital
+                    </div>
+
+                    <div
+                        class="metric"
+                        id="experiment-starting-capital"
+                    >
+                        —
+                    </div>
+                </div>
+
+                <div class="chart-stat">
+                    <div class="muted">
+                        Current Value
+                    </div>
+
+                    <div
+                        class="metric"
+                        id="experiment-current-value"
+                    >
+                        —
+                    </div>
+                </div>
+
+                <div class="chart-stat">
+                    <div class="muted">
+                        Total Return
+                    </div>
+
+                    <div
+                        class="metric"
+                        id="experiment-total-return"
+                    >
+                        —
+                    </div>
+                </div>
+
+                <div class="chart-stat">
+                    <div class="muted">
+                        Open Positions
+                    </div>
+
+                    <div
+                        class="metric"
+                        id="experiment-open-positions"
+                    >
+                        —
+                    </div>
+                </div>
+
+                <div class="chart-stat">
+                    <div class="muted">
+                        Completed Trades
+                    </div>
+
+                    <div
+                        class="metric"
+                        id="experiment-completed-trades"
+                    >
+                        —
+                    </div>
+                </div>
+
+                <div class="chart-stat">
+                    <div class="muted">
+                        Win Rate
+                    </div>
+
+                    <div
+                        class="metric"
+                        id="experiment-win-rate"
+                    >
+                        —
+                    </div>
+                </div>
+
+                <div class="chart-stat">
+                    <div class="muted">
+                        Thesis Accuracy
+                    </div>
+
+                    <div
+                        class="metric"
+                        id="experiment-thesis-accuracy"
+                    >
+                        —
+                    </div>
+                </div>
+
+                <div class="chart-stat">
+                    <div class="muted">
+                        Journal
+                    </div>
+
+                    <div
+                        class="metric"
+                        id="experiment-journal-count"
+                    >
+                        —
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section style="margin-bottom: 24px;">
+        <div class="panel">
+            <div
+                style="
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: flex-start;
+                    gap: 16px;
+                    flex-wrap: wrap;
+                    margin-bottom: 16px;
+                "
+            >
+                <div>
+                    <h2 style="margin-bottom: 6px;">
+                        Recent Autonomous Activity
+                    </h2>
+
+                    <div
+                        class="muted"
+                        id="autonomous-activity-summary"
+                    >
+                        Loading recent Jarvis decisions...
+                    </div>
+                </div>
+
+                <div
+                    class="status"
+                    id="autonomous-activity-status"
+                >
+                    Loading
+                </div>
+            </div>
+
+            <div id="autonomous-activity-list">
+                <div class="empty">
+                    Loading autonomous activity...
+                </div>
+            </div>
         </div>
     </section>
 
@@ -1733,12 +1997,30 @@ if (portfolioDeeperAnalysisButton) {
         const body = document.getElementById(targetId);
 
         body.innerHTML = assets.map((asset) => `
-            <tr>
-                <td><strong>${asset.symbol}</strong></td>
-                <td>${formatPrice(asset.price_usd)}</td>
-                <td class="${changeClass(
-                    asset.provider_change_percent
-                )}">
+            <tr data-symbol="${asset.symbol}">
+                <td>
+                    <strong>${asset.symbol}</strong>
+                    <span
+                        class="live-status-badge"
+                        data-live-status="${asset.symbol}"
+                    >
+                        STORED
+                    </span>
+                </td>
+
+                <td
+                    class="live-price"
+                    data-live-price="${asset.symbol}"
+                >
+                    ${formatPrice(asset.price_usd)}
+                </td>
+
+                <td
+                    class="live-change ${changeClass(
+                        asset.provider_change_percent
+                    )}"
+                    data-live-change="${asset.symbol}"
+                >
                     ${formatPercent(
                         asset.provider_change_percent
                     )}
@@ -1757,6 +2039,8 @@ if (portfolioDeeperAnalysisButton) {
         minimum: 0,
         maximum: 0,
     };
+
+    let historicalTrendPoints = [];
 
     function drawPriceChart(points, hoverIndex = null) {
         const canvas = document.getElementById("price-chart");
@@ -2092,7 +2376,13 @@ if (portfolioDeeperAnalysisButton) {
 
             const data = await response.json();
 
-            drawPriceChart(data.points);
+            historicalTrendPoints = [
+                ...(data.points || []),
+            ];
+
+            drawPriceChart(
+                historicalTrendPoints
+            );
 
             const statistics = data.statistics;
 
@@ -2704,6 +2994,459 @@ if (portfolioDeeperAnalysisButton) {
         }
     }
 
+    let currentPortfolioData = null;
+
+    function syncExperimentPortfolio(data) {
+        if (!data) {
+            return;
+        }
+
+        const startingCapital = 1000;
+
+        const currentValue =
+            Number(data.total_value_usd || 0);
+
+        const totalGainLoss =
+            Number(data.total_gain_loss_usd || 0);
+
+        const totalReturn =
+            startingCapital > 0
+                ? (
+                    (
+                        currentValue
+                        - startingCapital
+                    )
+                    / startingCapital
+                    * 100
+                )
+                : 0;
+
+        document.getElementById(
+            "experiment-current-value"
+        ).textContent =
+            formatPrice(currentValue);
+
+        const returnElement =
+            document.getElementById(
+                "experiment-total-return"
+            );
+
+        returnElement.textContent =
+            `${totalReturn >= 0 ? "+" : ""}`
+            + `${totalReturn.toFixed(2)}%`;
+
+        returnElement.className =
+            `metric ${changeClass(totalReturn)}`;
+
+        document.getElementById(
+            "experiment-open-positions"
+        ).textContent =
+            data.position_count;
+
+        return {
+            currentValue,
+            totalGainLoss,
+            totalReturn,
+        };
+    }
+
+    async function loadExperimentStatus() {
+        const executionStatus =
+            document.getElementById(
+                "experiment-execution-status"
+            );
+
+        try {
+            const response = await fetch(
+                "/market/autonomous/experiment"
+            );
+
+            if (!response.ok) {
+                throw new Error(
+                    `Experiment status request failed: ${response.status}`
+                );
+            }
+
+            const data = await response.json();
+
+            const experiment = data.experiment;
+            const portfolio = data.portfolio;
+            const performance = data.performance;
+            const journal = data.journal;
+
+            const recentDecisions =
+                data.recent_decisions || [];
+
+            const money = (value) => {
+                return Number(value || 0).toLocaleString(
+                    "en-US",
+                    {
+                        style: "currency",
+                        currency: "USD",
+                    }
+                );
+            };
+
+            const percent = (value) => {
+                if (
+                    value === null
+                    || value === undefined
+                ) {
+                    return "—";
+                }
+
+                const numericValue = Number(value);
+
+                return (
+                    `${numericValue >= 0 ? "+" : ""}`
+                    + `${numericValue.toFixed(2)}%`
+                );
+            };
+
+            const dayNumber =
+                Number(experiment.day_number || 1);
+
+            const durationDays =
+                Number(experiment.duration_days || 180);
+
+            const progressPercent = Math.min(
+                100,
+                Math.max(
+                    0,
+                    (
+                        dayNumber
+                        / durationDays
+                    )
+                    * 100
+                )
+            );
+
+            document.getElementById(
+                "experiment-day"
+            ).textContent =
+                `Day ${dayNumber} / ${durationDays}`;
+
+            document.getElementById(
+                "experiment-progress-bar"
+            ).style.width =
+                `${progressPercent}%`;
+
+            document.getElementById(
+                "experiment-strategy"
+            ).textContent =
+                `Strategy: ${experiment.strategy_name}`;
+
+            document.getElementById(
+                "experiment-starting-capital"
+            ).textContent =
+                money(
+                    experiment.starting_capital_usd
+                );
+
+            if (currentPortfolioData) {
+                syncExperimentPortfolio(
+                    currentPortfolioData
+                );
+            }
+
+            document.getElementById(
+                "experiment-completed-trades"
+            ).textContent =
+                performance.completed_trade_count;
+
+            document.getElementById(
+                "experiment-win-rate"
+            ).textContent =
+                performance.win_rate_percent === null
+                    ? "—"
+                    : `${Number(
+                        performance.win_rate_percent
+                    ).toFixed(1)}%`;
+
+            document.getElementById(
+                "experiment-thesis-accuracy"
+            ).textContent =
+                performance.thesis_accuracy_percent
+                    === null
+                    ? "—"
+                    : `${Number(
+                        performance.thesis_accuracy_percent
+                    ).toFixed(1)}%`;
+
+            document.getElementById(
+                "experiment-journal-count"
+            ).textContent =
+                journal.open_count
+                + journal.closed_count;
+
+             const livePortfolio =
+                currentPortfolioData;
+
+            document.getElementById(
+                "experiment-summary"
+            ).textContent =
+                livePortfolio
+                    ? (
+                        `${performance.completed_trade_count} completed trades`
+                        + ` • ${livePortfolio.position_count} open positions`
+                        + ` • ${money(
+                            livePortfolio.total_gain_loss_usd
+                        )} total P/L`
+                    )
+                    : (
+                        `${performance.completed_trade_count} completed trades`
+                        + " • Loading live portfolio..."
+                    );
+
+            const activityStatus =
+                document.getElementById(
+                    "autonomous-activity-status"
+                );
+
+            const activitySummary =
+                document.getElementById(
+                    "autonomous-activity-summary"
+                );
+
+            const activityList =
+                document.getElementById(
+                    "autonomous-activity-list"
+                );
+
+            activityStatus.textContent =
+                "Live";
+
+            activityStatus.className =
+                "status positive";
+
+            activitySummary.textContent =
+                recentDecisions.length
+                    ? (
+                        `${recentDecisions.length} recent autonomous decision`
+                        + `${recentDecisions.length === 1 ? "" : "s"}`
+                    )
+                    : "No autonomous decisions recorded yet.";
+
+            if (!recentDecisions.length) {
+                activityList.innerHTML = `
+                    <div class="empty">
+                        Jarvis has not made an autonomous decision yet.
+                    </div>
+                `;
+            } else {
+                activityList.innerHTML =
+                    recentDecisions.map((decision) => {
+                        const action =
+                            String(
+                                decision.action || "unknown"
+                            ).toUpperCase();
+
+                        const symbol =
+                            decision.symbol || "—";
+
+                        const confidence =
+                            decision.confidence_percent === null
+                            || decision.confidence_percent === undefined
+                                ? "—"
+                                : `${Number(
+                                    decision.confidence_percent
+                                ).toFixed(1)}%`;
+
+                        const status =
+                            decision.execution_status
+                            || (
+                                decision.approved
+                                    ? "approved"
+                                    : "rejected"
+                            );
+
+                        const eventTime =
+                            decision.executed_at
+                            || decision.evaluated_at
+                            || decision.created_at;
+
+                        const formattedTime =
+                            eventTime
+                                ? new Date(
+                                    eventTime
+                                ).toLocaleString(
+                                    [],
+                                    {
+                                        month: "short",
+                                        day: "numeric",
+                                        hour: "numeric",
+                                        minute: "2-digit",
+                                    }
+                                )
+                                : "Time unavailable";
+
+                        const statusClassName =
+                            status === "executed"
+                                ? "positive"
+                                : (
+                                    status === "failed"
+                                    || status === "rejected"
+                                        ? "negative"
+                                        : "neutral"
+                                );
+
+                        return `
+                            <div class="alert">
+                                <div
+                                    style="
+                                        display: flex;
+                                        justify-content: space-between;
+                                        gap: 16px;
+                                        align-items: flex-start;
+                                        flex-wrap: wrap;
+                                    "
+                                >
+                                    <div>
+                                        <div
+                                            style="
+                                                display: flex;
+                                                gap: 10px;
+                                                align-items: center;
+                                                flex-wrap: wrap;
+                                            "
+                                        >
+                                            <strong>
+                                                ${symbol} · ${action}
+                                            </strong>
+
+                                            <span
+                                                class="${statusClassName}"
+                                                style="
+                                                    font-size: 0.78rem;
+                                                    font-weight: 800;
+                                                    text-transform: uppercase;
+                                                "
+                                            >
+                                                ${status.replaceAll("_", " ")}
+                                            </span>
+                                        </div>
+
+                                        <div
+                                            class="muted"
+                                            style="
+                                                margin-top: 8px;
+                                                line-height: 1.5;
+                                            "
+                                        >
+                                            ${decision.rationale || "No rationale recorded."}
+                                        </div>
+                                    </div>
+
+                                    <div
+                                        style="
+                                            text-align: right;
+                                            white-space: nowrap;
+                                        "
+                                    >
+                                        <div>
+                                            Confidence:
+                                            <strong>${confidence}</strong>
+                                        </div>
+
+                                        <div
+                                            class="muted"
+                                            style="
+                                                margin-top: 6px;
+                                                font-size: 0.82rem;
+                                            "
+                                        >
+                                            ${formattedTime}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div
+                                    style="
+                                        display: flex;
+                                        gap: 18px;
+                                        flex-wrap: wrap;
+                                        margin-top: 12px;
+                                        font-size: 0.88rem;
+                                    "
+                                >
+                                    <span>
+                                        Quantity:
+                                        <strong>
+                                            ${Number(
+                                                decision.quantity || 0
+                                            ).toFixed(6)}
+                                        </strong>
+                                    </span>
+
+                                    <span>
+                                        Reference:
+                                        <strong>
+                                            ${money(
+                                                decision.reference_price_usd
+                                            )}
+                                        </strong>
+                                    </span>
+
+                                    <span>
+                                        Transaction:
+                                        <strong>
+                                            ${
+                                                decision.portfolio_transaction_id
+                                                ?? "—"
+                                            }
+                                        </strong>
+                                    </span>
+                                </div>
+                            </div>
+                        `;
+                    }).join("");
+            }
+
+            if (
+                experiment.execution_mode
+                === "autonomous_paper_trading"
+            ) {
+                executionStatus.textContent =
+                    "Live";
+
+                executionStatus.className =
+                    "status positive";
+            } else {
+                executionStatus.textContent =
+                    "Disabled";
+
+                executionStatus.className =
+                    "status negative";
+            }
+        } catch (error) {
+            executionStatus.textContent =
+                "Error";
+
+            executionStatus.className =
+                "status negative";
+
+            document.getElementById(
+                "autonomous-activity-status"
+            ).textContent =
+                "Error";
+
+            document.getElementById(
+                "autonomous-activity-status"
+            ).className =
+                "status negative";
+
+            document.getElementById(
+                "autonomous-activity-summary"
+            ).textContent =
+                "Unable to load autonomous activity.";
+
+            document.getElementById(
+                "experiment-summary"
+            ).textContent =
+                error.message;
+        }
+    }
+
     async function loadPortfolio() {
         const portfolioStatus =
             document.getElementById("portfolio-status");
@@ -2723,6 +3466,10 @@ if (portfolioDeeperAnalysisButton) {
             }
 
             const data = await response.json();
+
+            currentPortfolioData = data;
+
+            syncExperimentPortfolio(data);
 
             if (data.status !== "success") {
                 throw new Error(
@@ -2815,7 +3562,7 @@ if (portfolioDeeperAnalysisButton) {
             } else {
                 positionsBody.innerHTML =
                     data.positions.map((position) => `
-                        <tr>
+                        <tr data-portfolio-symbol="${position.symbol}">
                             <td>
                                 <strong>${position.symbol}</strong>
                             </td>
@@ -2969,6 +3716,286 @@ if (portfolioDeeperAnalysisButton) {
                     </td>
                 </tr>
             `;
+        }
+    }
+
+    function updateLivePortfolioValuation(quotes) {
+        if (
+            !currentPortfolioData
+            || currentPortfolioData.status !== "success"
+        ) {
+            return;
+        }
+
+        const positions = Array.isArray(
+            currentPortfolioData.positions
+        )
+            ? currentPortfolioData.positions
+            : [];
+
+        let liveMarketValue = 0;
+        let liveUnrealizedGainLoss = 0;
+
+        positions.forEach((position) => {
+            const quote = quotes[position.symbol];
+
+            const livePrice = (
+                quote
+                && quote.price_usd !== null
+                && quote.price_usd !== undefined
+            )
+                ? Number(quote.price_usd)
+                : Number(position.latest_price_usd);
+
+            const quantity = Number(
+                position.quantity || 0
+            );
+
+            const costBasis = Number(
+                position.cost_basis_usd || 0
+            );
+
+            const marketValue =
+                quantity * livePrice;
+
+            const unrealizedGainLoss =
+                marketValue - costBasis;
+
+            const unrealizedPercent =
+                costBasis !== 0
+                    ? (
+                        unrealizedGainLoss
+                        / costBasis
+                        * 100
+                    )
+                    : 0;
+
+            liveMarketValue += marketValue;
+            liveUnrealizedGainLoss +=
+                unrealizedGainLoss;
+
+            const row = document.querySelector(
+                `[data-portfolio-symbol="${position.symbol}"]`
+            );
+
+            if (!row) {
+                return;
+            }
+
+            const cells =
+                row.querySelectorAll("td");
+
+            if (cells.length < 6) {
+                return;
+            }
+
+            cells[3].textContent =
+                formatPrice(livePrice);
+
+            cells[4].textContent =
+                formatPrice(marketValue);
+
+            cells[5].className =
+                changeClass(
+                    unrealizedGainLoss
+                );
+
+            cells[5].innerHTML = `
+                ${formatPrice(
+                    unrealizedGainLoss
+                )}
+
+                <div
+                    class="muted"
+                    style="font-size: 0.8rem;"
+                >
+                    ${formatPercent(
+                        unrealizedPercent
+                    )}
+                </div>
+            `;
+        });
+
+        const cashBalance = Number(
+            currentPortfolioData.cash_balance_usd || 0
+        );
+
+        const realizedGainLoss = Number(
+            currentPortfolioData.realized_gain_loss_usd || 0
+        );
+
+        const liveTotalValue =
+            cashBalance + liveMarketValue;
+
+        const liveTotalGainLoss =
+            realizedGainLoss
+            + liveUnrealizedGainLoss;
+
+        document.getElementById(
+            "portfolio-total-value"
+        ).textContent = formatPrice(
+            liveTotalValue
+        );
+
+        document.getElementById(
+            "portfolio-market-value"
+        ).textContent = formatPrice(
+            liveMarketValue
+        );
+
+        const unrealizedElement =
+            document.getElementById(
+                "portfolio-unrealized"
+            );
+
+        unrealizedElement.textContent =
+            formatPrice(
+                liveUnrealizedGainLoss
+            );
+
+        unrealizedElement.className =
+            `metric ${changeClass(
+                liveUnrealizedGainLoss
+            )}`;
+
+        const totalGainLossElement =
+            document.getElementById(
+                "portfolio-total-gain-loss"
+            );
+
+        totalGainLossElement.textContent =
+            formatPrice(
+                liveTotalGainLoss
+            );
+
+        totalGainLossElement.className =
+            `metric ${changeClass(
+                liveTotalGainLoss
+            )}`;
+    }
+
+    async function loadLiveQuotes() {
+        try {
+            const response = await fetch(
+                "/market/live-quotes",
+                {
+                    cache: "no-store",
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error(
+                    `Live quotes failed with status ${response.status}`
+                );
+            }
+
+            const data = await response.json();
+            const quotes = data.quotes || {};
+
+            updateLivePortfolioValuation(
+                quotes
+            );
+
+            const selectedSymbol =
+                document.getElementById(
+                    "chart-symbol"
+                ).value;
+
+            const selectedQuote =
+                quotes[selectedSymbol];
+
+            if (
+                selectedQuote
+                && selectedQuote.price_usd !== null
+                && selectedQuote.price_usd !== undefined
+                && historicalTrendPoints.length > 0
+            ) {
+                const livePoint = {
+                    price_usd: selectedQuote.price_usd,
+                    observed_at: (
+                        selectedQuote.observed_at
+                        || selectedQuote.received_at
+                        || new Date().toISOString()
+                    ),
+                    provider: selectedQuote.provider,
+                    live: true,
+                };
+
+                const combinedPoints = [
+                    ...historicalTrendPoints,
+                    livePoint,
+                ];
+
+                drawPriceChart(
+                    combinedPoints
+                );
+
+                document.getElementById(
+                    "chart-latest"
+                ).textContent = formatPrice(
+                    selectedQuote.price_usd
+                );
+            }
+
+            Object.entries(quotes).forEach(
+                ([symbol, quote]) => {
+                    const priceCell =
+                        document.querySelector(
+                            `[data-live-price="${symbol}"]`
+                        );
+
+                    const statusBadge =
+                        document.querySelector(
+                            `[data-live-status="${symbol}"]`
+                        );
+
+                    if (statusBadge) {
+                        statusBadge.textContent = "LIVE";
+                        statusBadge.className =
+                            "live-status-badge positive";
+                    }
+
+                    if (
+                        priceCell
+                        && quote.price_usd !== null
+                        && quote.price_usd !== undefined
+                    ) {
+                        priceCell.textContent =
+                            formatPrice(
+                                quote.price_usd
+                            );
+                    }
+
+                    const changeCell =
+                        document.querySelector(
+                            `[data-live-change="${symbol}"]`
+                        );
+
+                    if (
+                        changeCell
+                        && quote.asset_type === "crypto"
+                        && quote.change_24h_percent !== null
+                        && quote.change_24h_percent !== undefined
+                    ) {
+                        changeCell.textContent =
+                            formatPercent(
+                                quote.change_24h_percent
+                            );
+
+                        changeCell.className =
+                            `live-change ${
+                                changeClass(
+                                    quote.change_24h_percent
+                                )
+                            }`;
+                    }
+                }
+            );
+        } catch (error) {
+            console.error(
+                "Live quote refresh failed:",
+                error
+            );
         }
     }
 
@@ -3306,6 +4333,7 @@ if (portfolioDeeperAnalysisButton) {
 
     window.addEventListener("resize", loadTrend);
 
+    loadExperimentStatus();
     loadPortfolio();
     loadPortfolioInsight();
     loadIntelligence();
@@ -3313,7 +4341,15 @@ if (portfolioDeeperAnalysisButton) {
     loadMoveExplanation();
     loadOperations();
 
-    setInterval(loadPortfolio, 60000);
+    loadLiveQuotes();
+
+    setInterval(
+        loadLiveQuotes,
+        5000
+    );
+
+    setInterval(loadExperimentStatus, 60000);
+    setInterval(loadPortfolio, 5000);
     setInterval(loadPortfolioInsight, 60000);
     setInterval(loadIntelligence, 60000);
     setInterval(loadTrend, 60000);

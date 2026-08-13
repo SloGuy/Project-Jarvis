@@ -30,6 +30,9 @@ from app.market_db.paper_trading import (
 from app.market_db.portfolio_queries import get_portfolio_summary
 from app.market_db.portfolio_insights import get_portfolio_insight
 from app.market_db.portfolio_explainer import explain_portfolio
+from app.autonomous_trading.experiment_status import (
+    get_experiment_status,
+)
 from app.router_api import router as lightweight_router
 from app.live_market.coingecko_poller import run_coingecko_poller
 from app.live_market.finnhub_stream import run_finnhub_stream
@@ -475,6 +478,22 @@ def market_intelligence(
         mover_threshold_percent=mover_threshold_percent,
         alert_limit=alert_limit,
     )
+
+
+@app.get("/market/autonomous/experiment")
+def market_autonomous_experiment(
+    portfolio_id: int | None = Query(default=None),
+    decision_limit: int = Query(
+        default=10,
+        ge=1,
+        le=100,
+    ),
+):
+    return get_experiment_status(
+        portfolio_id=portfolio_id,
+        decision_limit=decision_limit,
+    )
+
 
 @app.get("/market/portfolio")
 def market_portfolio(
