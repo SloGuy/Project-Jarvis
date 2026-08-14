@@ -17,6 +17,11 @@ class OverviewCapability(RouterCapability):
         r"\boverview\s+of\s+(the\s+)?(system|server|jarvis)\b",
         r"\bhow\s+is\s+(the\s+)?(system|server|jarvis)\s+doing\b",
         r"\bcurrent\s+(system|server|jarvis)\s+status\b",
+        r"\bcurrent\s+(system|server|jarvis)(\s+server)?\s+health\b",
+        r"\b(system|server|jarvis)(\s+server)?\s+health\b",
+        r"\bhealth\s+of\s+(the\s+)?(system|server|jarvis)\b",
+        r"\bis\s+(the\s+)?(system|server|jarvis)\s+healthy\b",
+        r"\b(system|server|jarvis)\s+status\b",
     )
 
     def execute(self, **parameters: Any) -> dict[str, Any]:
