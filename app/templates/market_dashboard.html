@@ -1207,8 +1207,185 @@
         <div id="recent-news"></div>
     </section>
 
-    <section class="panel">
-        <h2>Alerts</h2>
+    <section
+        class="panel"
+        style="margin-bottom: 18px;"
+    >
+        <div
+            style="
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+                gap: 16px;
+                flex-wrap: wrap;
+                margin-bottom: 18px;
+            "
+        >
+            <div>
+                <div
+                    style="
+                        color: #8fb7ff;
+                        font-size: 0.78rem;
+                        font-weight: 700;
+                        letter-spacing: 0.08em;
+                        text-transform: uppercase;
+                        margin-bottom: 5px;
+                    "
+                >
+                    Market Monitoring
+                </div>
+
+                <h2 style="margin: 0;">
+                    Alert Center
+                </h2>
+
+                <div
+                    class="muted"
+                    id="alert-center-summary"
+                    style="margin-top: 5px;"
+                >
+                    Loading recent market alerts...
+                </div>
+            </div>
+
+            <div
+                style="
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    flex-wrap: wrap;
+                    justify-content: flex-end;
+                "
+            >
+                <button
+                    type="button"
+                    id="enable-notifications"
+                    style="
+                        padding: 7px 11px;
+                        font-size: 0.78rem;
+                        font-weight: 700;
+                        cursor: pointer;
+                    "
+                >
+                    Enable Notifications
+                </button>
+
+                <span
+                    class="status positive"
+                    id="alert-center-status"
+                >
+                    Live
+                </span>
+            </div>
+        </div>
+
+        <div
+            style="
+                display: flex;
+                gap: 18px;
+                flex-wrap: wrap;
+                margin-bottom: 18px;
+                padding: 10px 0 2px;
+            "
+        >
+            <label>
+                <input
+                    type="checkbox"
+                    id="notify-autonomous-trades"
+                >
+                Autonomous trades
+            </label>
+
+            <label>
+                <input
+                    type="checkbox"
+                    id="notify-portfolio-moves"
+                >
+                Portfolio moves
+            </label>
+
+            <label>
+                <input
+                    type="checkbox"
+                    id="notify-market-alerts"
+                >
+                High / critical market alerts
+            </label>
+
+            <label>
+                <input
+                    type="checkbox"
+                    id="notify-execution-failures"
+                >
+                Execution failures
+            </label>
+        </div>
+
+        <div
+            style="
+                display: grid;
+                grid-template-columns:
+                    repeat(
+                        auto-fit,
+                        minmax(130px, 1fr)
+                    );
+                gap: 12px;
+                margin-bottom: 18px;
+            "
+        >
+            <div class="panel">
+                <div class="muted">
+                    Critical
+                </div>
+
+                <div
+                    class="metric negative"
+                    id="alert-critical-count"
+                >
+                    0
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="muted">
+                    High
+                </div>
+
+                <div
+                    class="metric"
+                    id="alert-high-count"
+                >
+                    0
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="muted">
+                    Medium
+                </div>
+
+                <div
+                    class="metric"
+                    id="alert-medium-count"
+                >
+                    0
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="muted">
+                    Recent Alerts
+                </div>
+
+                <div
+                    class="metric"
+                    id="alert-total-count"
+                >
+                    0
+                </div>
+            </div>
+        </div>
+
         <div id="alerts"></div>
     </section>
 </main>
@@ -3999,6 +4176,712 @@ if (portfolioDeeperAnalysisButton) {
         }
     }
 
+    const notificationButton =
+        document.getElementById(
+            "enable-notifications"
+        );
+
+    const notifiedEventStorageKey =
+        "jarvis-notified-event-ids";
+
+    const notificationPreferenceStorageKey =
+        "jarvis-notification-preferences";
+
+    const defaultNotificationPreferences = {
+        autonomousTrades: true,
+        portfolioMoves: true,
+        marketAlerts: true,
+        executionFailures: true,
+    };
+
+    function getNotificationPreferences() {
+        try {
+            return {
+                ...defaultNotificationPreferences,
+                ...JSON.parse(
+                    localStorage.getItem(
+                        notificationPreferenceStorageKey
+                    ) || "{}"
+                ),
+            };
+        } catch (error) {
+            return {
+                ...defaultNotificationPreferences,
+            };
+        }
+    }
+
+    function saveNotificationPreferences(
+        preferences
+    ) {
+        localStorage.setItem(
+            notificationPreferenceStorageKey,
+            JSON.stringify(preferences)
+        );
+    }
+
+    function notificationPreferenceAllows(
+        event,
+        preferences
+    ) {
+        if (
+            event.category === "buy_executed"
+            || event.category === "sell_executed"
+        ) {
+            return preferences.autonomousTrades;
+        }
+
+        if (
+            event.category === "position_gain"
+            || event.category === "position_loss"
+            || event.category === "portfolio_exit"
+        ) {
+            return preferences.portfolioMoves;
+        }
+
+        if (
+            event.category === "execution_failed"
+        ) {
+            return preferences.executionFailures;
+        }
+
+        if (
+            event.category === "market_move"
+        ) {
+            return preferences.marketAlerts;
+        }
+
+        return false;
+    }
+
+    function updateNotificationButton() {
+        if (!("Notification" in window)) {
+            notificationButton.textContent =
+                "Notifications Unsupported";
+
+            notificationButton.disabled = true;
+            return;
+        }
+
+        if (Notification.permission === "granted") {
+            notificationButton.textContent =
+                "Notifications Enabled";
+
+            notificationButton.disabled = true;
+            return;
+        }
+
+        if (Notification.permission === "denied") {
+            notificationButton.textContent =
+                "Notifications Blocked";
+
+            notificationButton.disabled = true;
+            return;
+        }
+
+        notificationButton.textContent =
+            "Enable Notifications";
+
+        notificationButton.disabled = false;
+    }
+
+    function getNotifiedEventIds() {
+        try {
+            return new Set(
+                JSON.parse(
+                    localStorage.getItem(
+                        notifiedEventStorageKey
+                    ) || "[]"
+                )
+            );
+        } catch (error) {
+            return new Set();
+        }
+    }
+
+    function saveNotifiedEventIds(
+        eventIds
+    ) {
+        localStorage.setItem(
+            notifiedEventStorageKey,
+            JSON.stringify(
+                Array.from(eventIds)
+            )
+        );
+    }
+
+    function deliverJarvisNotifications(
+        events
+    ) {
+        if (
+            !("Notification" in window)
+            || Notification.permission
+                !== "granted"
+        ) {
+            return;
+        }
+
+        const notifiedEventIds =
+            getNotifiedEventIds();
+
+        const preferences =
+            getNotificationPreferences();
+
+        for (const event of events) {
+            if (
+                !event.notification_eligible
+                || !event.event_id
+                || !notificationPreferenceAllows(
+                    event,
+                    preferences
+                )
+                || notifiedEventIds.has(
+                    event.event_id
+                )
+            ) {
+                continue;
+            }
+
+            new Notification(
+                `Jarvis · ${event.title}`,
+                {
+                    body:
+                        event.message
+                        || event.notification_reason
+                        || "New Jarvis alert.",
+                    tag: event.event_id,
+                }
+            );
+
+            notifiedEventIds.add(
+                event.event_id
+            );
+        }
+
+        saveNotifiedEventIds(
+            notifiedEventIds
+        );
+    }
+
+    async function requestJarvisNotifications() {
+        if (!("Notification" in window)) {
+            updateNotificationButton();
+            return;
+        }
+
+        const permission =
+            await Notification.requestPermission();
+
+        updateNotificationButton();
+
+        if (permission !== "granted") {
+            return;
+        }
+
+        const response = await fetch(
+            "/market/alert-center"
+        );
+
+        if (!response.ok) {
+            return;
+        }
+
+        const data = await response.json();
+
+        const existingEventIds = (
+            data.events || []
+        )
+            .map((event) => event.event_id)
+            .filter(Boolean);
+
+        localStorage.setItem(
+            notifiedEventStorageKey,
+            JSON.stringify(existingEventIds)
+        );
+    }
+
+    notificationButton.addEventListener(
+        "click",
+        requestJarvisNotifications
+    );
+
+    updateNotificationButton();
+
+    const notificationPreferenceInputs = {
+        autonomousTrades:
+            document.getElementById(
+                "notify-autonomous-trades"
+            ),
+        portfolioMoves:
+            document.getElementById(
+                "notify-portfolio-moves"
+            ),
+        marketAlerts:
+            document.getElementById(
+                "notify-market-alerts"
+            ),
+        executionFailures:
+            document.getElementById(
+                "notify-execution-failures"
+            ),
+    };
+
+    function loadNotificationPreferenceInputs() {
+        const preferences =
+            getNotificationPreferences();
+
+        for (
+            const [key, input]
+            of Object.entries(
+                notificationPreferenceInputs
+            )
+        ) {
+            if (input) {
+                input.checked =
+                    Boolean(preferences[key]);
+            }
+        }
+    }
+
+    function saveNotificationPreferenceInputs() {
+        const preferences = {
+            autonomousTrades:
+                notificationPreferenceInputs
+                    .autonomousTrades
+                    ?.checked ?? true,
+
+            portfolioMoves:
+                notificationPreferenceInputs
+                    .portfolioMoves
+                    ?.checked ?? true,
+
+            marketAlerts:
+                notificationPreferenceInputs
+                    .marketAlerts
+                    ?.checked ?? true,
+
+            executionFailures:
+                notificationPreferenceInputs
+                    .executionFailures
+                    ?.checked ?? true,
+        };
+
+        saveNotificationPreferences(
+            preferences
+        );
+    }
+
+    for (
+        const input
+        of Object.values(
+            notificationPreferenceInputs
+        )
+    ) {
+        input?.addEventListener(
+            "change",
+            saveNotificationPreferenceInputs
+        );
+    }
+
+    loadNotificationPreferenceInputs();
+
+    async function loadAlertCenter() {
+        const alertStatus =
+            document.getElementById(
+                "alert-center-status"
+            );
+
+        const alertSummary =
+            document.getElementById(
+                "alert-center-summary"
+            );
+
+        const alerts =
+            document.getElementById(
+                "alerts"
+            );
+
+        try {
+            const response = await fetch(
+                "/market/alert-center"
+            );
+
+            if (!response.ok) {
+                throw new Error(
+                    `Alert Center request failed: ${response.status}`
+                );
+            }
+
+            const data = await response.json();
+
+            const events =
+                data.events || [];
+
+            deliverJarvisNotifications(
+                events
+            );
+
+            const severityCounts =
+                data.severity_counts || {};
+
+            const categoryCounts =
+                data.category_counts || {};
+
+            document.getElementById(
+                "alert-critical-count"
+            ).textContent =
+                severityCounts.critical || 0;
+
+            document.getElementById(
+                "alert-high-count"
+            ).textContent =
+                severityCounts.high || 0;
+
+            document.getElementById(
+                "alert-medium-count"
+            ).textContent =
+                severityCounts.medium || 0;
+
+            document.getElementById(
+                "alert-total-count"
+            ).textContent =
+                data.event_count || 0;
+
+            alertStatus.textContent =
+                "Live";
+
+            alertStatus.className =
+                "status positive";
+
+            alertSummary.textContent =
+                (
+                    `${data.event_count || 0} recent event`
+                    + `${data.event_count === 1 ? "" : "s"}`
+                    + ` • ${categoryCounts.market || 0} market`
+                    + ` • ${categoryCounts.autonomous || 0} autonomous`
+                );
+
+            if (!events.length) {
+                alerts.innerHTML = `
+                    <div class="empty">
+                        No recent Jarvis alerts.
+                    </div>
+                `;
+
+                return;
+            }
+
+            alerts.innerHTML =
+                events.map((event) => {
+                    const eventType =
+                        String(
+                            event.event_type || "market"
+                        ).toUpperCase();
+
+                    const severity =
+                        String(
+                            event.severity || "low"
+                        ).toLowerCase();
+
+                    const occurredAt =
+                        event.occurred_at;
+
+                    const age =
+                        occurredAt
+                            ? formatAge(
+                                (
+                                    Date.now()
+                                    - new Date(
+                                        occurredAt
+                                    ).getTime()
+                                ) / 1000
+                            )
+                            : "Time unavailable";
+
+                    const severityClass =
+                        severity === "critical"
+                        || severity === "high"
+                            ? "negative"
+                            : severity === "medium"
+                                ? "neutral"
+                                : "neutral";
+
+                    const eventTypeClass =
+                        event.event_type
+                        === "autonomous"
+                            ? "positive"
+                            : event.event_type
+                            === "portfolio"
+                                ? (
+                                    event.category
+                                    === "position_gain"
+                                        ? "positive"
+                                        : event.category
+                                        === "position_loss"
+                                        || event.category
+                                        === "portfolio_exit"
+                                            ? "negative"
+                                            : "neutral"
+                                )
+                                : "neutral";
+
+                    const marketDetails =
+                        event.event_type === "market"
+                            ? `
+                                <span
+                                    class="${
+                                        changeClass(
+                                            event.move_percent
+                                        )
+                                    }"
+                                    style="
+                                        font-weight: 800;
+                                    "
+                                >
+                                    ${formatPercent(
+                                        event.move_percent
+                                    )}
+                                </span>
+                            `
+                            : "";
+
+                    const autonomousDetails =
+                        event.event_type === "autonomous"
+                            ? `
+                                <span>
+                                    Confidence:
+                                    <strong>
+                                        ${
+                                            event.confidence_percent
+                                            === null
+                                            || event.confidence_percent
+                                            === undefined
+                                                ? "—"
+                                                : `${Number(
+                                                    event.confidence_percent
+                                                ).toFixed(1)}%`
+                                        }
+                                    </strong>
+                                </span>
+
+                                <span>
+                                    Transaction:
+                                    <strong>
+                                        ${
+                                            event.transaction_id
+                                            ?? "—"
+                                        }
+                                    </strong>
+                                </span>
+                            `
+                            : "";
+
+                    const portfolioDetails =
+                        event.event_type === "portfolio"
+                            ? `
+                                ${
+                                    event.gain_loss_percent
+                                    !== undefined
+                                    && event.gain_loss_percent
+                                    !== null
+                                        ? `
+                                            <span>
+                                                Position P/L:
+                                                <strong
+                                                    class="${
+                                                        changeClass(
+                                                            event.gain_loss_percent
+                                                        )
+                                                    }"
+                                                >
+                                                    ${formatPercent(
+                                                        event.gain_loss_percent
+                                                    )}
+                                                </strong>
+                                            </span>
+                                        `
+                                        : ""
+                                }
+
+                                ${
+                                    event.exit_rule
+                                        ? `
+                                            <span>
+                                                Exit rule:
+                                                <strong>
+                                                    ${String(
+                                                        event.exit_rule
+                                                    )
+                                                        .replaceAll("_", " ")
+                                                        .toUpperCase()}
+                                                </strong>
+                                            </span>
+                                        `
+                                        : ""
+                                }
+
+                                ${
+                                    event.transaction_id
+                                    !== undefined
+                                    && event.transaction_id
+                                    !== null
+                                        ? `
+                                            <span>
+                                                Transaction:
+                                                <strong>
+                                                    ${event.transaction_id}
+                                                </strong>
+                                            </span>
+                                        `
+                                        : ""
+                                }
+                            `
+                            : "";
+
+                    return `
+                        <div
+                            style="
+                                display: grid;
+                                grid-template-columns:
+                                    minmax(0, 1fr)
+                                    auto;
+                                gap: 16px;
+                                align-items: center;
+                                padding: 13px 4px;
+                                border-bottom:
+                                    1px solid var(--border);
+                            "
+                        >
+                            <div style="min-width: 0;">
+                                <div
+                                    style="
+                                        display: flex;
+                                        align-items: center;
+                                        gap: 10px;
+                                        flex-wrap: wrap;
+                                    "
+                                >
+                                    <span
+                                        class="${eventTypeClass}"
+                                        style="
+                                            font-size: 0.72rem;
+                                            font-weight: 800;
+                                            text-transform: uppercase;
+                                            letter-spacing: 0.06em;
+                                        "
+                                    >
+                                        ${eventType}
+                                    </span>
+
+                                    <strong>
+                                        ${event.title}
+                                    </strong>
+
+                                    <span
+                                        class="${severityClass}"
+                                        style="
+                                            font-size: 0.72rem;
+                                            font-weight: 800;
+                                            text-transform: uppercase;
+                                        "
+                                    >
+                                        ${severity}
+                                    </span>
+
+                                    ${marketDetails}
+                                </div>
+
+                                <div
+                                    class="muted"
+                                    style="
+                                        margin-top: 5px;
+                                        font-size: 0.88rem;
+                                        line-height: 1.45;
+                                    "
+                                >
+                                    ${event.message || ""}
+                                </div>
+
+                                ${
+                                    event.event_type
+                                    === "autonomous"
+                                    || event.event_type
+                                    === "portfolio"
+                                        ? `
+                                            <div
+                                                style="
+                                                    display: flex;
+                                                    gap: 16px;
+                                                    flex-wrap: wrap;
+                                                    margin-top: 8px;
+                                                    font-size: 0.82rem;
+                                                "
+                                            >
+                                                ${
+                                                    event.event_type
+                                                    === "autonomous"
+                                                        ? autonomousDetails
+                                                        : portfolioDetails
+                                                }
+                                            </div>
+                                        `
+                                        : ""
+                                }
+                            </div>
+
+                            <div
+                                style="
+                                    text-align: right;
+                                    white-space: nowrap;
+                                "
+                            >
+                                <div
+                                    class="muted"
+                                    style="
+                                        font-size: 0.8rem;
+                                    "
+                                >
+                                    ${age}
+                                </div>
+
+                                <div
+                                    class="muted"
+                                    style="
+                                        margin-top: 5px;
+                                        font-size: 0.78rem;
+                                    "
+                                >
+                                    ${
+                                        event.price_usd !== null
+                                        && event.price_usd !== undefined
+                                            ? formatPrice(
+                                                event.price_usd
+                                            )
+                                            : "—"
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join("");
+        } catch (error) {
+            alertStatus.textContent =
+                "Error";
+
+            alertStatus.className =
+                "status negative";
+
+            alertSummary.textContent =
+                error.message;
+
+            alerts.innerHTML = `
+                <div class="empty">
+                    Unable to load Alert Center.
+                </div>
+            `;
+        }
+    }
+
     async function loadIntelligence() {
         try {
             const response = await fetch("/market/intelligence");
@@ -4189,113 +5072,6 @@ if (portfolioDeeperAnalysisButton) {
                 }).join("");
             }
 
-            const alerts =
-                document.getElementById("alerts");
-
-            if (data.alerts.alerts.length === 0) {
-                alerts.innerHTML = `
-                    <div class="empty">
-                        No market alerts are active.
-                    </div>
-                `;
-            } else {
-                alerts.innerHTML =
-                    data.alerts.alerts.map((alert) => {
-                        const move =
-                            alert.move_percent;
-
-                        const direction =
-                            move > 0
-                                ? "▲"
-                                : move < 0
-                                    ? "▼"
-                                    : "•";
-
-                        const observedAt =
-                            alert.created_at
-                            || alert.observed_at
-                            || alert.triggered_at;
-
-                        return `
-                            <div class="alert">
-                                <div
-                                    style="
-                                        display: flex;
-                                        justify-content: space-between;
-                                        gap: 14px;
-                                        align-items: flex-start;
-                                    "
-                                >
-                                    <div>
-                                        <strong>
-                                            ${direction}
-                                            ${alert.symbol}
-                                        </strong>
-
-                                        <span
-                                            class="${statusClass(
-                                                alert.severity
-                                            )}"
-                                            style="
-                                                margin-left: 8px;
-                                                text-transform: uppercase;
-                                                font-size: 0.75rem;
-                                            "
-                                        >
-                                            ${alert.severity}
-                                        </span>
-                                    </div>
-
-                                    <div
-                                        class="muted"
-                                        style="
-                                            font-size: 0.82rem;
-                                            white-space: nowrap;
-                                        "
-                                    >
-                                        ${observedAt
-                                            ? formatAge(
-                                                (
-                                                    Date.now()
-                                                    - new Date(
-                                                        observedAt
-                                                    ).getTime()
-                                                ) / 1000
-                                            )
-                                            : "Time unavailable"
-                                        }
-                                    </div>
-                                </div>
-
-                                <div
-                                    style="
-                                        margin-top: 8px;
-                                        line-height: 1.45;
-                                    "
-                                >
-                                    ${alert.message}
-                                </div>
-
-                                ${
-                                    move !== null
-                                    && move !== undefined
-                                        ? `
-                                            <div
-                                                class="${changeClass(move)}"
-                                                style="
-                                                    margin-top: 8px;
-                                                    font-weight: 700;
-                                                "
-                                            >
-                                                ${formatPercent(move)}
-                                            </div>
-                                        `
-                                        : ""
-                                }
-                            </div>
-                        `;
-                    }).join("");
-            }
         } catch (error) {
             document.getElementById("status").textContent =
                 "error";
@@ -4336,6 +5112,7 @@ if (portfolioDeeperAnalysisButton) {
     loadExperimentStatus();
     loadPortfolio();
     loadPortfolioInsight();
+    loadAlertCenter();
     loadIntelligence();
     loadTrend();
     loadMoveExplanation();
@@ -4351,6 +5128,7 @@ if (portfolioDeeperAnalysisButton) {
     setInterval(loadExperimentStatus, 60000);
     setInterval(loadPortfolio, 5000);
     setInterval(loadPortfolioInsight, 60000);
+    setInterval(loadAlertCenter, 30000);
     setInterval(loadIntelligence, 60000);
     setInterval(loadTrend, 60000);
     setInterval(loadMoveExplanation, 60000);

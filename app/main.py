@@ -33,6 +33,9 @@ from app.market_db.portfolio_explainer import explain_portfolio
 from app.autonomous_trading.experiment_status import (
     get_experiment_status,
 )
+from app.autonomous_trading.alert_center import (
+    get_alert_center,
+)
 from app.router_api import router as lightweight_router
 from app.live_market.coingecko_poller import run_coingecko_poller
 from app.live_market.finnhub_stream import run_finnhub_stream
@@ -396,6 +399,32 @@ def market_alerts(
     ),
 ):
     return get_recent_alerts(limit=limit)
+
+
+@app.get("/market/alert-center")
+def market_alert_center(
+    market_limit: int = Query(
+        default=50,
+        ge=1,
+        le=500,
+    ),
+    decision_limit: int = Query(
+        default=25,
+        ge=1,
+        le=100,
+    ),
+    display_limit: int = Query(
+        default=30,
+        ge=1,
+        le=100,
+    ),
+):
+    return get_alert_center(
+        market_limit=market_limit,
+        decision_limit=decision_limit,
+        display_limit=display_limit,
+    )
+
 
 @app.get("/market/news")
 def market_news(
