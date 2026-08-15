@@ -1,22 +1,8 @@
 import re
 from decimal import Decimal
+from app.market_universe import get_news_aliases
 
-ASSET_ALIASES = {
-    "AAPL": ["Apple", "Apple Inc"],
-    "TSLA": ["Tesla", "Tesla Inc"],
-    "NVDA": [
-        "NVIDIA",
-        "Nvidia",
-        "NVIDIA Corporation",
-    ],
-    "BTC": ["Bitcoin"],
-    "ETH": ["Ethereum", "Ether"],
-    "XMR": ["Monero"],
-    "XRP": ["Ripple", "Ripple Labs"],
-    "SPY": ["S&P 500", "SPDR S&P 500 ETF"],
-    "QQQ": ["Nasdaq 100", "Nasdaq-100", "Invesco QQQ"],
-    "DIA": ["Dow Jones", "Dow Jones Industrial Average"],
-}
+ASSET_ALIASES = get_news_aliases()
 
 from sqlalchemy import select
 

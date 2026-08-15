@@ -5,6 +5,9 @@ from decimal import Decimal, InvalidOperation
 
 import requests
 from sqlalchemy import select
+from app.market_universe import (
+    get_crypto_provider_map,
+)
 
 from app.market_db.database import SessionLocal
 from app.market_db.models import MarketAsset, PriceObservation
@@ -14,12 +17,9 @@ COINGECKO_MARKET_CHART_URL = (
     "https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart"
 )
 
-CRYPTO_ASSETS = {
-    "bitcoin": "BTC",
-    "ethereum": "ETH",
-    "monero": "XMR",
-    "ripple": "XRP",
-}
+CRYPTO_ASSETS = (
+    get_crypto_provider_map()
+)
 
 REQUEST_TIMEOUT_SECONDS = 30
 BACKFILL_PROVIDER = "CoinGecko Historical"

@@ -5,26 +5,24 @@ from typing import Any
 
 import requests
 
+from app.market_universe import (
+    get_crypto_provider_map,
+    get_snapshot_stock_symbols,
+)
+
 
 ALPHA_VANTAGE_URL = "https://www.alphavantage.co/query"
 FINNHUB_QUOTE_URL = "https://finnhub.io/api/v1/quote"
 ALPHA_VANTAGE_MARKET_STATUS_FUNCTION = "MARKET_STATUS"
 COINGECKO_URL = "https://api.coingecko.com/api/v3/simple/price"
 
-DEFAULT_STOCKS = [
-    "SPY",
-    "QQQ",
-    "DIA",
-    "TSLA",
-    "AAPL",
-    "NVDA",
-]
-DEFAULT_CRYPTO = {
-    "bitcoin": "BTC",
-    "ethereum": "ETH",
-    "monero": "XMR",
-    "ripple": "XRP",
-}
+DEFAULT_STOCKS = list(
+    get_snapshot_stock_symbols()
+)
+
+DEFAULT_CRYPTO = (
+    get_crypto_provider_map()
+)
 
 REQUEST_TIMEOUT_SECONDS = 10
 

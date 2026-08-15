@@ -10,17 +10,15 @@ from app.live_market.live_state import (
     update_quote,
     utc_now,
 )
+from app.market_universe import (
+    get_live_stock_symbols,
+)
 
 
 FINNHUB_WS_URL = "wss://ws.finnhub.io"
 
 DEFAULT_SYMBOLS = (
-    "SPY",
-    "QQQ",
-    "DIA",
-    "TSLA",
-    "AAPL",
-    "NVDA",
+    get_live_stock_symbols()
 )
 
 

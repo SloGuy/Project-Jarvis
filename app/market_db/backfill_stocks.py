@@ -6,6 +6,9 @@ from decimal import Decimal, InvalidOperation
 
 import requests
 from sqlalchemy import select
+from app.market_universe import (
+    get_historical_stock_symbols,
+)
 
 from app.market_db.database import SessionLocal
 from app.market_db.models import MarketAsset, PriceObservation
@@ -13,14 +16,9 @@ from app.market_db.models import MarketAsset, PriceObservation
 
 ALPHA_VANTAGE_URL = "https://www.alphavantage.co/query"
 
-STOCK_SYMBOLS = [
-    "SPY",
-    "QQQ",
-    "DIA",
-    "TSLA",
-    "AAPL",
-    "NVDA",
-]
+STOCK_SYMBOLS = list(
+    get_historical_stock_symbols()
+)
 
 BACKFILL_PROVIDER = "Alpha Vantage Historical"
 REQUEST_TIMEOUT_SECONDS = 30

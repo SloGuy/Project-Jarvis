@@ -1214,16 +1214,9 @@
             <label>
                 Asset
                 <select id="chart-symbol">
-                    <option value="BTC">BTC</option>
-                    <option value="ETH">ETH</option>
-                    <option value="XMR">XMR</option>
-                    <option value="XRP">XRP</option>
-                    <option value="SPY">SPY</option>
-                    <option value="QQQ">QQQ</option>
-                    <option value="DIA">DIA</option>
-                    <option value="AAPL">AAPL</option>
-                    <option value="TSLA">TSLA</option>
-                    <option value="NVDA">NVDA</option>
+                    <option value="">
+                        Loading assets...
+                    </option>
                 </select>
             </label>
 
@@ -2638,6 +2631,148 @@ if (portfolioDeeperAnalysisButton) {
             drawPriceChart(chartState.points);
         }
     }
+
+    async function loadMarketUniverse() {
+        const selector =
+            document.getElementById(
+                "chart-symbol"
+            );
+
+        try {
+            const response = await fetch(
+                "/market/universe"
+            );
+
+            if (!response.ok) {
+                throw new Error(
+                    `Market universe request failed with status ${response.status}`
+                );
+            }
+
+            const data = await response.json();
+
+            const assets = (
+                data.assets || []
+            ).filter(
+                (asset) =>
+                    asset.intelligence_enabled
+                    === true
+            );
+
+            selector.innerHTML = "";
+
+            const preferredSymbol = "BTC";
+
+            const cryptoAssets = assets.filter(
+                (asset) =>
+                    asset.asset_type
+                    === "crypto"
+            );
+
+            const stockAssets = assets.filter(
+                (asset) =>
+                    asset.asset_type
+                    === "stock"
+            );
+
+            const appendGroup = (
+                label,
+                groupAssets
+            ) => {
+                if (!groupAssets.length) {
+                    return;
+                }
+
+                const group =
+                    document.createElement(
+                        "optgroup"
+                    );
+
+                group.label = label;
+
+                for (
+                    const asset
+                    of groupAssets
+                ) {
+                    const option =
+                        document.createElement(
+                            "option"
+                        );
+
+                    option.value =
+                        asset.symbol;
+
+                    option.textContent =
+                        asset.symbol;
+
+                    option.title =
+                        asset.name;
+
+                    group.appendChild(
+                        option
+                    );
+                }
+
+                selector.appendChild(
+                    group
+                );
+            };
+
+            appendGroup(
+                "Crypto",
+                cryptoAssets
+            );
+
+            appendGroup(
+                "Stocks",
+                stockAssets
+            );
+
+            const preferredOption = [
+                ...selector.options,
+            ].find(
+                (option) =>
+                    option.value
+                    === preferredSymbol
+            );
+
+            if (preferredOption) {
+                selector.value =
+                    preferredSymbol;
+            }
+
+            if (!selector.value) {
+                throw new Error(
+                    "No intelligence-enabled assets are available."
+                );
+            }
+
+            await loadTrend();
+            await loadMoveExplanation();
+
+        } catch (error) {
+            selector.innerHTML = "";
+
+            const option =
+                document.createElement(
+                    "option"
+                );
+
+            option.value = "";
+            option.textContent =
+                "Assets unavailable";
+
+            selector.appendChild(
+                option
+            );
+
+            console.error(
+                "Market universe load failed:",
+                error
+            );
+        }
+    }
+
 
     async function loadTrend() {
         const symbol =
@@ -5359,8 +5494,7 @@ if (portfolioDeeperAnalysisButton) {
     loadPortfolioInsight();
     loadAlertCenter();
     loadIntelligence();
-    loadTrend();
-    loadMoveExplanation();
+    loadMarketUniverse();
     loadOperations();
 
     loadLiveQuotes();

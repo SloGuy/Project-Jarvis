@@ -2,6 +2,10 @@ import re
 from datetime import datetime
 from typing import Any
 
+from app.market_universe import (
+    get_asset_aliases,
+    get_asset_names,
+)
 from app.market_db.alerts import get_recent_alerts
 from app.market_db.intelligence import get_market_intelligence
 from app.market_db.moves import get_latest_market_moves
@@ -9,32 +13,9 @@ from app.market_db.news_queries import get_recent_market_news
 from app.router.capabilities.base import RouterCapability
 
 
-ASSET_ALIASES = {
-    "BTC": ("btc", "bitcoin"),
-    "ETH": ("eth", "ethereum"),
-    "XMR": ("xmr", "monero"),
-    "XRP": ("xrp", "ripple"),
-    "AAPL": ("aapl", "apple"),
-    "TSLA": ("tsla", "tesla"),
-    "NVDA": ("nvda", "nvidia"),
-    "SPY": ("spy", "s&p 500", "s&p500"),
-    "QQQ": ("qqq", "nasdaq 100", "nasdaq-100"),
-    "DIA": ("dia", "dow jones", "dow"),
-}
+ASSET_ALIASES = get_asset_aliases()
 
-
-ASSET_NAMES = {
-    "BTC": "Bitcoin",
-    "ETH": "Ethereum",
-    "XMR": "Monero",
-    "XRP": "XRP",
-    "AAPL": "Apple",
-    "TSLA": "Tesla",
-    "NVDA": "NVIDIA",
-    "SPY": "SPDR S&P 500 ETF",
-    "QQQ": "Invesco QQQ",
-    "DIA": "SPDR Dow Jones ETF",
-}
+ASSET_NAMES = get_asset_names()
 
 
 REASONING_PATTERNS = (

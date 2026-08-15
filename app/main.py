@@ -44,6 +44,9 @@ from app.router_api import router as lightweight_router
 from app.live_market.coingecko_poller import run_coingecko_poller
 from app.live_market.finnhub_stream import run_finnhub_stream
 from app.live_market.live_state import get_live_market_status
+from app.market_universe import (
+    get_market_universe_snapshot,
+)
 
 
 @asynccontextmanager
@@ -484,6 +487,10 @@ def market_explain(
         news_lookback_hours=news_lookback_hours,
         news_limit=news_limit,
     )
+
+@app.get("/market/universe")
+def market_universe():
+    return get_market_universe_snapshot()
 
 @app.get("/market/intelligence")
 def market_intelligence(
