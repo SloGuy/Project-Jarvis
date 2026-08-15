@@ -4,6 +4,11 @@ from decimal import Decimal
 ASSET_ALIASES = {
     "AAPL": ["Apple", "Apple Inc"],
     "TSLA": ["Tesla", "Tesla Inc"],
+    "NVDA": [
+        "NVIDIA",
+        "Nvidia",
+        "NVIDIA Corporation",
+    ],
     "BTC": ["Bitcoin"],
     "ETH": ["Ethereum", "Ether"],
     "XMR": ["Monero"],

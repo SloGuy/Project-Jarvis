@@ -20,6 +20,7 @@ DEFAULT_SYMBOLS = (
     "DIA",
     "TSLA",
     "AAPL",
+    "NVDA",
 )
 
 

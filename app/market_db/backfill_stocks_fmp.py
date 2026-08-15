@@ -22,6 +22,7 @@ STOCK_SYMBOLS = [
     "DIA",
     "TSLA",
     "AAPL",
+    "NVDA",
 ]
 
 BACKFILL_PROVIDER = "FMP Historical"

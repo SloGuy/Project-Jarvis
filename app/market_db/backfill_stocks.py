@@ -19,6 +19,7 @@ STOCK_SYMBOLS = [
     "DIA",
     "TSLA",
     "AAPL",
+    "NVDA",
 ]
 
 BACKFILL_PROVIDER = "Alpha Vantage Historical"

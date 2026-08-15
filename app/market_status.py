@@ -11,7 +11,14 @@ FINNHUB_QUOTE_URL = "https://finnhub.io/api/v1/quote"
 ALPHA_VANTAGE_MARKET_STATUS_FUNCTION = "MARKET_STATUS"
 COINGECKO_URL = "https://api.coingecko.com/api/v3/simple/price"
 
-DEFAULT_STOCKS = ["SPY", "QQQ", "DIA", "TSLA", "AAPL"]
+DEFAULT_STOCKS = [
+    "SPY",
+    "QQQ",
+    "DIA",
+    "TSLA",
+    "AAPL",
+    "NVDA",
+]
 DEFAULT_CRYPTO = {
     "bitcoin": "BTC",
     "ethereum": "ETH",
