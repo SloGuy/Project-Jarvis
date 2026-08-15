@@ -696,6 +696,126 @@
     </section>
 
     <section style="margin-bottom: 24px;">
+        <div
+            class="panel"
+            style="
+                padding: 22px;
+            "
+        >
+            <div
+                style="
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: flex-start;
+                    gap: 16px;
+                    flex-wrap: wrap;
+                    margin-bottom: 18px;
+                "
+            >
+                <div>
+                    <div
+                        class="muted"
+                        style="
+                            font-size: 0.78rem;
+                            text-transform: uppercase;
+                            font-weight: 800;
+                            letter-spacing: 0.08em;
+                            margin-bottom: 6px;
+                        "
+                    >
+                        Autonomous Learning
+                    </div>
+
+                    <h2 style="margin-bottom: 6px;">
+                        Trading Experiment / Learning
+                    </h2>
+
+                    <div
+                        class="muted"
+                        id="journal-analytics-summary"
+                    >
+                        Loading trading analytics...
+                    </div>
+                </div>
+
+                <div
+                    class="status"
+                    id="journal-analytics-status"
+                >
+                    Loading
+                </div>
+            </div>
+
+            <div class="grid summary-grid">
+                <div class="chart-stat">
+                    <div class="muted">
+                        Completed Trades
+                    </div>
+
+                    <div
+                        class="metric"
+                        id="journal-analytics-closed"
+                    >
+                        —
+                    </div>
+                </div>
+
+                <div class="chart-stat">
+                    <div class="muted">
+                        Win Rate
+                    </div>
+
+                    <div
+                        class="metric"
+                        id="journal-analytics-win-rate"
+                    >
+                        —
+                    </div>
+                </div>
+
+                <div class="chart-stat">
+                    <div class="muted">
+                        Realized P/L
+                    </div>
+
+                    <div
+                        class="metric"
+                        id="journal-analytics-realized"
+                    >
+                        —
+                    </div>
+                </div>
+
+                <div class="chart-stat">
+                    <div class="muted">
+                        Avg Return
+                    </div>
+
+                    <div
+                        class="metric"
+                        id="journal-analytics-average-return"
+                    >
+                        —
+                    </div>
+                </div>
+
+                <div class="chart-stat">
+                    <div class="muted">
+                        Thesis Failures
+                    </div>
+
+                    <div
+                        class="metric"
+                        id="journal-analytics-thesis-failures"
+                    >
+                        —
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section style="margin-bottom: 24px;">
         <div class="panel">
             <div
                 style="
@@ -3624,6 +3744,129 @@ if (portfolioDeeperAnalysisButton) {
         }
     }
 
+    async function loadJournalAnalytics() {
+        const statusElement =
+            document.getElementById(
+                "journal-analytics-status"
+            );
+
+        const summaryElement =
+            document.getElementById(
+                "journal-analytics-summary"
+            );
+
+        try {
+            const response = await fetch(
+                "/market/autonomous/journal-analytics"
+            );
+
+            if (!response.ok) {
+                throw new Error(
+                    `Journal analytics request failed: ${response.status}`
+                );
+            }
+
+            const data = await response.json();
+
+            const closedTrades = Number(
+                data.closed_trade_count || 0
+            );
+
+            const winRate = Number(
+                data.win_rate_percent || 0
+            );
+
+            const realized = Number(
+                data.cumulative_realized_gain_loss_usd
+                || 0
+            );
+
+            const averageReturn = Number(
+                data.average_return_percent || 0
+            );
+
+            const thesisFailures = Number(
+                data.thesis_failed_count || 0
+            );
+
+            document.getElementById(
+                "journal-analytics-closed"
+            ).textContent =
+                closedTrades;
+
+            const winRateElement =
+                document.getElementById(
+                    "journal-analytics-win-rate"
+                );
+
+            winRateElement.textContent =
+                `${winRate.toFixed(1)}%`;
+
+            winRateElement.className =
+                `metric ${changeClass(winRate)}`;
+
+            const realizedElement =
+                document.getElementById(
+                    "journal-analytics-realized"
+                );
+
+            realizedElement.textContent =
+                realized < 0
+                    ? `-$${Math.abs(realized).toFixed(2)}`
+                    : `$${realized.toFixed(2)}`;
+
+            realizedElement.className =
+                `metric ${changeClass(realized)}`;
+
+            const averageReturnElement =
+                document.getElementById(
+                    "journal-analytics-average-return"
+                );
+
+            averageReturnElement.textContent =
+                `${averageReturn >= 0 ? "+" : ""}`
+                + `${averageReturn.toFixed(2)}%`;
+
+            averageReturnElement.className =
+                `metric ${changeClass(
+                    averageReturn
+                )}`;
+
+            const thesisFailureElement =
+                document.getElementById(
+                    "journal-analytics-thesis-failures"
+                );
+
+            thesisFailureElement.textContent =
+                thesisFailures;
+
+            thesisFailureElement.className =
+                thesisFailures > 0
+                    ? "metric negative"
+                    : "metric positive";
+
+            summaryElement.textContent =
+                data.summary
+                || "Trading analytics are available.";
+
+            statusElement.textContent =
+                "Live";
+
+            statusElement.className =
+                "status positive";
+
+        } catch (error) {
+            statusElement.textContent =
+                "Error";
+
+            statusElement.className =
+                "status negative";
+
+            summaryElement.textContent =
+                error.message;
+        }
+    }
+
     async function loadPortfolio() {
         const portfolioStatus =
             document.getElementById("portfolio-status");
@@ -5110,6 +5353,7 @@ if (portfolioDeeperAnalysisButton) {
     window.addEventListener("resize", loadTrend);
 
     loadExperimentStatus();
+    loadJournalAnalytics();
     loadPortfolio();
     loadPortfolioInsight();
     loadAlertCenter();
@@ -5126,6 +5370,10 @@ if (portfolioDeeperAnalysisButton) {
     );
 
     setInterval(loadExperimentStatus, 60000);
+    setInterval(
+        loadJournalAnalytics,
+        60000
+    );
     setInterval(loadPortfolio, 5000);
     setInterval(loadPortfolioInsight, 60000);
     setInterval(loadAlertCenter, 30000);

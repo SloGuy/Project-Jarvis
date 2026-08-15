@@ -33,6 +33,10 @@ from app.market_db.portfolio_explainer import explain_portfolio
 from app.autonomous_trading.experiment_status import (
     get_experiment_status,
 )
+from app.autonomous_trading.journal_analytics import (
+    get_journal_analytics,
+    summarize_journal_analytics,
+)
 from app.autonomous_trading.alert_center import (
     get_alert_center,
 )
@@ -522,6 +526,28 @@ def market_autonomous_experiment(
         portfolio_id=portfolio_id,
         decision_limit=decision_limit,
     )
+
+
+@app.get("/market/autonomous/journal-analytics")
+def market_autonomous_journal_analytics(
+    limit: int = Query(
+        default=1000,
+        ge=1,
+        le=5000,
+    ),
+):
+    analytics = get_journal_analytics(
+        limit=limit,
+    )
+
+    return {
+        **analytics,
+        "summary": (
+            summarize_journal_analytics(
+                analytics
+            )
+        ),
+    }
 
 
 @app.get("/market/portfolio")

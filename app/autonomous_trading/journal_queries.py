@@ -9,6 +9,47 @@ from app.market_db.models import (
 )
 
 
+def _learning_classification(
+    *,
+    actual_outcome: str | None,
+    thesis_correct: bool | None,
+) -> str:
+    if actual_outcome is None:
+        return "open"
+
+    if thesis_correct is None:
+        return "inconclusive"
+
+    if (
+        actual_outcome == "profitable"
+        and thesis_correct
+    ):
+        return "strong_success"
+
+    if (
+        actual_outcome == "profitable"
+        and not thesis_correct
+    ):
+        return "profitable_despite_bad_thesis"
+
+    if (
+        actual_outcome == "unprofitable"
+        and thesis_correct
+    ):
+        return "thesis_right_trade_lost"
+
+    if (
+        actual_outcome == "unprofitable"
+        and not thesis_correct
+    ):
+        return "full_thesis_failure"
+
+    if actual_outcome == "breakeven":
+        return "breakeven"
+
+    return "inconclusive"
+
+
 def _serialize_journal_row(
     *,
     journal: AutonomousTradeJournal,
@@ -60,6 +101,12 @@ def _serialize_journal_row(
         ),
         "actual_outcome": journal.actual_outcome,
         "thesis_correct": journal.thesis_correct,
+        "learning_classification": (
+            _learning_classification(
+                actual_outcome=journal.actual_outcome,
+                thesis_correct=journal.thesis_correct,
+            )
+        ),
         "created_at": journal.created_at.isoformat(),
         "updated_at": journal.updated_at.isoformat(),
     }

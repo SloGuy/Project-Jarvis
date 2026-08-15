@@ -132,6 +132,51 @@ def open_trade_journal(
         return record
 
 
+def _evaluate_thesis_correctness(
+    *,
+    strategy_name: str,
+    exit_market_context: dict[str, Any],
+) -> bool | None:
+    if strategy_name != "momentum_alignment_v1":
+        return None
+
+    short_term_percent = exit_market_context.get(
+        "short_term_percent"
+    )
+
+    trend_percent = exit_market_context.get(
+        "trend_percent"
+    )
+
+    if (
+        short_term_percent is None
+        or trend_percent is None
+    ):
+        return None
+
+    short_term_percent = Decimal(
+        str(short_term_percent)
+    )
+
+    trend_percent = Decimal(
+        str(trend_percent)
+    )
+
+    if (
+        short_term_percent > Decimal("0")
+        and trend_percent > Decimal("0")
+    ):
+        return True
+
+    if (
+        short_term_percent < Decimal("0")
+        and trend_percent < Decimal("0")
+    ):
+        return False
+
+    return None
+
+
 def close_trade_journal(
     *,
     decision_id: int,
@@ -249,13 +294,17 @@ def close_trade_journal(
 
         if realized_gain_loss_usd > Decimal("0"):
             actual_outcome = "profitable"
-            thesis_correct = True
         elif realized_gain_loss_usd < Decimal("0"):
             actual_outcome = "unprofitable"
-            thesis_correct = False
         else:
             actual_outcome = "breakeven"
-            thesis_correct = None
+
+        thesis_correct = (
+            _evaluate_thesis_correctness(
+                strategy_name=journal.strategy_name,
+                exit_market_context=exit_market_context,
+            )
+        )
 
         journal.status = "closed"
         journal.exit_decision_id = decision.id
