@@ -33,6 +33,14 @@ def _get_or_create_asset(
     asset = session.scalar(statement)
 
     if asset is not None:
+        asset.is_active = True
+
+        if (
+            provider_id
+            and not asset.provider_id
+        ):
+            asset.provider_id = provider_id
+
         return asset
 
     asset = MarketAsset(

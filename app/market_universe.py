@@ -1,4 +1,7 @@
 from dataclasses import dataclass
+from app.market_universe_sources.stocks import (
+    get_broad_stock_candidates,
+)
 
 
 @dataclass(frozen=True)
@@ -20,6 +23,32 @@ class MarketUniverseAsset:
 
     aliases: tuple[str, ...] = ()
     news_terms: tuple[str, ...] = ()
+
+
+def broad_market_asset(
+    *,
+    symbol: str,
+    name: str,
+    asset_type: str,
+    provider_id: str,
+    aliases: tuple[str, ...] = (),
+    news_terms: tuple[str, ...] = (),
+) -> MarketUniverseAsset:
+    return MarketUniverseAsset(
+        symbol=symbol,
+        name=name,
+        asset_type=asset_type,
+        provider_id=provider_id,
+        tracking_tier="broad",
+        live_enabled=False,
+        snapshot_enabled=True,
+        history_enabled=False,
+        news_enabled=False,
+        intelligence_enabled=True,
+        autonomous_trading_allowed=False,
+        aliases=aliases,
+        news_terms=news_terms,
+    )
 
 
 MARKET_UNIVERSE = (
@@ -176,6 +205,38 @@ MARKET_UNIVERSE = (
             "Ripple Labs",
         ),
     ),
+    broad_market_asset(
+        symbol="SOL",
+        name="Solana",
+        asset_type="crypto",
+        provider_id="solana",
+        aliases=(
+            "sol",
+            "solana",
+        ),
+    ),
+) + tuple(
+    broad_market_asset(
+        symbol=asset.symbol,
+        name=asset.name,
+        asset_type="stock",
+        provider_id=asset.symbol,
+        aliases=(
+            asset.symbol.lower(),
+            asset.name.lower(),
+        ),
+    )
+    for asset in get_broad_stock_candidates(
+        use_provider=True,
+    )
+    if asset.symbol not in {
+        "SPY",
+        "QQQ",
+        "DIA",
+        "TSLA",
+        "AAPL",
+        "NVDA",
+    }
 )
 
 
@@ -220,6 +281,18 @@ def get_snapshot_stock_symbols() -> tuple[str, ...]:
     )
 
 
+def get_deep_snapshot_stock_symbols() -> tuple[str, ...]:
+    return tuple(
+        asset.symbol
+        for asset in MARKET_UNIVERSE
+        if (
+            asset.asset_type == "stock"
+            and asset.tracking_tier == "deep"
+            and asset.snapshot_enabled
+        )
+    )
+
+
 def get_live_stock_symbols() -> tuple[str, ...]:
     return tuple(
         asset.symbol
@@ -238,6 +311,17 @@ def get_crypto_provider_map() -> dict[str, str]:
         if (
             asset.asset_type == "crypto"
             and asset.snapshot_enabled
+        )
+    }
+
+
+def get_historical_crypto_provider_map() -> dict[str, str]:
+    return {
+        asset.provider_id: asset.symbol
+        for asset in MARKET_UNIVERSE
+        if (
+            asset.asset_type == "crypto"
+            and asset.history_enabled
         )
     }
 

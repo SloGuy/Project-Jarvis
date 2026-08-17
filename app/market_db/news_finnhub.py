@@ -1,3 +1,4 @@
+import time
 import hashlib
 import json
 import os
@@ -25,6 +26,7 @@ NEWS_PROVIDER = "Finnhub"
 ARTICLE_TYPE = "market"
 NEWS_CATEGORY = "general"
 REQUEST_TIMEOUT_SECONDS = 30
+COMPANY_NEWS_REQUEST_SPACING_SECONDS = 0.5
 
 
 def _get_api_key() -> str:
@@ -226,15 +228,65 @@ def preview_company_news(
     results = []
 
     with SessionLocal() as session:
-        assets = _get_active_stock_assets(session)
+        assets = _get_active_stock_assets(
+            session
+        )
 
-        for asset in assets:
-            rows = _fetch_company_news(
-                api_key=api_key,
-                symbol=asset.symbol,
-                from_date=from_date,
-                to_date=to_date,
-            )
+        if symbols is not None:
+            requested_symbols = {
+                normalized
+                for symbol in symbols
+                if (
+                    normalized
+                    := _normalize_symbol(
+                        symbol
+                    )
+                )
+            }
+
+            assets = [
+                asset
+                for asset in assets
+                if asset.symbol
+                in requested_symbols
+            ]
+
+        for index, asset in enumerate(
+            assets
+        ):
+            if index > 0:
+                time.sleep(
+                    COMPANY_NEWS_REQUEST_SPACING_SECONDS
+                )
+
+            try:
+                rows = _fetch_company_news(
+                    api_key=api_key,
+                    symbol=asset.symbol,
+                    from_date=from_date,
+                    to_date=to_date,
+                )
+
+            except RuntimeError as error:
+                error_text = str(error)
+
+                results.append(
+                    {
+                        "symbol": asset.symbol,
+                        "status": (
+                            "rate_limited"
+                            if "429" in error_text
+                            else "error"
+                        ),
+                        "articles_received": 0,
+                        "inserted": 0,
+                        "duplicates": 0,
+                        "asset_links_created": 0,
+                        "error": error_text,
+                    }
+                )
+
+                continue
 
             results.append(
                 {
@@ -344,6 +396,7 @@ def _ensure_asset_link(
 
 def ingest_company_news(
     lookback_days: int = 3,
+    symbols: list[str] | tuple[str, ...] | None = None,
 ) -> dict:
     api_key = _get_api_key()
     to_date = datetime.now(timezone.utc).date()
@@ -356,7 +409,28 @@ def ingest_company_news(
     results = []
 
     with SessionLocal() as session:
-        assets = _get_active_stock_assets(session)
+        assets = _get_active_stock_assets(
+            session
+        )
+
+        if symbols is not None:
+            requested_symbols = {
+                normalized
+                for symbol in symbols
+                if (
+                    normalized
+                    := _normalize_symbol(
+                        symbol
+                    )
+                )
+            }
+
+            assets = [
+                asset
+                for asset in assets
+                if asset.symbol
+                in requested_symbols
+            ]
 
         for asset in assets:
             rows = _fetch_company_news(

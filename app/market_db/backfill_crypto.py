@@ -6,7 +6,7 @@ from decimal import Decimal, InvalidOperation
 import requests
 from sqlalchemy import select
 from app.market_universe import (
-    get_crypto_provider_map,
+    get_historical_crypto_provider_map,
 )
 
 from app.market_db.database import SessionLocal
@@ -18,7 +18,7 @@ COINGECKO_MARKET_CHART_URL = (
 )
 
 CRYPTO_ASSETS = (
-    get_crypto_provider_map()
+    get_historical_crypto_provider_map()
 )
 
 REQUEST_TIMEOUT_SECONDS = 30

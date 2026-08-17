@@ -47,6 +47,14 @@ from app.live_market.live_state import get_live_market_status
 from app.market_universe import (
     get_market_universe_snapshot,
 )
+from app.watchlists import (
+    add_to_watchlist,
+    get_watchlists,
+    remove_from_watchlist,
+)
+from app.watchlist_quotes import (
+    get_watchlist_quotes,
+)
 
 
 @asynccontextmanager
@@ -85,6 +93,11 @@ app.include_router(lightweight_router)
 
 
 from pydantic import BaseModel
+
+
+class WatchlistRequest(BaseModel):
+    asset_type: str
+    symbol: str
 
 
 class CashRequest(BaseModel):
@@ -491,6 +504,47 @@ def market_explain(
 @app.get("/market/universe")
 def market_universe():
     return get_market_universe_snapshot()
+
+@app.get("/market/watchlist")
+def market_watchlist():
+    return get_watchlists()
+
+
+@app.get("/market/watchlist/quotes")
+def market_watchlist_quotes():
+    return get_watchlist_quotes()
+
+
+@app.post("/market/watchlist/add")
+def market_watchlist_add(
+    request: WatchlistRequest,
+):
+    try:
+        return add_to_watchlist(
+            asset_type=request.asset_type,
+            symbol=request.symbol,
+        )
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error),
+        ) from error
+
+
+@app.post("/market/watchlist/remove")
+def market_watchlist_remove(
+    request: WatchlistRequest,
+):
+    try:
+        return remove_from_watchlist(
+            asset_type=request.asset_type,
+            symbol=request.symbol,
+        )
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error),
+        ) from error
 
 @app.get("/market/intelligence")
 def market_intelligence(

@@ -27,3 +27,6 @@ __pycache__/
 
 # Local database backups
 backups/
+
+# Runtime state
+runtime/

@@ -1172,29 +1172,99 @@
 
     <section class="grid market-grid">
         <div class="panel">
-            <h2>Stocks</h2>
+            <div
+                style="
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 12px;
+                    margin-bottom: 14px;
+                "
+            >
+                <div>
+                    <h2 style="margin: 0;">
+                        Stock Watchlist
+                    </h2>
+
+                    <div
+                        id="stock-watchlist-count"
+                        class="muted"
+                        style="
+                            margin-top: 5px;
+                            font-size: 0.82rem;
+                        "
+                    >
+                        Loading...
+                    </div>
+                </div>
+
+                <button
+                    type="button"
+                    id="edit-stock-watchlist"
+                    class="secondary"
+                >
+                    Edit
+                </button>
+            </div>
+
             <table>
                 <thead>
-                <tr>
-                    <th>Symbol</th>
-                    <th>Price</th>
-                    <th>Daily Change</th>
-                </tr>
+                    <tr>
+                        <th>Symbol</th>
+                        <th>Price</th>
+                        <th>Daily Change</th>
+                    </tr>
                 </thead>
+
                 <tbody id="stocks-body"></tbody>
             </table>
         </div>
 
         <div class="panel">
-            <h2>Crypto</h2>
+            <div
+                style="
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 12px;
+                    margin-bottom: 14px;
+                "
+            >
+                <div>
+                    <h2 style="margin: 0;">
+                        Crypto Watchlist
+                    </h2>
+
+                    <div
+                        id="crypto-watchlist-count"
+                        class="muted"
+                        style="
+                            margin-top: 5px;
+                            font-size: 0.82rem;
+                        "
+                    >
+                        Loading...
+                    </div>
+                </div>
+
+                <button
+                    type="button"
+                    id="edit-crypto-watchlist"
+                    class="secondary"
+                >
+                    Edit
+                </button>
+            </div>
+
             <table>
                 <thead>
-                <tr>
-                    <th>Symbol</th>
-                    <th>Price</th>
-                    <th>24H Change</th>
-                </tr>
+                    <tr>
+                        <th>Symbol</th>
+                        <th>Price</th>
+                        <th>24H Change</th>
+                    </tr>
                 </thead>
+
                 <tbody id="crypto-body"></tbody>
             </table>
         </div>
@@ -2319,6 +2389,68 @@ if (portfolioDeeperAnalysisButton) {
             </tr>
         `).join("");
     }
+
+async function loadWatchlist() {
+    try {
+        const response = await fetch(
+            "/market/watchlist/quotes"
+        );
+
+        if (!response.ok) {
+            throw new Error(
+                `Watchlist request failed with status ${response.status}`
+            );
+        }
+
+        const data = await response.json();
+
+        renderAssets(
+            "stocks-body",
+            data.stocks.map((asset) => ({
+                symbol: asset.symbol,
+                price_usd: asset.price_usd,
+                provider_change_percent:
+                    asset.change_percent,
+            }))
+        );
+
+        renderAssets(
+            "crypto-body",
+            data.crypto.map((asset) => ({
+                symbol: asset.symbol,
+                price_usd: asset.price_usd,
+                provider_change_percent:
+                    asset.change_percent,
+            }))
+        );
+
+        document.getElementById(
+            "stock-watchlist-count"
+        ).textContent =
+            `${data.stock_count} assets`;
+
+        document.getElementById(
+            "crypto-watchlist-count"
+        ).textContent =
+            `${data.crypto_count} assets`;
+
+    } catch (error) {
+        document.getElementById(
+            "stock-watchlist-count"
+        ).textContent =
+            "Watchlist unavailable";
+
+        document.getElementById(
+            "crypto-watchlist-count"
+        ).textContent =
+            "Watchlist unavailable";
+
+        console.error(
+            "Failed to load watchlist:",
+            error
+        );
+    }
+}
 
     let chartState = {
         points: [],
@@ -5305,16 +5437,6 @@ if (portfolioDeeperAnalysisButton) {
             document.getElementById("news-count").textContent =
                 data.database.news_articles.toLocaleString();
 
-            renderAssets(
-                "stocks-body",
-                data.market.stocks
-            );
-
-            renderAssets(
-                "crypto-body",
-                data.market.crypto
-            );
-
             const moversBody =
                 document.getElementById("movers-body");
 
@@ -5496,6 +5618,7 @@ if (portfolioDeeperAnalysisButton) {
     loadIntelligence();
     loadMarketUniverse();
     loadOperations();
+    loadWatchlist();
 
     loadLiveQuotes();
 
