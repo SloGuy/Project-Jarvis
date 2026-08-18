@@ -35,6 +35,8 @@ OLLAMA_TIMEOUT_SECONDS = int(
 
 MAX_PLANNED_TASKS = 5
 
+MAX_PLANNING_ATTEMPTS = 2
+
 MAX_TITLE_LENGTH = 120
 
 MAX_OBJECTIVE_LENGTH = 1200
@@ -500,6 +502,7 @@ def _validate_plan(
 
 def _request_plan(
     objective: str,
+    validation_feedback: str | None = None,
 ) -> dict[str, Any]:
     agent_context = (
         _build_agent_context()
@@ -528,6 +531,20 @@ def _request_plan(
                     "Create a safe Jarvis engineering "
                     "plan for this objective using only "
                     "the supplied registered agents.\n\n"
+                    + (
+                        (
+                            "Your previous attempt failed "
+                            "schema validation with this error:\n"
+                            f"{validation_feedback}\n\n"
+                            "Return a completely corrected plan. "
+                            "Do not repeat malformed task objects. "
+                            "Every task must contain string values "
+                            "for title, objective, "
+                            "assigned_agent_id, and priority.\n\n"
+                        )
+                        if validation_feedback
+                        else ""
+                    )
                     + json.dumps(
                         request_context,
                         indent=2,
@@ -638,15 +655,46 @@ def propose_plan(
             f"of {MAX_OBJECTIVE_LENGTH} characters."
         )
 
-    payload = _request_plan(
-        normalized_objective
-    )
+    validation_feedback = None
+    last_validation_error = None
 
-    return _validate_plan(
-        requested_objective=(
-            normalized_objective
-        ),
-        payload=payload,
+    for attempt in range(
+        1,
+        MAX_PLANNING_ATTEMPTS + 1,
+    ):
+        payload = _request_plan(
+            normalized_objective,
+            validation_feedback=(
+                validation_feedback
+            ),
+        )
+
+        try:
+            return _validate_plan(
+                requested_objective=(
+                    normalized_objective
+                ),
+                payload=payload,
+            )
+
+        except LLMPlanningError as exc:
+            last_validation_error = exc
+
+            if (
+                attempt
+                >= MAX_PLANNING_ATTEMPTS
+            ):
+                break
+
+            validation_feedback = str(
+                exc
+            )
+
+    raise LLMPlanningError(
+        "LLM planner failed schema validation "
+        f"after {MAX_PLANNING_ATTEMPTS} attempts. "
+        "Last validation error: "
+        f"{last_validation_error}"
     )
 
 

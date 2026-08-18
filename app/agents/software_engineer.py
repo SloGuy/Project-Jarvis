@@ -40,6 +40,8 @@ MAX_OBJECTIVE_CHARACTERS = 4000
 
 MAX_CHANGED_LINES = 250
 
+MAX_PROPOSAL_ATTEMPTS = 2
+
 SOFTWARE_ENGINEER_AGENT_ID = (
     "engineering.software_engineer"
 )
@@ -349,6 +351,12 @@ def _validate_proposal(
             "search_text cannot be empty."
         )
 
+    if "... omitted ..." in search_text:
+        raise SoftwareEngineerError(
+            "Software Engineer search_text "
+            "cannot contain omitted-context markers."
+        )
+
     replacement_text = payload.get(
         "replacement_text"
     )
@@ -486,23 +494,10 @@ def _build_source_context(
         ) >= 4
     }
 
-    structural_terms = {
-        "<body",
-        "<main",
-        "<header",
-        "<section",
-        "<script",
-        "<style",
-        "function ",
-        "class=",
-        "id=",
-    }
+    best_index = 0
+    best_score = -1
 
-    scored_indexes = []
-
-    for index, line in enumerate(
-        lines
-    ):
+    for index, line in enumerate(lines):
         normalized = line.lower()
 
         score = sum(
@@ -511,91 +506,30 @@ def _build_source_context(
             if word in normalized
         )
 
-        score += sum(
-            1
-            for term in structural_terms
-            if term in normalized
-        )
+        if score > best_score:
+            best_score = score
+            best_index = index
 
-        if score > 0:
-            scored_indexes.append(
-                (
-                    score,
-                    index,
-                )
-            )
+    half_window = maximum_lines // 2
 
-    scored_indexes.sort(
-        reverse=True
+    start = max(
+        0,
+        best_index - half_window,
     )
 
-    selected_indexes = set()
+    end = min(
+        len(lines),
+        start + maximum_lines,
+    )
 
-    for _, index in scored_indexes[:12]:
+    if end - start < maximum_lines:
         start = max(
             0,
-            index - 8,
+            end - maximum_lines,
         )
-
-        end = min(
-            len(lines),
-            index + 9,
-        )
-
-        selected_indexes.update(
-            range(
-                start,
-                end,
-            )
-        )
-
-    # Preserve some file-level context too.
-    selected_indexes.update(
-        range(
-            0,
-            min(
-                20,
-                len(lines),
-            ),
-        )
-    )
-
-    selected_indexes.update(
-        range(
-            max(
-                0,
-                len(lines) - 20,
-            ),
-            len(lines),
-        )
-    )
-
-    ordered_indexes = sorted(
-        selected_indexes
-    )[:maximum_lines]
-
-    context_lines = []
-
-    previous_index = None
-
-    for index in ordered_indexes:
-        if (
-            previous_index is not None
-            and index
-            > previous_index + 1
-        ):
-            context_lines.append(
-                "... omitted ..."
-            )
-
-        context_lines.append(
-            f"{index + 1}: {lines[index]}"
-        )
-
-        previous_index = index
 
     return "\n".join(
-        context_lines
+        lines[start:end]
     )
 
 
@@ -661,7 +595,9 @@ def propose_file_change(
         ),
         "instructions": (
             "Use only exact text that appears in "
-            "source_excerpt for search_text. "
+            "one contiguous section of source_excerpt "
+            "for search_text. Never include the "
+            "\"... omitted ...\" marker in search_text. "
             "Return one small bounded edit."
         ),
     }
