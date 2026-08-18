@@ -55,6 +55,12 @@ from app.watchlists import (
 from app.watchlist_quotes import (
     get_watchlist_quotes,
 )
+from app.agents.registry import (
+    get_agent_registry_snapshot,
+)
+from app.agents.api import (
+    router as agent_router,
+)
 
 
 @asynccontextmanager
@@ -90,6 +96,7 @@ app = FastAPI(
 )
 
 app.include_router(lightweight_router)
+app.include_router(agent_router)
 
 
 from pydantic import BaseModel
@@ -712,6 +719,16 @@ def market_dashboard():
         Path(__file__).resolve().parent
         / "templates"
         / "market_dashboard.html"
+    )
+
+    return dashboard_path.read_text(encoding="utf-8")
+
+@app.get("/agents/dashboard", response_class=HTMLResponse)
+def agent_command_center():
+    dashboard_path = (
+        Path(__file__).resolve().parent
+        / "templates"
+        / "agent_command_center.html"
     )
 
     return dashboard_path.read_text(encoding="utf-8")

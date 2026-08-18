@@ -1,0 +1,2000 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Jarvis Agent Command Center</title>
+
+    <style>
+        :root {
+            --background: #071018;
+            --panel: #0d1722;
+            --panel-soft: #111d2a;
+            --border: #223142;
+
+            --text: #edf4fb;
+            --muted: #8ea0b4;
+
+            --success: #52d69a;
+            --warning: #f5be5b;
+            --danger: #ff6b78;
+            --accent: #73a7ff;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background:
+                radial-gradient(
+                    circle at top right,
+                    rgba(50, 91, 148, 0.15),
+                    transparent 28%
+                ),
+                var(--background);
+            color: var(--text);
+
+            font-family:
+                Inter,
+                ui-sans-serif,
+                system-ui,
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
+        }
+
+        .page {
+            max-width: 1500px;
+            margin: 0 auto;
+            padding: 34px;
+        }
+
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 24px;
+            margin-bottom: 28px;
+        }
+
+        h1,
+        h2,
+        h3,
+        p {
+            margin-top: 0;
+        }
+
+        h1 {
+            margin-bottom: 8px;
+            font-size: 2rem;
+            letter-spacing: -0.03em;
+        }
+
+        h2 {
+            margin-bottom: 16px;
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--muted);
+        }
+
+        .subtitle {
+            color: var(--muted);
+            font-size: 0.95rem;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
+        .status-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: var(--success);
+            box-shadow:
+                0 0 12px
+                rgba(82, 214, 154, 0.7);
+        }
+
+        .metrics {
+            display: grid;
+            grid-template-columns:
+                repeat(6, minmax(0, 1fr));
+            gap: 12px;
+            margin-bottom: 28px;
+        }
+
+        .metric {
+            background:
+                linear-gradient(
+                    180deg,
+                    rgba(255, 255, 255, 0.025),
+                    rgba(255, 255, 255, 0)
+                ),
+                var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 18px;
+        }
+
+        .metric-label {
+            color: var(--muted);
+            font-size: 0.74rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .metric-value {
+            margin-top: 8px;
+            font-size: 1.75rem;
+            font-weight: 800;
+        }
+
+        .grid-two {
+            display: grid;
+            grid-template-columns:
+                minmax(0, 1.45fr)
+                minmax(320px, 0.55fr);
+            gap: 18px;
+            margin-bottom: 18px;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px;
+        }
+
+        .agent-grid {
+            display: grid;
+            grid-template-columns:
+                repeat(
+                    auto-fit,
+                    minmax(280px, 1fr)
+                );
+            gap: 14px;
+        }
+
+        .agent-card {
+            background: var(--panel-soft);
+            border: 1px solid var(--border);
+            border-radius: 13px;
+            padding: 17px;
+        }
+
+        .agent-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 14px;
+            margin-bottom: 12px;
+        }
+
+        .agent-name {
+            font-weight: 800;
+            font-size: 1rem;
+        }
+
+        .agent-org {
+            margin-top: 4px;
+            color: var(--muted);
+            font-size: 0.84rem;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            padding: 5px 9px;
+            font-size: 0.7rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .badge-success {
+            color: var(--success);
+        }
+
+        .badge-warning {
+            color: var(--warning);
+        }
+
+        .badge-danger {
+            color: var(--danger);
+        }
+
+        .badge-accent {
+            color: var(--accent);
+        }
+
+        .capabilities {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+
+        .capability {
+            padding: 4px 7px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.035);
+            color: var(--muted);
+            font-size: 0.72rem;
+        }
+
+        .task-list,
+        .activity-list,
+        .patch-list {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns:
+                115px
+                minmax(0, 1fr)
+                auto;
+            gap: 14px;
+            align-items: center;
+            padding: 13px 2px;
+            border-bottom:
+                1px solid rgba(255, 255, 255, 0.055);
+        }
+
+        .activity-list .row {
+            grid-template-columns: 90px minmax(0, 1fr);
+            align-items: start;
+        }
+
+        .activity-list .timestamp {
+            grid-column: 2;
+            white-space: normal;
+            margin-top: 4px;
+        }
+
+        .row:last-child {
+            border-bottom: 0;
+        }
+
+        .row-title {
+            font-weight: 700;
+        }
+
+        .row-subtitle {
+            margin-top: 4px;
+            color: var(--muted);
+            font-size: 0.8rem;
+        }
+
+        .timestamp {
+            color: var(--muted);
+            font-size: 0.78rem;
+            white-space: nowrap;
+        }
+
+        .empty {
+            color: var(--muted);
+            padding: 12px 0;
+        }
+
+        .failure-box {
+            margin-top: 8px;
+            color: var(--danger);
+            font-size: 0.79rem;
+        }
+
+        .approval-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+
+        .action-button {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 7px 11px;
+
+            background: var(--panel-soft);
+            color: var(--text);
+
+            font: inherit;
+            font-size: 0.78rem;
+            font-weight: 700;
+
+            cursor: pointer;
+
+            transition:
+                background 0.15s ease,
+                border-color 0.15s ease,
+                opacity 0.15s ease;
+        }
+
+        .action-button:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        .action-button:disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .action-button-approve {
+            color: var(--success);
+            border-color:
+                rgba(82, 214, 154, 0.35);
+        }
+
+        .action-button-reject {
+            color: var(--danger);
+            border-color:
+                rgba(255, 107, 120, 0.35);
+        }
+
+        .approval-feedback {
+            margin-top: 8px;
+            color: var(--muted);
+            font-size: 0.78rem;
+        }
+
+        .approval-feedback.error {
+            color: var(--danger);
+        }
+
+        .task-row {
+            cursor: pointer;
+            transition:
+                background 0.15s ease,
+                border-color 0.15s ease;
+        }
+
+        .task-row:hover {
+            background: rgba(115, 167, 255, 0.045);
+        }
+
+        .task-row:focus {
+            outline: 1px solid var(--accent);
+            outline-offset: 2px;
+        }
+
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: rgba(0, 0, 0, 0.72);
+            z-index: 1000;
+        }
+
+        .modal-backdrop.open {
+            display: flex;
+        }
+
+        .task-modal {
+            width: min(900px, 100%);
+            max-height: 88vh;
+            overflow-y: auto;
+
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+
+            box-shadow:
+                0 30px 80px
+                rgba(0, 0, 0, 0.45);
+
+            padding: 24px;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 20px;
+
+            padding-bottom: 18px;
+            border-bottom:
+                1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        .modal-title {
+            margin: 0;
+            font-size: 1.35rem;
+        }
+
+        .modal-close {
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--muted);
+
+            border-radius: 8px;
+            padding: 7px 11px;
+
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+
+        .modal-close:hover {
+            color: var(--text);
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns:
+                repeat(2, minmax(0, 1fr));
+
+            gap: 14px;
+            margin-top: 20px;
+        }
+
+        .detail-card {
+            background: var(--panel-soft);
+            border: 1px solid var(--border);
+            border-radius: 11px;
+            padding: 14px;
+        }
+
+        .detail-label {
+            color: var(--muted);
+            font-size: 0.7rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 6px;
+        }
+
+        .detail-value {
+            font-size: 0.9rem;
+            word-break: break-word;
+        }
+
+        .detail-section {
+             margin-top: 20px;
+        }
+
+        .detail-section-title {
+            color: var(--muted);
+            font-size: 0.72rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 9px;
+        }
+
+        .detail-text {
+            white-space: pre-wrap;
+            word-break: break-word;
+
+            background: var(--panel-soft);
+            border: 1px solid var(--border);
+            border-radius: 11px;
+
+            padding: 15px;
+
+            font-family: inherit;
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+
+        .detail-error {
+            color: var(--danger);
+        }
+
+        @media (max-width: 700px) {
+            .detail-grid {
+                 grid-template-columns: 1fr;
+            }
+        }
+
+        @media (
+            max-width: 1100px
+        ) {
+            .metrics {
+                grid-template-columns:
+                    repeat(3, 1fr);
+            }
+
+            .grid-two {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (
+            max-width: 700px
+        ) {
+            .page {
+                padding: 18px;
+            }
+
+            .metrics {
+                grid-template-columns:
+                    repeat(2, 1fr);
+            }
+
+            .topbar {
+                flex-direction: column;
+            }
+
+            .row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main class="page">
+
+        <!-- Agent Command Center Page Container -->
+        <header class="topbar">
+            <div>
+                <h1>Agent Command Center</h1>
+
+                <div class="subtitle">
+                    Jarvis autonomous operations
+                </div>
+            </div>
+
+            <div class="status-indicator">
+                <span class="status-dot"></span>
+
+                <span id="system-status">
+                    Agent infrastructure online
+                </span>
+            </div>
+        </header>
+
+        <section class="metrics">
+            <div class="metric">
+                <div class="metric-label">
+                    Agents
+                </div>
+
+                <div
+                    class="metric-value"
+                    id="metric-agents"
+                >
+                    —
+                </div>
+            </div>
+
+            <div class="metric">
+                <div class="metric-label">
+                    Running
+                </div>
+
+                <div
+                    class="metric-value"
+                    id="metric-running"
+                >
+                    —
+                </div>
+            </div>
+
+            <div class="metric">
+                <div class="metric-label">
+                    Queued
+                </div>
+
+                <div
+                    class="metric-value"
+                    id="metric-queued"
+                >
+                    —
+                </div>
+            </div>
+
+            <div class="metric">
+                <div class="metric-label">
+                    Failed
+                </div>
+
+                <div
+                    class="metric-value"
+                    id="metric-failed"
+                >
+                    —
+                </div>
+            </div>
+
+            <div class="metric">
+                <div class="metric-label">
+                    Pending Approvals
+                </div>
+
+                <div
+                    class="metric-value"
+                    id="metric-approvals"
+                >
+                    —
+                </div>
+            </div>
+
+            <div class="metric">
+                <div class="metric-label">
+                    Pending Patches
+                </div>
+
+                <div
+                    class="metric-value"
+                    id="metric-patches"
+                >
+                    —
+                </div>
+            </div>
+        </section>
+
+        <section class="grid-two">
+            <div class="panel">
+                <h2>Agents</h2>
+
+                <div
+                    class="agent-grid"
+                    id="agent-grid"
+                >
+                    <div class="empty">
+                        Loading agents...
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h2>Reviews</h2>
+
+                <div
+                    class="activity-list"
+                    id="review-list"
+                >
+                    <div class="empty">
+                        Loading reviews...
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section
+            class="panel"
+            style="margin-bottom: 18px;"
+        >
+            <h2>Tasks</h2>
+
+            <div
+                class="task-list"
+                id="task-list"
+            >
+                <div class="empty">
+                    Loading tasks...
+                </div>
+            </div>
+        </section>
+
+        <section class="grid-two">
+            <div class="panel">
+                <h2>Approvals</h2>
+
+                <div
+                    class="activity-list"
+                    id="approval-list"
+                >
+                    <div class="empty">
+                        Loading approvals...
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h2>Patches</h2>
+
+                <div
+                    class="patch-list"
+                    id="patch-list"
+                >
+                    <div class="empty">
+                        Loading patches...
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div
+        class="modal-backdrop"
+        id="task-modal-backdrop"
+    >
+        <div
+            class="task-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="task-modal-title"
+        >
+            <div class="modal-header">
+                <div>
+                    <h3
+                        class="modal-title"
+                        id="task-modal-title"
+                    >
+                        Task
+                    </h3>
+
+                    <div
+                        class="row-subtitle"
+                        id="task-modal-id"
+                    >
+                    </div>
+                </div>
+
+                <button
+                    type="button"
+                    class="modal-close"
+                    id="task-modal-close"
+                >
+                    Close
+                </button>
+            </div>
+
+            <div
+                id="task-modal-content"
+            ></div>
+        </div>
+    </div>
+
+    <script>
+        function escapeHtml(value) {
+            return String(value ?? "")
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#039;");
+        }
+
+        function badgeClass(status) {
+            const normalized =
+                String(status || "")
+                    .toLowerCase();
+
+            if (
+                normalized === "completed" ||
+                normalized === "approved" ||
+                normalized === "pass" ||
+                normalized === "idle" ||
+                normalized === "applied"
+            ) {
+                return "badge badge-success";
+            }
+
+            if (
+                normalized === "failed" ||
+                normalized === "rejected"
+            ) {
+                return "badge badge-danger";
+            }
+
+            if (
+                normalized === "running" ||
+                normalized === "reviewing"
+            ) {
+                return "badge badge-accent";
+            }
+
+            return "badge badge-warning";
+        }
+
+        function formatDate(value) {
+            if (!value) {
+                return "—";
+            }
+
+            const date = new Date(value);
+
+            return date.toLocaleString();
+        }
+
+        async function getJson(url) {
+            const response = await fetch(url);
+
+            if (!response.ok) {
+                throw new Error(
+                    `${url}: ${response.status}`
+                );
+            }
+
+            return response.json();
+        }
+
+        let commandCenterData = {
+            agents: [],
+            tasks: [],
+            approvals: [],
+            reviews: [],
+            patches: []
+        };
+
+        function renderAgents(data) {
+            document.getElementById(
+                "metric-agents"
+            ).textContent =
+                data.agent_count ?? 0;
+
+            const container =
+                document.getElementById(
+                    "agent-grid"
+                );
+
+            if (!data.agents?.length) {
+                container.innerHTML =
+                    '<div class="empty">No agents registered.</div>';
+
+                return;
+            }
+
+            container.innerHTML =
+                data.agents
+                    .map((agent) => `
+                        <article class="agent-card">
+                            <div class="agent-header">
+                                <div>
+                                    <div class="agent-name">
+                                        ${escapeHtml(agent.name)}
+                                    </div>
+
+                                    <div class="agent-org">
+                                        ${escapeHtml(
+                                            agent.organization
+                                        )}
+                                    </div>
+                                </div>
+
+                                <span
+                                    class="${badgeClass(
+                                        agent.status
+                                    )}"
+                                >
+                                    ${escapeHtml(agent.status)}
+                                </span>
+                            </div>
+
+                            <div class="row-subtitle">
+                                ${escapeHtml(
+                                    agent.description
+                                )}
+                            </div>
+
+                            <div class="capabilities">
+                                ${(agent.capabilities || [])
+                                    .map(
+                                        (capability) => `
+                                            <span
+                                                class="capability"
+                                            >
+                                                ${escapeHtml(
+                                                    capability
+                                                )}
+                                            </span>
+                                        `
+                                    )
+                                    .join("")}
+                            </div>
+                        </article>
+                    `)
+                    .join("");
+        }
+
+        function renderTasks(data) {
+            const counts =
+                data.status_counts || {};
+
+            document.getElementById(
+                "metric-running"
+            ).textContent =
+                counts.running ?? 0;
+
+            document.getElementById(
+                "metric-queued"
+            ).textContent =
+                counts.queued ?? 0;
+
+            document.getElementById(
+                "metric-failed"
+            ).textContent =
+                counts.failed ?? 0;
+
+            const container =
+                document.getElementById(
+                    "task-list"
+                );
+
+            if (!data.tasks?.length) {
+                container.innerHTML =
+                    '<div class="empty">No tasks recorded.</div>';
+
+                return;
+            }
+
+            container.innerHTML =
+                data.tasks
+                    .map((task) => `
+                        <div
+                            class="row task-row"
+                            tabindex="0"
+                            role="button"
+                            data-task-id="${escapeHtml(
+                                task.task_id
+                            )}"
+                        >
+                            <div>
+                                <span
+                                    class="${badgeClass(
+                                        task.status
+                                    )}"
+                                >
+                                    ${escapeHtml(task.status)}
+                                </span>
+                            </div>
+
+                            <div>
+                                <div class="row-title">
+                                    ${escapeHtml(task.title)}
+                                </div>
+
+                                <div class="row-subtitle">
+                                    ${escapeHtml(
+                                        task.assigned_agent_id
+                                    )}
+                                    ·
+                                    ${escapeHtml(
+                                        task.task_id
+                                    )}
+                                </div>
+
+                                ${
+                                    task.error
+                                        ? `
+                                            <div
+                                                class="failure-box"
+                                            >
+                                                ${escapeHtml(
+                                                    task.error
+                                                )}
+                                            </div>
+                                        `
+                                        : ""
+                                }
+                            </div>
+
+                            <div class="timestamp">
+                                ${formatDate(
+                                    task.completed_at ||
+                                    task.started_at ||
+                                    task.created_at
+                                )}
+                            </div>
+                        </div>
+                    `)
+                    .join("");
+
+            container
+                .querySelectorAll(
+                    ".task-row"
+                )
+                .forEach((row) => {
+                    const taskId =
+                        row.dataset.taskId;
+
+                    const task =
+                        data.tasks.find(
+                            (candidate) =>
+                                candidate.task_id ===
+                                taskId
+                        );
+
+                    if (!task) {
+                        return;
+                    }
+
+                    row.addEventListener(
+                        "click",
+                        () => {
+                            openTaskModal(task);
+                        }
+                    );
+
+                    row.addEventListener(
+                        "keydown",
+                        (event) => {
+                            if (
+                                event.key === "Enter" ||
+                                event.key === " "
+                            ) {
+                                event.preventDefault();
+
+                                openTaskModal(task);
+                            }
+                        }
+                    );
+                });
+        }
+
+        function renderApprovals(data) {
+            const counts =
+                data.status_counts || {};
+
+            document.getElementById(
+                "metric-approvals"
+            ).textContent =
+                counts.pending ?? 0;
+
+            const container =
+                document.getElementById(
+                    "approval-list"
+                );
+
+            if (!data.approvals?.length) {
+                container.innerHTML =
+                    '<div class="empty">No approvals recorded.</div>';
+
+                return;
+            }
+
+            container.innerHTML =
+                data.approvals
+                    .slice(0, 8)
+                    .map((approval) => {
+                        const isPending =
+                            approval.status ===
+                            "pending";
+
+                        const actions =
+                            isPending
+                                ? `
+                                    <div
+                                        class="approval-actions"
+                                    >
+                                        <button
+                                            type="button"
+                                            class="
+                                                action-button
+                                                action-button-approve
+                                                approval-decision-button
+                                            "
+                                            data-approval-id="${escapeHtml(
+                                                approval.approval_id
+                                            )}"
+                                            data-decision="approve"
+                                        >
+                                            Approve
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            class="
+                                                action-button
+                                                action-button-reject
+                                                approval-decision-button
+                                            "
+                                            data-approval-id="${escapeHtml(
+                                                approval.approval_id
+                                            )}"
+                                            data-decision="reject"
+                                        >
+                                            Reject
+                                        </button>
+                                    </div>
+
+                                    <div
+                                        class="approval-feedback"
+                                        data-feedback-for="${escapeHtml(
+                                            approval.approval_id
+                                        )}"
+                                    ></div>
+                                `
+                                : "";
+
+                        return `
+                            <div class="row">
+                                <div>
+                                    <span
+                                        class="${badgeClass(
+                                            approval.status
+                                        )}"
+                                    >
+                                        ${escapeHtml(
+                                            approval.status
+                                        )}
+                                    </span>
+                                </div>
+
+                                <div>
+                                    <div class="row-title">
+                                        ${escapeHtml(
+                                            approval.action
+                                        )}
+                                    </div>
+
+                                    <div class="row-subtitle">
+                                        ${escapeHtml(
+                                            approval.description
+                                        )}
+                                    </div>
+
+                                    <div
+                                        class="row-subtitle"
+                                        style="margin-top: 5px;"
+                                    >
+                                        ${escapeHtml(
+                                            approval.approval_id
+                                        )}
+                                    </div>
+
+                                    ${actions}
+                                </div>
+
+                                <div class="timestamp">
+                                    ${formatDate(
+                                        approval.decided_at ||
+                                        approval.created_at
+                                    )}
+                                </div>
+                            </div>
+                        `;
+                    })
+                    .join("");
+
+            container
+                .querySelectorAll(
+                    ".approval-decision-button"
+                )
+                .forEach((button) => {
+                    button.addEventListener(
+                        "click",
+                        () => {
+                            const approvalId =
+                                button.dataset.approvalId;
+
+                            const decision =
+                                button.dataset.decision;
+
+                            decideApproval(
+                                approvalId,
+                                decision
+                            );
+                        }
+                    );
+                });
+        }
+
+        function renderReviews(data) {
+            const container =
+                document.getElementById(
+                    "review-list"
+                );
+
+            if (!data.reviews?.length) {
+                container.innerHTML =
+                    '<div class="empty">No reviews recorded.</div>';
+
+                return;
+            }
+
+            container.innerHTML =
+                data.reviews
+                    .slice(0, 8)
+                    .map((review) => `
+                        <div class="row">
+                            <div>
+                                <span
+                                    class="${badgeClass(
+                                        review.decision
+                                    )}"
+                                >
+                                    ${escapeHtml(
+                                        review.decision
+                                    )}
+                                </span>
+                            </div>
+
+                            <div>
+                                <div class="row-title">
+                                    Engineering Review
+                                </div>
+
+                                <div class="row-subtitle">
+                                    ${escapeHtml(
+                                        review.summary
+                                    )}
+                                </div>
+                            </div>
+
+                            <div class="timestamp">
+                                ${formatDate(
+                                    review.created_at
+                                )}
+                            </div>
+                        </div>
+                    `)
+                    .join("");
+        }
+
+        function renderPatches(data) {
+            document.getElementById(
+                "metric-patches"
+            ).textContent =
+                data.pending_count ?? 0;
+
+            const container =
+                document.getElementById(
+                    "patch-list"
+                );
+
+            if (!data.patches?.length) {
+                container.innerHTML =
+                    '<div class="empty">No patches recorded.</div>';
+
+                return;
+            }
+
+            container.innerHTML =
+                data.patches
+                    .slice(0, 8)
+                    .map((patch) => {
+                        const status =
+                            patch.applied
+                                ? "applied"
+                                : "pending";
+
+                        return `
+                            <div class="row">
+                                <div>
+                                    <span
+                                        class="${badgeClass(
+                                            status
+                                        )}"
+                                    >
+                                        ${status}
+                                    </span>
+                                </div>
+
+                                <div>
+                                    <div class="row-title">
+                                        ${escapeHtml(
+                                            patch.path
+                                        )}
+                                    </div>
+
+                                    <div class="row-subtitle">
+                                        ${escapeHtml(
+                                            patch.description
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div class="timestamp">
+                                    ${formatDate(
+                                        patch.applied_at ||
+                                        patch.created_at
+                                    )}
+                                </div>
+                            </div>
+                        `;
+                    })
+                    .join("");
+        }
+
+        function openTaskModal(task) {
+            const backdrop =
+                document.getElementById(
+                    "task-modal-backdrop"
+                );
+
+            const relatedPatches =
+                commandCenterData.patches.filter(
+                    (patch) =>
+                        patch.task_id === task.task_id
+                );
+
+            const relatedReviews =
+                commandCenterData.reviews.filter(
+                    (review) =>
+                        review.task_id === task.task_id
+                );
+
+            const relatedApprovals =
+                commandCenterData.approvals.filter(
+                    (approval) =>
+                        approval.task_id === task.task_id
+                );
+
+            document.getElementById(
+                "task-modal-title"
+            ).textContent =
+                task.title || "Task";
+
+            document.getElementById(
+                "task-modal-id"
+            ).textContent =
+                task.task_id || "";
+
+            const errorSection =
+                task.error
+                    ? `
+                        <div class="detail-section">
+                            <div
+                                class="detail-section-title"
+                            >
+                                Error
+                            </div>
+
+                            <div
+                                class="detail-text detail-error"
+                            >
+                                ${escapeHtml(task.error)}
+                            </div>
+                        </div>
+                    `
+                    : "";
+
+            const resultSection =
+                task.result
+                    ? `
+                        <div class="detail-section">
+                            <div
+                                class="detail-section-title"
+                            >
+                                Result
+                            </div>
+
+                            <div class="detail-text">
+                                ${escapeHtml(task.result)}
+                            </div>
+                        </div>
+                    `
+                    : "";
+
+            const patchSection =
+                relatedPatches.length
+                    ? `
+                        <div class="detail-section">
+                            <div
+                                class="detail-section-title"
+                            >
+                                Patches
+                            </div>
+
+                            ${relatedPatches
+                                .map((patch) => {
+                                    const status =
+                                        patch.applied
+                                            ? "applied"
+                                            : "pending";
+
+                                    return `
+                                        <div
+                                            class="detail-card"
+                                            style="margin-bottom: 10px;"
+                                        >
+                                            <div
+                                                style="
+                                                    display: flex;
+                                                    justify-content: space-between;
+                                                    align-items: center;
+                                                    gap: 12px;
+                                                "
+                                            >
+                                                <div
+                                                    class="row-title"
+                                                >
+                                                    ${escapeHtml(
+                                                        patch.path
+                                                    )}
+                                                </div>
+
+                                                <span
+                                                    class="${badgeClass(
+                                                        status
+                                                    )}"
+                                                >
+                                                    ${status}
+                                                </span>
+                                            </div>
+
+                                            <div
+                                                class="row-subtitle"
+                                                style="margin-top: 8px;"
+                                            >
+                                                ${escapeHtml(
+                                                    patch.patch_id
+                                                )}
+                                            </div>
+
+                                            <div
+                                                class="row-subtitle"
+                                                style="margin-top: 6px;"
+                                            >
+                                                ${escapeHtml(
+                                                    patch.description
+                                                )}
+                                            </div>
+
+                                            <div
+                                                class="timestamp"
+                                                style="margin-top: 8px;"
+                                            >
+                                                ${
+                                                    patch.applied
+                                                        ? "Applied "
+                                                        : "Created "
+                                                }
+                                                ${formatDate(
+                                                    patch.applied_at ||
+                                                    patch.created_at
+                                                )}
+                                            </div>
+                                        </div>
+                                    `;
+                                })
+                                .join("")}
+                        </div>
+                    `
+                    : "";
+
+            const reviewSection =
+                relatedReviews.length
+                    ? `
+                        <div class="detail-section">
+                            <div
+                                class="detail-section-title"
+                            >
+                                Engineering Reviews
+                            </div>
+
+                            ${relatedReviews
+                                .map((review) => `
+                                    <div
+                                        class="detail-card"
+                                        style="margin-bottom: 10px;"
+                                    >
+                                        <div
+                                            style="
+                                                display: flex;
+                                                justify-content: space-between;
+                                                align-items: center;
+                                                gap: 12px;
+                                            "
+                                        >
+                                            <div
+                                                class="row-title"
+                                            >
+                                                ${escapeHtml(
+                                                    review.reviewer_agent_id
+                                                )}
+                                            </div>
+
+                                            <span
+                                                class="${badgeClass(
+                                                    review.decision
+                                                )}"
+                                            >
+                                                ${escapeHtml(
+                                                    review.decision
+                                                )}
+                                            </span>
+                                        </div>
+
+                                        <div
+                                            class="row-subtitle"
+                                            style="margin-top: 8px;"
+                                        >
+                                            Patch:
+                                            ${escapeHtml(
+                                                review.patch_id
+                                            )}
+                                        </div>
+
+                                        <div
+                                            class="row-subtitle"
+                                            style="margin-top: 6px;"
+                                        >
+                                            ${escapeHtml(
+                                                review.summary
+                                            )}
+                                        </div>
+
+                                        <div
+                                            class="timestamp"
+                                            style="margin-top: 8px;"
+                                        >
+                                            ${formatDate(
+                                                review.created_at
+                                            )}
+                                        </div>
+                                    </div>
+                                `)
+                                .join("")}
+                        </div>
+                    `
+                    : "";
+
+            const approvalSection =
+                relatedApprovals.length
+                    ? `
+                        <div class="detail-section">
+                            <div
+                                class="detail-section-title"
+                            >
+                                Approvals
+                            </div>
+
+                            ${relatedApprovals
+                                .map((approval) => `
+                                    <div
+                                        class="detail-card"
+                                        style="margin-bottom: 10px;"
+                                    >
+                                        <div
+                                            style="
+                                                display: flex;
+                                                justify-content: space-between;
+                                                align-items: center;
+                                                gap: 12px;
+                                            "
+                                        >
+                                            <div
+                                                class="row-title"
+                                            >
+                                                ${escapeHtml(
+                                                    approval.action
+                                                )}
+                                            </div>
+
+                                            <span
+                                                class="${badgeClass(
+                                                    approval.status
+                                                )}"
+                                            >
+                                                ${escapeHtml(
+                                                    approval.status
+                                                )}
+                                            </span>
+                                        </div>
+
+                                        <div
+                                            class="row-subtitle"
+                                            style="margin-top: 8px;"
+                                        >
+                                            ${escapeHtml(
+                                                approval.description
+                                            )}
+                                        </div>
+
+                                        ${
+                                            approval.decision_reason
+                                                ? `
+                                                    <div
+                                                        class="row-subtitle"
+                                                        style="
+                                                            margin-top: 6px;
+                                                        "
+                                                    >
+                                                        Decision:
+                                                        ${escapeHtml(
+                                                            approval.decision_reason
+                                                        )}
+                                                    </div>
+                                                `
+                                                : ""
+                                        }
+
+                                        <div
+                                            class="timestamp"
+                                            style="margin-top: 8px;"
+                                        >
+                                            ${formatDate(
+                                                approval.decided_at ||
+                                                approval.created_at
+                                            )}
+                                        </div>
+                                    </div>
+                                `)
+                                .join("")}
+                        </div>
+                    `
+                    : "";
+
+            const workflowSection =
+                (
+                    relatedPatches.length ||
+                    relatedReviews.length ||
+                    relatedApprovals.length
+                )
+                    ? `
+                        <div class="detail-section">
+                            <div
+                                class="detail-section-title"
+                            >
+                                Workflow Summary
+                            </div>
+
+                            <div class="detail-grid">
+                                <div class="detail-card">
+                                    <div class="detail-label">
+                                        Patches
+                                    </div>
+
+                                    <div class="detail-value">
+                                        ${relatedPatches.length}
+                                    </div>
+                                </div>
+
+                                <div class="detail-card">
+                                    <div class="detail-label">
+                                        Reviews
+                                    </div>
+
+                                    <div class="detail-value">
+                                        ${relatedReviews.length}
+                                    </div>
+                                </div>
+
+                                <div class="detail-card">
+                                    <div class="detail-label">
+                                        Approvals
+                                    </div>
+
+                                    <div class="detail-value">
+                                        ${relatedApprovals.length}
+                                    </div>
+                                </div>
+
+                                <div class="detail-card">
+                                    <div class="detail-label">
+                                        Applied Patches
+                                    </div>
+
+                                    <div class="detail-value">
+                                        ${
+                                            relatedPatches.filter(
+                                                (patch) =>
+                                                    patch.applied
+                                            ).length
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `
+                    : "";
+
+            document.getElementById(
+                "task-modal-content"
+            ).innerHTML = `
+                <div class="detail-grid">
+                    <div class="detail-card">
+                        <div class="detail-label">
+                            Status
+                        </div>
+
+                        <div class="detail-value">
+                            <span
+                                class="${badgeClass(
+                                    task.status
+                                )}"
+                            >
+                                ${escapeHtml(task.status)}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="detail-card">
+                        <div class="detail-label">
+                            Agent
+                        </div>
+
+                        <div class="detail-value">
+                            ${escapeHtml(
+                                task.assigned_agent_id
+                            )}
+                        </div>
+                    </div>
+
+                    <div class="detail-card">
+                        <div class="detail-label">
+                            Priority
+                        </div>
+
+                        <div class="detail-value">
+                            ${escapeHtml(task.priority)}
+                        </div>
+                    </div>
+
+                    <div class="detail-card">
+                        <div class="detail-label">
+                            Created
+                        </div>
+
+                        <div class="detail-value">
+                            ${formatDate(
+                                task.created_at
+                            )}
+                        </div>
+                    </div>
+
+                    <div class="detail-card">
+                        <div class="detail-label">
+                            Started
+                        </div>
+
+                        <div class="detail-value">
+                            ${formatDate(
+                                task.started_at
+                            )}
+                        </div>
+                    </div>
+
+                    <div class="detail-card">
+                        <div class="detail-label">
+                            Completed
+                        </div>
+
+                        <div class="detail-value">
+                            ${formatDate(
+                                task.completed_at
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="detail-section">
+                    <div
+                        class="detail-section-title"
+                    >
+                        Objective
+                    </div>
+
+                    <div class="detail-text">
+                        ${escapeHtml(
+                            task.objective ||
+                            "No objective recorded."
+                        )}
+                    </div>
+                </div>
+
+                ${workflowSection}
+                ${patchSection}
+                ${reviewSection}
+                ${approvalSection}
+                ${errorSection}
+                ${resultSection}
+            `;
+
+            backdrop.classList.add("open");
+        }
+
+        function closeTaskModal() {
+            document.getElementById(
+                "task-modal-backdrop"
+            ).classList.remove("open");
+        }
+
+        document.getElementById(
+            "task-modal-close"
+        ).addEventListener(
+            "click",
+            closeTaskModal
+        );
+
+        document.getElementById(
+            "task-modal-backdrop"
+        ).addEventListener(
+            "click",
+            (event) => {
+                if (
+                    event.target.id ===
+                    "task-modal-backdrop"
+                ) {
+                    closeTaskModal();
+                }
+            }
+        );
+
+        document.addEventListener(
+            "keydown",
+            (event) => {
+                if (event.key === "Escape") {
+                    closeTaskModal();
+                }
+            }
+        );
+
+        async function decideApproval(
+            approvalId,
+            decision
+        ) {
+            if (
+                decision !== "approve" &&
+                decision !== "reject"
+            ) {
+                return;
+            }
+
+            const verb =
+                decision === "approve"
+                    ? "approve"
+                    : "reject";
+
+            const confirmed =
+                window.confirm(
+                    `${
+                        decision === "approve"
+                            ? "Approve"
+                            : "Reject"
+                    } this agent action?\n\n${approvalId}`
+                );
+
+            if (!confirmed) {
+                return;
+            }
+
+            const selector =
+                `.approval-decision-button` +
+                `[data-approval-id="${approvalId}"]`;
+
+            const buttons =
+                document.querySelectorAll(
+                    selector
+                );
+
+            const feedback =
+                document.querySelector(
+                    `[data-feedback-for="${approvalId}"]`
+                );
+
+            buttons.forEach(
+                (button) => {
+                    button.disabled = true;
+                }
+            );
+
+            if (feedback) {
+                feedback.classList.remove(
+                    "error"
+                );
+
+                feedback.textContent =
+                    decision === "approve"
+                        ? "Approving..."
+                        : "Rejecting...";
+            }
+
+            try {
+                const response =
+                    await fetch(
+                        `/agents/approvals/` +
+                        `${encodeURIComponent(
+                            approvalId
+                        )}/${verb}`,
+                        {
+                            method: "POST"
+                        }
+                    );
+
+                let payload = {};
+
+                try {
+                    payload =
+                        await response.json();
+                } catch (error) {
+                    payload = {};
+                }
+
+                if (!response.ok) {
+                    throw new Error(
+                        payload.detail ||
+                        `Request failed with status ${response.status}.`
+                    );
+                }
+
+                if (feedback) {
+                    feedback.textContent =
+                        decision === "approve"
+                            ? "Approved."
+                            : "Rejected.";
+                }
+
+                await loadCommandCenter();
+            } catch (error) {
+                console.error(error);
+
+                if (feedback) {
+                    feedback.classList.add(
+                        "error"
+                    );
+
+                    feedback.textContent =
+                        error.message;
+                }
+
+                buttons.forEach(
+                    (button) => {
+                        button.disabled = false;
+                    }
+                );
+            }
+        }
+
+        async function loadCommandCenter() {
+            try {
+                const [
+                    agents,
+                    tasks,
+                    approvals,
+                    reviews,
+                    patches
+                ] = await Promise.all([
+                    getJson("/agents"),
+                    getJson("/agents/tasks"),
+                    getJson("/agents/approvals"),
+                    getJson("/agents/reviews"),
+                    getJson("/agents/patches")
+                ]);
+
+                commandCenterData = {
+                    agents:
+                        agents.agents || [],
+                    tasks:
+                        tasks.tasks || [],
+                    approvals:
+                        approvals.approvals || [],
+                    reviews:
+                        reviews.reviews || [],
+                    patches:
+                        patches.patches || []
+                };
+
+                renderAgents(agents);
+                renderTasks(tasks);
+                renderApprovals(approvals);
+                renderReviews(reviews);
+                renderPatches(patches);
+
+                document.getElementById(
+                    "system-status"
+                ).textContent =
+                    "Agent infrastructure online";
+            } catch (error) {
+                console.error(error);
+
+                document.getElementById(
+                    "system-status"
+                ).textContent =
+                    "Agent data unavailable";
+            }
+        }
+
+        loadCommandCenter();
+
+        setInterval(
+            loadCommandCenter,
+            5000
+        );
+    </script>
+</body>
+</html>
