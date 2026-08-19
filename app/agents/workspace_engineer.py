@@ -358,6 +358,75 @@ def replace_file_lines(
                     for line in replacement_lines
                 ]
 
+    suffix = Path(
+        path
+    ).suffix.lower()
+
+    start_line_text = (
+        lines[start_line - 1]
+        .strip()
+    )
+
+    is_simple_css_block = (
+        suffix in {
+            ".css",
+            ".html",
+        }
+        and re.match(
+            r"^[.#][^{]+\{\s*$",
+            start_line_text,
+        )
+        and len(replacement_lines) >= 2
+        and replacement_lines[
+            0
+        ].strip().endswith("{")
+        and replacement_lines[
+            -1
+        ].strip() == "}"
+    )
+
+    if is_simple_css_block:
+        base_indent = (
+            leading_whitespace
+        )
+
+        body_indent = (
+            base_indent
+            + "    "
+        )
+
+        normalized_lines = []
+
+        for index, line in enumerate(
+            replacement_lines
+        ):
+            stripped = line.strip()
+
+            if not stripped:
+                normalized_lines.append(
+                    ""
+                )
+
+            elif (
+                index == 0
+                or index
+                == len(replacement_lines) - 1
+            ):
+                normalized_lines.append(
+                    base_indent
+                    + stripped
+                )
+
+            else:
+                normalized_lines.append(
+                    body_indent
+                    + stripped
+                )
+
+        replacement_lines = (
+            normalized_lines
+        )
+
     new_lines = (
         lines[:start_line - 1]
         + replacement_lines
