@@ -874,7 +874,14 @@ def propose_llm_workspace_edit(
         source_lines[start_line - 1]
     )
 
-    if "{" in start_source_line:
+    if (
+        Path(path).suffix.lower()
+        in {".css", ".html"}
+        and re.match(
+            r"^\s*[.#][^{]+\{\s*$",
+            start_source_line,
+        )
+    ):
         brace_balance = 0
         matching_end_line = None
 
