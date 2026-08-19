@@ -885,9 +885,14 @@ def propose_llm_workspace_edit(
         brace_balance = 0
         matching_end_line = None
 
+        brace_search_end_line = min(
+            len(source_lines),
+            context_end_line + 50,
+        )
+
         for line_number in range(
             start_line,
-            context_end_line + 1,
+            brace_search_end_line + 1,
         ):
             line = source_lines[
                 line_number - 1
@@ -909,7 +914,8 @@ def propose_llm_workspace_edit(
                 "Unable to resolve complete "
                 "brace-delimited edit block. "
                 f"start_line={start_line} "
-                f"context_end_line={context_end_line} "
+                f"brace_search_end_line="
+                f"{brace_search_end_line} "
                 f"source={start_source_line.strip()!r}"
             )
 
