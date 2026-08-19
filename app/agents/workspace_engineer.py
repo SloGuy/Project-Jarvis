@@ -907,8 +907,10 @@ def propose_llm_workspace_edit(
         if matching_end_line is None:
             raise WorkspaceEngineerError(
                 "Unable to resolve complete "
-                "brace-delimited edit block "
-                "inside visible source context."
+                "brace-delimited edit block. "
+                f"start_line={start_line} "
+                f"context_end_line={context_end_line} "
+                f"source={start_source_line.strip()!r}"
             )
 
         if end_line < matching_end_line:
