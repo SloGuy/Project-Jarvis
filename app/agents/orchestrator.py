@@ -19,6 +19,8 @@ from app.agents.tasks import (
     TaskPriority,
     TaskStatus,
     claim_task,
+    complete_reviewing_task,
+    cancel_reviewing_task,
     complete_task,
     create_task,
     fail_task,
@@ -242,6 +244,43 @@ def orchestrate_patch(
 
     if (
         approval.status
+        == ApprovalStatus.REJECTED
+    ):
+        cancel_reviewing_task(
+            task_id=patch.task_id,
+            reason=(
+                approval.decision_reason
+                or "Engineering change was rejected."
+            ),
+        )
+
+        return {
+            "status": "rejected",
+            "patch_id": patch.patch_id,
+            "review_task_id": (
+                review_task.task_id
+            ),
+            "review_id": (
+                review.review_id
+            ),
+            "review_decision": (
+                review.decision.value
+            ),
+            "approval": {
+                "approval_id": (
+                    approval.approval_id
+                ),
+                "status": (
+                    approval.status.value
+                ),
+                "action": (
+                    approval.action
+                ),
+            },
+        }
+
+    if (
+        approval.status
         == ApprovalStatus.APPROVED
     ):
         apply_result = apply_patch(
@@ -250,6 +289,19 @@ def orchestrate_patch(
                 approval.approval_id
             ),
         )
+
+        if (
+            apply_result["status"]
+            == "success"
+        ):
+            complete_reviewing_task(
+                task_id=patch.task_id,
+                result=(
+                    "Engineering change approved, "
+                    "applied, and verified. "
+                    f"Patch: {patch.patch_id}"
+                ),
+            )
 
         return {
             "status": (

@@ -620,6 +620,69 @@ def heartbeat_task(
     return task
 
 
+def set_task_reviewing(
+    *,
+    task_id: str,
+    result: str,
+) -> AgentTask:
+    with _state_lock():
+        state = (
+            _load_state_unlocked()
+        )
+
+        tasks = state.setdefault(
+            "tasks",
+            {},
+        )
+
+        record = tasks.get(
+            task_id
+        )
+
+        if record is None:
+            raise ValueError(
+                f"Task not found: {task_id}"
+            )
+
+        task = _task_from_record(
+            record
+        )
+
+        if (
+            task.status
+            != TaskStatus.RUNNING
+        ):
+            raise ValueError(
+                "Only running tasks can enter review."
+            )
+
+        now = utc_now_iso()
+
+        task.status = (
+            TaskStatus.REVIEWING
+        )
+
+        task.completed_at = None
+
+        task.heartbeat_at = now
+
+        task.result = result
+
+        task.error = None
+
+        tasks[
+            task.task_id
+        ] = _task_to_record(
+            task
+        )
+
+        _save_state_unlocked(
+            state
+        )
+
+    return task
+
+
 def complete_task(
     *,
     task_id: str,
@@ -669,6 +732,131 @@ def complete_task(
         task.result = result
 
         task.error = None
+
+        tasks[
+            task.task_id
+        ] = _task_to_record(
+            task
+        )
+
+        _save_state_unlocked(
+            state
+        )
+
+    return task
+
+
+def complete_reviewing_task(
+    *,
+    task_id: str,
+    result: str,
+) -> AgentTask:
+    with _state_lock():
+        state = (
+            _load_state_unlocked()
+        )
+
+        tasks = state.setdefault(
+            "tasks",
+            {},
+        )
+
+        record = tasks.get(
+            task_id
+        )
+
+        if record is None:
+            raise ValueError(
+                f"Task not found: {task_id}"
+            )
+
+        task = _task_from_record(
+            record
+        )
+
+        if (
+            task.status
+            != TaskStatus.REVIEWING
+        ):
+            raise ValueError(
+                "Only reviewing tasks can be "
+                "completed from review."
+            )
+
+        now = utc_now_iso()
+
+        task.status = (
+            TaskStatus.COMPLETED
+        )
+
+        task.completed_at = now
+
+        task.heartbeat_at = now
+
+        task.result = result
+
+        task.error = None
+
+        tasks[
+            task.task_id
+        ] = _task_to_record(
+            task
+        )
+
+        _save_state_unlocked(
+            state
+        )
+
+    return task
+
+
+def cancel_reviewing_task(
+    *,
+    task_id: str,
+    reason: str,
+) -> AgentTask:
+    with _state_lock():
+        state = (
+            _load_state_unlocked()
+        )
+
+        tasks = state.setdefault(
+            "tasks",
+            {},
+        )
+
+        record = tasks.get(
+            task_id
+        )
+
+        if record is None:
+            raise ValueError(
+                f"Task not found: {task_id}"
+            )
+
+        task = _task_from_record(
+            record
+        )
+
+        if (
+            task.status
+            != TaskStatus.REVIEWING
+        ):
+            raise ValueError(
+                "Only reviewing tasks can be cancelled."
+            )
+
+        now = utc_now_iso()
+
+        task.status = (
+            TaskStatus.CANCELLED
+        )
+
+        task.completed_at = now
+
+        task.heartbeat_at = now
+
+        task.error = reason
 
         tasks[
             task.task_id

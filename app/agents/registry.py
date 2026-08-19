@@ -5,9 +5,7 @@ from app.agents.models import (
 )
 
 
-# Registered Jarvis agents.
-# Registry is intentionally explicit for Agent Infrastructure V1.
-# Review-gate test patch.
+# Explicitly registered Jarvis agents in the agent registry.
 # Orchestrator workflow test.
 AGENTS = (
     AgentDefinition(

@@ -13,8 +13,13 @@ from app.agents.registry import (
 from app.agents.runner import (
     run_task,
 )
-from app.agents.software_engineer import (
-    create_proposed_patch,
+from app.agents.workspace_engineer import (
+    create_discovered_workspace_patch,
+    create_llm_workspace_patch,
+)
+from app.agents.workspaces import (
+    create_workspace,
+    remove_workspace,
 )
 from app.agents.tasks import (
     DEFAULT_MAX_RECOVERY_ATTEMPTS,
@@ -25,6 +30,7 @@ from app.agents.tasks import (
     fail_task,
     get_tasks_for_agent,
     recover_stale_running_tasks,
+    set_task_reviewing,
 )
 
 
@@ -166,17 +172,49 @@ def _run_implementation_task(
             task
         )
 
-        if path is None:
-            raise ValueError(
-                "Implementation task must identify "
-                "exactly one project source file."
-            )
-
-        patch = create_proposed_patch(
-            task_id=task.task_id,
-            objective=task.objective,
-            path=path,
+        workspace = create_workspace(
+            base_branch="main",
         )
+
+        try:
+            if path is not None:
+                workspace_run = (
+                    create_llm_workspace_patch(
+                        workspace_id=(
+                            workspace.workspace_id
+                        ),
+                        task_id=task.task_id,
+                        agent_id=(
+                            task.assigned_agent_id
+                        ),
+                        path=path,
+                        objective=task.objective,
+                    )
+                )
+
+                patch = workspace_run.patch
+
+            else:
+                workspace_run = (
+                    create_discovered_workspace_patch(
+                        workspace_id=(
+                            workspace.workspace_id
+                        ),
+                        task_id=task.task_id,
+                        agent_id=(
+                            task.assigned_agent_id
+                        ),
+                        objective=task.objective,
+                    )
+                )
+
+                patch = workspace_run.patch
+                path = patch.path
+
+        finally:
+            remove_workspace(
+                workspace.workspace_id
+            )
 
         orchestration = (
             orchestrate_patch(
@@ -200,13 +238,57 @@ def _run_implementation_task(
             ),
         }
 
-        return complete_task(
-            task_id=task.task_id,
-            result=json.dumps(
-                result,
-                indent=2,
-                default=str,
-            ),
+        orchestration_status = (
+            orchestration.get(
+                "status"
+            )
+        )
+
+        serialized_result = json.dumps(
+            result,
+            indent=2,
+            default=str,
+        )
+
+        if (
+            orchestration_status
+            == "awaiting_approval"
+        ):
+            return set_task_reviewing(
+                task_id=task.task_id,
+                result=serialized_result,
+            )
+
+        if (
+            orchestration_status
+            == "review_failed"
+        ):
+            return fail_task(
+                task_id=task.task_id,
+                error=(
+                    orchestration.get(
+                        "review_summary"
+                    )
+                    or "Engineering review failed."
+                ),
+            )
+
+        if orchestration_status in {
+            "success",
+            "already_applied",
+        }:
+            return complete_task(
+                task_id=task.task_id,
+                result=json.dumps(
+                    result,
+                    indent=2,
+                    default=str,
+                ),
+            )
+
+        raise ValueError(
+            "Unexpected orchestration status: "
+            f"{orchestration_status}"
         )
 
     except Exception as error:
