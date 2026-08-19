@@ -870,6 +870,45 @@ def propose_llm_workspace_edit(
             "the visible source context."
         )
 
+    start_source_line = (
+        source_lines[start_line - 1]
+    )
+
+    if "{" in start_source_line:
+        brace_balance = 0
+        matching_end_line = None
+
+        for line_number in range(
+            start_line,
+            context_end_line + 1,
+        ):
+            line = source_lines[
+                line_number - 1
+            ]
+
+            brace_balance += (
+                line.count("{")
+                - line.count("}")
+            )
+
+            if brace_balance == 0:
+                matching_end_line = (
+                    line_number
+                )
+                break
+
+        if matching_end_line is None:
+            raise WorkspaceEngineerError(
+                "Unable to resolve complete "
+                "brace-delimited edit block "
+                "inside visible source context."
+            )
+
+        if end_line < matching_end_line:
+            end_line = (
+                matching_end_line
+            )
+
     return WorkspaceEditProposal(
         path=path,
         start_line=start_line,
