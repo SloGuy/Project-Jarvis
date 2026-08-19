@@ -169,6 +169,18 @@ def create_workspace(
     *,
     base_branch: str = "main",
 ) -> EngineeringWorkspace:
+    status = _run_git(
+        "status",
+        "--porcelain",
+    )
+
+    if status.strip():
+        raise WorkspaceError(
+            "Cannot create engineering workspace "
+            "from a dirty project working tree. "
+            "Commit or discard project changes first."
+        )
+
     workspace_id = (
         "workspace_"
         + uuid.uuid4().hex[:12]
