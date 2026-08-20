@@ -1335,7 +1335,7 @@ def search_workspace_code(
     result = subprocess.run(
         [
             "grep",
-            "-Rni",
+            "-Rniw",
             "--exclude=*.pyc",
             "--exclude-dir=.git",
             "--exclude-dir=.venv",
@@ -1410,6 +1410,12 @@ def discover_workspace_files(
         "only",
         "existing",
         "jarvis",
+        "how",
+        "are",
+        "add",
+        "data",
+        "display",
+        "displayed",
     }
 
     terms = []
