@@ -1888,236 +1888,164 @@ def select_workspace_targets(
             "max_targets must be at least 1."
         )
 
-    candidate_context = []
+    objective = (
+        discovery.objective.lower()
+    )
+
+    scored_candidates = []
 
     for candidate in discovery.candidates:
-        candidate_context.append(
-            {
-                "path": candidate.path,
-                "score": candidate.score,
-                "matches": list(
-                    candidate.matches[:8]
-                ),
-            }
-        )
+        path = candidate.path.lower()
 
-    system_prompt = f"""
-You are the Jarvis Workspace Engineering scope selector.
+        score = candidate.score * 10
 
-Choose the smallest set of source files required to satisfy
-the engineering objective from the supplied candidate list.
-
-Rules:
-
-1. Return valid JSON only.
-2. Choose between 1 and {max_targets} paths.
-3. Every path must exactly match a supplied candidate path.
-4. Choose one file when one file is sufficient.
-5. Choose multiple files only when the objective genuinely
-   spans multiple implementation layers or responsibilities.
-6. Prefer the smallest sufficient scope.
-7. Do not select files merely because they contain generic
-   matching words.
-8. Do not propose code changes.
-9. Do not invent paths.
-10. Do not return duplicate paths.
-
-Return exactly:
-
-{{
-    "paths": [
-        "app/example.py"
-    ],
-    "rationale": "short explanation of why this scope is sufficient"
-}}
-""".strip()
-
-    request_payload = {
-        "model": OLLAMA_MODEL,
-        "stream": False,
-        "format": "json",
-        "messages": [
-            {
-                "role": "system",
-                "content": system_prompt,
-            },
-            {
-                "role": "user",
-                "content": (
-                    "Engineering objective:\n"
-                    f"{discovery.objective}\n\n"
-                    "Candidate files:\n"
-                    + json.dumps(
-                        candidate_context,
-                        indent=2,
-                    )
-                ),
-            },
-        ],
-        "options": {
-            "temperature": 0.1,
-        },
-    }
-
-    request = Request(
-        f"{OLLAMA_BASE_URL}/api/chat",
-        data=json.dumps(
-            request_payload
-        ).encode(
-            "utf-8"
-        ),
-        headers={
-            "Content-Type": "application/json",
-        },
-        method="POST",
-    )
-
-    response_data = None
-    last_error = None
-
-    for attempt in range(
-        1,
-        MAX_LLM_REQUEST_ATTEMPTS + 1,
-    ):
-        try:
-            with urlopen(
-                request,
-                timeout=OLLAMA_TIMEOUT_SECONDS,
-            ) as response:
-                response_data = json.loads(
-                    response.read().decode(
-                        "utf-8"
-                    )
-                )
-
-            break
-
-        except HTTPError as exc:
-            raise WorkspaceEngineerError(
-                "Workspace multi-target selection "
-                f"failed with HTTP {exc.code}."
-            ) from exc
-
-        except (
-            URLError,
-            TimeoutError,
-        ) as exc:
-            last_error = exc
-
-            if (
-                attempt
-                >= MAX_LLM_REQUEST_ATTEMPTS
-            ):
-                break
-
-        except json.JSONDecodeError as exc:
-            raise WorkspaceEngineerError(
-                "Workspace multi-target selector "
-                "returned invalid response JSON."
-            ) from exc
-
-    if response_data is None:
-        if isinstance(
-            last_error,
-            TimeoutError,
-        ):
-            raise WorkspaceEngineerError(
-                "Workspace multi-target selection "
-                "timed out after "
-                f"{MAX_LLM_REQUEST_ATTEMPTS} attempts."
-            ) from last_error
-
-        raise WorkspaceEngineerError(
-            "Unable to reach workspace multi-target "
-            "selection service after "
-            f"{MAX_LLM_REQUEST_ATTEMPTS} attempts."
-        ) from last_error
-
-    content = _extract_llm_message_content(
-        response_data
-    )
-
-    try:
-        payload = json.loads(
-            content
-        )
-
-    except json.JSONDecodeError as exc:
-        raise WorkspaceEngineerError(
-            "LLM returned invalid multi-target JSON."
-        ) from exc
-
-    selected_paths = payload.get(
-        "paths"
-    )
-
-    rationale = payload.get(
-        "rationale"
-    )
-
-    if not isinstance(
-        selected_paths,
-        list,
-    ):
-        raise WorkspaceEngineerError(
-            "LLM multi-target paths must be a list."
-        )
-
-    if not (
-        1
-        <= len(selected_paths)
-        <= max_targets
-    ):
-        raise WorkspaceEngineerError(
-            "LLM selected an invalid number of targets."
-        )
-
-    if any(
-        not isinstance(path, str)
-        or not path.strip()
-        for path in selected_paths
-    ):
-        raise WorkspaceEngineerError(
-            "Every selected path must be a string."
-        )
-
-    normalized_paths = tuple(
-        path.strip()
-        for path in selected_paths
-    )
-
-    if (
-        len(set(normalized_paths))
-        != len(normalized_paths)
-    ):
-        raise WorkspaceEngineerError(
-            "LLM selected duplicate target paths."
-        )
-
-    allowed_paths = {
-        candidate.path
-        for candidate in discovery.candidates
-    }
-
-    for selected_path in normalized_paths:
-        if selected_path not in allowed_paths:
-            raise WorkspaceEngineerError(
-                "LLM selected a path outside "
-                "the discovered candidate set."
+        # Frontend / UI responsibility.
+        if any(
+            term in objective
+            for term in (
+                "display",
+                "ui",
+                "interface",
+                "page",
+                "dashboard",
+                "command center",
+                "render",
+                "show",
             )
+        ):
+            if (
+                "/templates/" in path
+                or path.endswith(".html")
+                or path.endswith(".css")
+                or path.endswith(".js")
+            ):
+                score += 40
 
-    if not isinstance(
-        rationale,
-        str,
-    ) or not rationale.strip():
-        raise WorkspaceEngineerError(
-            "LLM multi-target rationale is required."
+        # API responsibility.
+        if any(
+            term in objective
+            for term in (
+                "api",
+                "endpoint",
+                "expose",
+                "route",
+            )
+        ):
+            if (
+                path.endswith(
+                    "/api.py"
+                )
+                or path.endswith(
+                    "api.py"
+                )
+            ):
+                score += 50
+
+        # Agent task/state responsibility.
+        if any(
+            term in objective
+            for term in (
+                "task",
+                "tasks",
+                "failure reason",
+                "task status",
+                "task error",
+                "failed task",
+            )
+        ):
+            if path.endswith(
+                "/tasks.py"
+            ):
+                score += 45
+
+        # Worker/execution responsibility.
+        if any(
+            term in objective
+            for term in (
+                "worker",
+                "execute",
+                "execution",
+                "claim",
+                "heartbeat",
+                "recovery",
+            )
+        ):
+            if path.endswith(
+                "/worker.py"
+            ):
+                score += 45
+
+        # Orchestration/review/approval responsibility.
+        if any(
+            term in objective
+            for term in (
+                "orchestrate",
+                "orchestration",
+                "review",
+                "approval",
+                "approve",
+                "reject",
+                "patch application",
+            )
+        ):
+            if path.endswith(
+                "/orchestrator.py"
+            ):
+                score += 45
+
+        scored_candidates.append(
+            (
+                score,
+                candidate.path,
+            )
         )
+
+    scored_candidates.sort(
+        key=lambda item: (
+            -item[0],
+            item[1],
+        )
+    )
+
+    if not scored_candidates:
+        raise WorkspaceEngineerError(
+            "Workspace scope selection "
+            "produced no scored candidates."
+        )
+
+    top_score = scored_candidates[0][0]
+
+    # Keep only candidates reasonably close to
+    # the strongest candidate. This prevents
+    # unrelated low-confidence files from turning
+    # a small task into a broad PatchSet.
+    selected = [
+        path
+        for score, path in scored_candidates
+        if score >= max(
+            10,
+            top_score - 30,
+        )
+    ][
+        :max_targets
+    ]
+
+    if not selected:
+        selected = [
+            scored_candidates[0][1]
+        ]
+
+    rationale = (
+        "Deterministic workspace scope selection "
+        "chose the smallest high-confidence file set "
+        "using discovery relevance and architectural "
+        "responsibility signals."
+    )
 
     return WorkspaceMultiTargetSelection(
         workspace_id=discovery.workspace_id,
         objective=discovery.objective,
-        paths=normalized_paths,
-        rationale=rationale.strip(),
-        model=OLLAMA_MODEL,
+        paths=tuple(selected),
+        rationale=rationale,
+        model="deterministic-v1",
     )
