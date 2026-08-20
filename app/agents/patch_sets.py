@@ -357,3 +357,47 @@ def get_patch_sets() -> tuple[
     return tuple(
         patch_sets
     )
+
+
+def mark_patch_set_applied(
+    patch_set_id: str,
+) -> PatchSet:
+    state = _load_state()
+
+    patch_sets = state.setdefault(
+        "patch_sets",
+        {},
+    )
+
+    record = patch_sets.get(
+        patch_set_id
+    )
+
+    if record is None:
+        raise ValueError(
+            f"Patch set not found: {patch_set_id}"
+        )
+
+    patch_set = _patch_set_from_record(
+        record
+    )
+
+    if patch_set.applied:
+        raise ValueError(
+            "Patch set is already marked as applied."
+        )
+
+    patch_set.applied = True
+    patch_set.applied_at = utc_now_iso()
+
+    patch_sets[
+        patch_set.patch_set_id
+    ] = _patch_set_to_record(
+        patch_set
+    )
+
+    _save_state(
+        state
+    )
+
+    return patch_set
