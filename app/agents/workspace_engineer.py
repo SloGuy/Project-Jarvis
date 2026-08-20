@@ -1696,7 +1696,9 @@ Return exactly:
     if selected_path not in allowed_paths:
         raise WorkspaceEngineerError(
             "LLM selected a path outside "
-            "the discovered candidate set."
+            "the discovered candidate set. "
+            f"selected_path={selected_path!r} "
+            f"allowed_paths={sorted(allowed_paths)!r}"
         )
 
     if not isinstance(
