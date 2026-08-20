@@ -845,6 +845,7 @@ def propose_llm_workspace_edit(
     request_payload = {
         "model": SCOPE_SELECTOR_MODEL,
         "stream": False,
+        "think": False,
         "format": "json",
         "messages": [
             {
@@ -1607,7 +1608,7 @@ Return exactly:
         ],
         "options": {
             "temperature": 0.1,
-            "num_predict": 256,
+            "num_predict": 128,
         },
     }
 
