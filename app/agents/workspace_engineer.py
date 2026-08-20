@@ -99,6 +99,15 @@ class WorkspaceTargetSelection:
 
 
 @dataclass(frozen=True)
+class WorkspaceMultiTargetSelection:
+    workspace_id: str
+    objective: str
+    paths: tuple[str, ...]
+    rationale: str
+    model: str
+
+
+@dataclass(frozen=True)
 class WorkspaceVerificationResult:
     command: tuple[str, ...]
     return_code: int
@@ -1795,4 +1804,214 @@ def create_workspace_patch_set_from_runs(
         patch_set_id=(
             patch_set.patch_set_id
         ),
+    )
+
+
+def select_workspace_targets(
+    *,
+    discovery: WorkspaceDiscoveryResult,
+    max_targets: int = 3,
+) -> WorkspaceMultiTargetSelection:
+    if not discovery.candidates:
+        raise WorkspaceEngineerError(
+            "Workspace discovery produced no candidates."
+        )
+
+    if max_targets < 1:
+        raise WorkspaceEngineerError(
+            "max_targets must be at least 1."
+        )
+
+    candidate_context = []
+
+    for candidate in discovery.candidates:
+        candidate_context.append(
+            {
+                "path": candidate.path,
+                "score": candidate.score,
+                "matches": list(
+                    candidate.matches[:8]
+                ),
+            }
+        )
+
+    system_prompt = f"""
+You are the Jarvis Workspace Engineering scope selector.
+
+Choose the smallest set of source files required to satisfy
+the engineering objective from the supplied candidate list.
+
+Rules:
+
+1. Return valid JSON only.
+2. Choose between 1 and {max_targets} paths.
+3. Every path must exactly match a supplied candidate path.
+4. Choose one file when one file is sufficient.
+5. Choose multiple files only when the objective genuinely
+   spans multiple implementation layers or responsibilities.
+6. Prefer the smallest sufficient scope.
+7. Do not select files merely because they contain generic
+   matching words.
+8. Do not propose code changes.
+9. Do not invent paths.
+10. Do not return duplicate paths.
+
+Return exactly:
+
+{{
+    "paths": [
+        "app/example.py"
+    ],
+    "rationale": "short explanation of why this scope is sufficient"
+}}
+""".strip()
+
+    request_payload = {
+        "model": OLLAMA_MODEL,
+        "stream": False,
+        "format": "json",
+        "messages": [
+            {
+                "role": "system",
+                "content": system_prompt,
+            },
+            {
+                "role": "user",
+                "content": (
+                    "Engineering objective:\n"
+                    f"{discovery.objective}\n\n"
+                    "Candidate files:\n"
+                    + json.dumps(
+                        candidate_context,
+                        indent=2,
+                    )
+                ),
+            },
+        ],
+        "options": {
+            "temperature": 0.1,
+        },
+    }
+
+    request = Request(
+        f"{OLLAMA_BASE_URL}/api/chat",
+        data=json.dumps(
+            request_payload
+        ).encode(
+            "utf-8"
+        ),
+        headers={
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+
+    try:
+        with urlopen(
+            request,
+            timeout=OLLAMA_TIMEOUT_SECONDS,
+        ) as response:
+            response_data = json.loads(
+                response.read().decode(
+                    "utf-8"
+                )
+            )
+
+    except (
+        HTTPError,
+        URLError,
+        TimeoutError,
+        json.JSONDecodeError,
+    ) as exc:
+        raise WorkspaceEngineerError(
+            "Workspace multi-target selection failed."
+        ) from exc
+
+    content = _extract_llm_message_content(
+        response_data
+    )
+
+    try:
+        payload = json.loads(
+            content
+        )
+
+    except json.JSONDecodeError as exc:
+        raise WorkspaceEngineerError(
+            "LLM returned invalid multi-target JSON."
+        ) from exc
+
+    selected_paths = payload.get(
+        "paths"
+    )
+
+    rationale = payload.get(
+        "rationale"
+    )
+
+    if not isinstance(
+        selected_paths,
+        list,
+    ):
+        raise WorkspaceEngineerError(
+            "LLM multi-target paths must be a list."
+        )
+
+    if not (
+        1
+        <= len(selected_paths)
+        <= max_targets
+    ):
+        raise WorkspaceEngineerError(
+            "LLM selected an invalid number of targets."
+        )
+
+    if any(
+        not isinstance(path, str)
+        or not path.strip()
+        for path in selected_paths
+    ):
+        raise WorkspaceEngineerError(
+            "Every selected path must be a string."
+        )
+
+    normalized_paths = tuple(
+        path.strip()
+        for path in selected_paths
+    )
+
+    if (
+        len(set(normalized_paths))
+        != len(normalized_paths)
+    ):
+        raise WorkspaceEngineerError(
+            "LLM selected duplicate target paths."
+        )
+
+    allowed_paths = {
+        candidate.path
+        for candidate in discovery.candidates
+    }
+
+    for selected_path in normalized_paths:
+        if selected_path not in allowed_paths:
+            raise WorkspaceEngineerError(
+                "LLM selected a path outside "
+                "the discovered candidate set."
+            )
+
+    if not isinstance(
+        rationale,
+        str,
+    ) or not rationale.strip():
+        raise WorkspaceEngineerError(
+            "LLM multi-target rationale is required."
+        )
+
+    return WorkspaceMultiTargetSelection(
+        workspace_id=discovery.workspace_id,
+        objective=discovery.objective,
+        paths=normalized_paths,
+        rationale=rationale.strip(),
+        model=OLLAMA_MODEL,
     )
