@@ -1899,6 +1899,28 @@ def select_workspace_targets(
 
         score = candidate.score * 10
 
+        infrastructure_terms = (
+            "workspace",
+            "workspace engineering",
+            "patch",
+            "patchset",
+            "code editing",
+            "source editing",
+            "discovery",
+            "scope selection",
+        )
+
+        if (
+            path.endswith(
+                "/workspace_engineer.py"
+            )
+            and not any(
+                term in objective
+                for term in infrastructure_terms
+            )
+        ):
+            score -= 80
+
         # Frontend / UI responsibility.
         if any(
             term in objective
@@ -1939,7 +1961,7 @@ def select_workspace_targets(
                     "api.py"
                 )
             ):
-                score += 50
+                score += 60
 
         # Agent task/state responsibility.
         if any(
@@ -1956,7 +1978,7 @@ def select_workspace_targets(
             if path.endswith(
                 "/tasks.py"
             ):
-                score += 45
+                score += 60
 
         # Worker/execution responsibility.
         if any(
