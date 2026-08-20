@@ -20,6 +20,9 @@ from app.agents.patches import (
     CodePatch,
     create_patch,
 )
+from app.agents.patch_sets import (
+    create_patch_set,
+)
 
 
 OLLAMA_BASE_URL = os.getenv(
@@ -176,6 +179,16 @@ class WorkspacePatchRun:
     workspace_id: str
     engineering_run: WorkspaceEngineeringRun
     patch: CodePatch
+
+
+@dataclass(frozen=True)
+class MultiFileWorkspaceEngineeringRun:
+    workspace_id: str
+    engineering_runs: tuple[
+        WorkspaceEngineeringRun,
+        ...
+    ]
+    patch_set_id: str
 
 
 def read_file_range(
@@ -1706,5 +1719,80 @@ def create_discovered_workspace_patch(
         agent_id=agent_id,
         engineering_run=(
             discovered_run.engineering_run
+        ),
+    )
+
+
+def create_workspace_patch_set_from_runs(
+    *,
+    workspace_id: str,
+    task_id: str,
+    agent_id: str,
+    description: str,
+    engineering_runs: tuple[
+        WorkspaceEngineeringRun,
+        ...
+    ],
+) -> MultiFileWorkspaceEngineeringRun:
+    if not engineering_runs:
+        raise WorkspaceEngineerError(
+            "At least one engineering run is required."
+        )
+
+    patch_ids = []
+
+    seen_paths = set()
+
+    for engineering_run in engineering_runs:
+        path = (
+            engineering_run.proposal.path
+        )
+
+        if path in seen_paths:
+            raise WorkspaceEngineerError(
+                "Multi-file engineering run contains "
+                f"duplicate path: {path}"
+            )
+
+        seen_paths.add(
+            path
+        )
+
+        workspace_patch = (
+            create_workspace_patch_from_run(
+                workspace_id=workspace_id,
+                task_id=task_id,
+                agent_id=agent_id,
+                engineering_run=(
+                    engineering_run
+                ),
+            )
+        )
+
+        patch_ids.append(
+            workspace_patch.patch.patch_id
+        )
+
+    try:
+        patch_set = create_patch_set(
+            task_id=task_id,
+            agent_id=agent_id,
+            description=description,
+            patch_ids=tuple(
+                patch_ids
+            ),
+        )
+
+    except ValueError as exc:
+        raise WorkspaceEngineerError(
+            "Unable to create workspace patch set: "
+            f"{exc}"
+        ) from exc
+
+    return MultiFileWorkspaceEngineeringRun(
+        workspace_id=workspace_id,
+        engineering_runs=engineering_runs,
+        patch_set_id=(
+            patch_set.patch_set_id
         ),
     )
