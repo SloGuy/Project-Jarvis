@@ -5,7 +5,7 @@ from app.agents.models import (
 )
 
 
-# Explicitly registered Jarvis agents in the agent registry.
+# Explicitly registered Jarvis agents in the agent registry
 # Orchestrator workflow test.
 AGENTS = (
     AgentDefinition(
