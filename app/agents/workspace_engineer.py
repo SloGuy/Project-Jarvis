@@ -1530,14 +1530,16 @@ def select_workspace_target(
 
     candidate_context = []
 
-    for candidate in discovery.candidates:
+    for candidate in discovery.candidates[:6]:
         candidate_context.append(
             {
                 "path": candidate.path,
                 "score": candidate.score,
-                "matches": list(
-                    candidate.matches[:8]
-                ),
+                "matches": [
+                    match[:300]
+                    for match
+                    in candidate.matches[:3]
+                ],
             }
         )
 
@@ -1591,6 +1593,7 @@ Return exactly:
         ],
         "options": {
             "temperature": 0.1,
+            "num_predict": 256,
         },
     }
 
