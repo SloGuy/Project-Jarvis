@@ -1952,26 +1952,66 @@ Return exactly:
         method="POST",
     )
 
-    try:
-        with urlopen(
-            request,
-            timeout=OLLAMA_TIMEOUT_SECONDS,
-        ) as response:
-            response_data = json.loads(
-                response.read().decode(
-                    "utf-8"
-                )
-            )
+    response_data = None
+    last_error = None
 
-    except (
-        HTTPError,
-        URLError,
-        TimeoutError,
-        json.JSONDecodeError,
-    ) as exc:
+    for attempt in range(
+        1,
+        MAX_LLM_REQUEST_ATTEMPTS + 1,
+    ):
+        try:
+            with urlopen(
+                request,
+                timeout=OLLAMA_TIMEOUT_SECONDS,
+            ) as response:
+                response_data = json.loads(
+                    response.read().decode(
+                        "utf-8"
+                    )
+                )
+
+            break
+
+        except HTTPError as exc:
+            raise WorkspaceEngineerError(
+                "Workspace multi-target selection "
+                f"failed with HTTP {exc.code}."
+            ) from exc
+
+        except (
+            URLError,
+            TimeoutError,
+        ) as exc:
+            last_error = exc
+
+            if (
+                attempt
+                >= MAX_LLM_REQUEST_ATTEMPTS
+            ):
+                break
+
+        except json.JSONDecodeError as exc:
+            raise WorkspaceEngineerError(
+                "Workspace multi-target selector "
+                "returned invalid response JSON."
+            ) from exc
+
+    if response_data is None:
+        if isinstance(
+            last_error,
+            TimeoutError,
+        ):
+            raise WorkspaceEngineerError(
+                "Workspace multi-target selection "
+                "timed out after "
+                f"{MAX_LLM_REQUEST_ATTEMPTS} attempts."
+            ) from last_error
+
         raise WorkspaceEngineerError(
-            "Workspace multi-target selection failed."
-        ) from exc
+            "Unable to reach workspace multi-target "
+            "selection service after "
+            f"{MAX_LLM_REQUEST_ATTEMPTS} attempts."
+        ) from last_error
 
     content = _extract_llm_message_content(
         response_data
