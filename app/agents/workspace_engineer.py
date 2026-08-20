@@ -42,6 +42,20 @@ OLLAMA_TIMEOUT_SECONDS = int(
     )
 )
 
+SCOPE_SELECTOR_MODEL = os.getenv(
+    "JARVIS_WORKSPACE_SCOPE_MODEL",
+    "qwen3:8b",
+)
+
+SCOPE_SELECTOR_TIMEOUT_SECONDS = int(
+    os.getenv(
+        "JARVIS_WORKSPACE_SCOPE_TIMEOUT_SECONDS",
+        "60",
+    )
+)
+
+SCOPE_SELECTOR_MAX_ATTEMPTS = 1
+
 MAX_ENGINEERING_OBJECTIVE_LENGTH = 2000
 
 MAX_SOURCE_CONTEXT_LENGTH = 30000
@@ -829,7 +843,7 @@ def propose_llm_workspace_edit(
     )
 
     request_payload = {
-        "model": OLLAMA_MODEL,
+        "model": SCOPE_SELECTOR_MODEL,
         "stream": False,
         "format": "json",
         "messages": [
@@ -870,12 +884,12 @@ def propose_llm_workspace_edit(
 
     for attempt in range(
         1,
-        MAX_LLM_REQUEST_ATTEMPTS + 1,
+        SCOPE_SELECTOR_MAX_ATTEMPTS + 1,
     ):
         try:
             with urlopen(
                 request,
-                timeout=OLLAMA_TIMEOUT_SECONDS,
+                timeout=SCOPE_SELECTOR_TIMEOUT_SECONDS,
             ) as response:
                 response_data = json.loads(
                     response.read().decode(
@@ -899,7 +913,7 @@ def propose_llm_workspace_edit(
 
             if (
                 attempt
-                >= MAX_LLM_REQUEST_ATTEMPTS
+                >= SCOPE_SELECTOR_MAX_ATTEMPTS
             ):
                 break
 
@@ -916,13 +930,13 @@ def propose_llm_workspace_edit(
             raise WorkspaceEngineerError(
                 "Ollama workspace engineer request "
                 "timed out after "
-                f"{MAX_LLM_REQUEST_ATTEMPTS} attempts."
+                f"{SCOPE_SELECTOR_MAX_ATTEMPTS} attempts."
             ) from last_error
 
         raise WorkspaceEngineerError(
             "Unable to reach Ollama workspace "
             "engineer service after "
-            f"{MAX_LLM_REQUEST_ATTEMPTS} attempts."
+            f"{SCOPE_SELECTOR_MAX_ATTEMPTS} attempts."
         ) from last_error
 
     content = _extract_llm_message_content(
