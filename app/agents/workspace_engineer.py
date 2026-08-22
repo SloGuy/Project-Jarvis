@@ -68,6 +68,8 @@ MAX_LLM_REQUEST_ATTEMPTS = 2
 
 MAX_WORKSPACE_REPAIR_ATTEMPTS = 2
 
+MAX_WORKSPACE_PROPOSAL_RETRIES = 1
+
 
 class WorkspaceEngineerError(
     RuntimeError
@@ -1333,13 +1335,38 @@ def execute_llm_workspace_edit(
     repair_attempt = 0
     last_verification = None
     repair_target_line = None
+    proposal_retries = 0
 
     while True:
-        proposal = propose_llm_workspace_edit(
-            workspace_id=workspace_id,
-            path=path,
-            objective=current_objective,
-        )
+        try:
+            proposal = propose_llm_workspace_edit(
+                workspace_id=workspace_id,
+                path=path,
+                objective=current_objective,
+            )
+        except WorkspaceEngineerError as exc:
+            if (
+                "outside the visible source context"
+                not in str(exc)
+            ):
+                raise
+
+            if (
+                proposal_retries
+                >= MAX_WORKSPACE_PROPOSAL_RETRIES
+            ):
+                raise
+
+            proposal_retries += 1
+            current_objective += (
+                "\n\nYour previous proposal was invalid. "
+                + str(exc)
+                + " Return a new proposal strictly inside "
+                "the visible line range."
+            )
+            continue
+
+        proposal_retries = 0
 
         if (
             repair_target_line is not None
