@@ -1259,10 +1259,16 @@ def verify_workspace_file(
             re.IGNORECASE,
         )
 
-        duplicate_ids = sorted({
+        static_ids = [
             value
             for value in ids
-            if ids.count(value) > 1
+            if "${" not in value
+        ]
+
+        duplicate_ids = sorted({
+            value
+            for value in static_ids
+            if static_ids.count(value) > 1
         })
 
         if duplicate_ids:
