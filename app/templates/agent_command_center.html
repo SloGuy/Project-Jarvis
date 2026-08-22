@@ -854,7 +854,18 @@
 
             return response.json();
         }
-
+        async function loadTaskCreateAgents() {
+            const payload = await getJson("/agents");
+            const select = document.getElementById("task-create-agent");
+            if (!select) return;
+            while (select.options.length > 1) {
+                select.remove(1);
+            }
+            for (const agent of payload.agents) {
+                const option = new Option(agent.agent_id, agent.agent_id);
+                select.add(option);
+            }
+        }
         let commandCenterData = {
             agents: [],
             tasks: [],
