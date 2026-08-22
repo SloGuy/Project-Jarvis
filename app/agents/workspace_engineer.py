@@ -179,14 +179,48 @@ Rules:
 
 Return exactly this JSON structure:
 
+Return exactly this JSON structure:
+
 {
-    "path": "project/relative/path.py",
     "start_line": 1,
     "end_line": 1,
-    "replacement_text": "replacement source code",
+    "replacement_text": "literal replacement source code",
     "rationale": "short explanation of the proposed edit"
 }
+
+replacement_text must contain literal source code only.
+Do not summarize, explain, describe, or discuss the source file
+inside replacement_text.
+Do not include Markdown or prose in replacement_text.
 """.strip()
+
+
+EDIT_PROPOSAL_JSON_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "start_line": {
+            "type": "integer",
+            "minimum": 1,
+        },
+        "end_line": {
+            "type": "integer",
+            "minimum": 1,
+        },
+        "replacement_text": {
+            "type": "string",
+        },
+        "rationale": {
+            "type": "string",
+        },
+    },
+    "required": [
+        "start_line",
+        "end_line",
+        "replacement_text",
+        "rationale",
+    ],
+    "additionalProperties": False,
+}
 
 
 @dataclass(frozen=True)
@@ -546,7 +580,6 @@ def _validate_engineering_objective(
 def _validate_edit_proposal(
     *,
     payload: Any,
-    expected_path: str,
     source_line_count: int,
 ) -> tuple[
     int,
@@ -560,15 +593,6 @@ def _validate_edit_proposal(
     ):
         raise WorkspaceEngineerError(
             "LLM edit proposal must be a JSON object."
-        )
-
-    proposed_path = payload.get(
-        "path"
-    )
-
-    if proposed_path != expected_path:
-        raise WorkspaceEngineerError(
-            "LLM attempted to edit an unexpected path."
         )
 
     start_line = payload.get(
@@ -846,7 +870,7 @@ def propose_llm_workspace_edit(
         "model": SCOPE_SELECTOR_MODEL,
         "stream": False,
         "think": False,
-        "format": "json",
+        "format": EDIT_PROPOSAL_JSON_SCHEMA,
         "messages": [
             {
                 "role": "system",
@@ -961,7 +985,6 @@ def propose_llm_workspace_edit(
         rationale,
     ) = _validate_edit_proposal(
         payload=proposal_payload,
-        expected_path=path,
         source_line_count=len(
             source_lines
         ),
@@ -1943,6 +1966,26 @@ def select_workspace_targets(
             ):
                 score += 40
 
+        # Agent Command Center responsibility.
+        if any(
+            term in objective
+            for term in (
+                "agent command center",
+                "command center",
+                "agents command center",
+            )
+        ):
+            if path.endswith(
+                "/agent_command_center.html"
+            ):
+                score += 80
+
+            elif (
+                "/templates/" in path
+                or path.endswith(".html")
+            ):
+                score -= 40
+
         # API responsibility.
         if any(
             term in objective
@@ -2035,22 +2078,73 @@ def select_workspace_targets(
             "produced no scored candidates."
         )
 
-    top_score = scored_candidates[0][0]
+    selected = []
 
-    # Keep only candidates reasonably close to
-    # the strongest candidate. This prevents
-    # unrelated low-confidence files from turning
-    # a small task into a broad PatchSet.
-    selected = [
-        path
-        for score, path in scored_candidates
-        if score >= max(
-            10,
-            top_score - 30,
+    def add_preferred_path(
+        suffix: str,
+    ) -> None:
+        if len(selected) >= max_targets:
+            return
+
+        for _, candidate_path in scored_candidates:
+            if candidate_path.lower().endswith(
+                suffix
+            ):
+                if candidate_path not in selected:
+                    selected.append(
+                        candidate_path
+                    )
+
+                return
+
+    # Explicit architectural responsibility should
+    # outrank generic lexical similarity.
+    if any(
+        term in objective
+        for term in (
+            "agent command center",
+            "command center",
+            "agents command center",
         )
-    ][
-        :max_targets
-    ]
+    ):
+        add_preferred_path(
+            "/agent_command_center.html"
+        )
+
+    if any(
+        term in objective
+        for term in (
+            "api",
+            "endpoint",
+            "router",
+            "route",
+        )
+    ):
+        add_preferred_path(
+            "/api.py"
+        )
+
+    # Fill any remaining capacity from the strongest
+    # nearby discovery candidates.
+    if len(selected) < max_targets:
+        top_score = scored_candidates[0][0]
+
+        for score, path in scored_candidates:
+            if len(selected) >= max_targets:
+                break
+
+            if path in selected:
+                continue
+
+            if score < max(
+                10,
+                top_score - 30,
+            ):
+                continue
+
+            selected.append(
+                path
+            )
 
     if not selected:
         selected = [
@@ -2070,4 +2164,60 @@ def select_workspace_targets(
         paths=tuple(selected),
         rationale=rationale,
         model="deterministic-v1",
+    )
+
+
+def execute_discovered_multi_file_edit(
+    *,
+    workspace_id: str,
+    task_id: str,
+    agent_id: str,
+    objective: str,
+    max_targets: int = 3,
+) -> MultiFileWorkspaceEngineeringRun:
+    discovery = discover_workspace_files(
+        workspace_id=workspace_id,
+        objective=objective,
+        max_candidates=20,
+    )
+
+    selection = select_workspace_targets(
+        discovery=discovery,
+        max_targets=max_targets,
+    )
+
+    if not selection.paths:
+        raise WorkspaceEngineerError(
+            "Multi-file workspace selection "
+            "produced no target paths."
+        )
+
+    engineering_runs = []
+
+    for path in selection.paths:
+        engineering_run = (
+            execute_llm_workspace_edit(
+                workspace_id=workspace_id,
+                path=path,
+                objective=objective,
+            )
+        )
+
+        engineering_runs.append(
+            engineering_run
+        )
+
+    description = (
+        "Discovered multi-file workspace edit: "
+        f"{objective}"
+    )
+
+    return create_workspace_patch_set_from_runs(
+        workspace_id=workspace_id,
+        task_id=task_id,
+        agent_id=agent_id,
+        description=description,
+        engineering_runs=tuple(
+            engineering_runs
+        ),
     )

@@ -7,6 +7,9 @@ from datetime import datetime, timezone
 from app.agents.orchestrator import (
     orchestrate_patch,
 )
+from app.agents.patch_set_orchestrator import (
+    orchestrate_patch_set_review,
+)
 from app.agents.registry import (
     get_agents,
 )
@@ -14,8 +17,8 @@ from app.agents.runner import (
     run_task,
 )
 from app.agents.workspace_engineer import (
-    create_discovered_workspace_patch,
     create_llm_workspace_patch,
+    execute_discovered_multi_file_edit,
 )
 from app.agents.workspaces import (
     create_workspace,
@@ -193,10 +196,11 @@ def _run_implementation_task(
                 )
 
                 patch = workspace_run.patch
+                patch_set_run = None
 
             else:
-                workspace_run = (
-                    create_discovered_workspace_patch(
+                patch_set_run = (
+                    execute_discovered_multi_file_edit(
                         workspace_id=(
                             workspace.workspace_id
                         ),
@@ -205,38 +209,69 @@ def _run_implementation_task(
                             task.assigned_agent_id
                         ),
                         objective=task.objective,
+                        max_targets=3,
                     )
                 )
 
-                patch = workspace_run.patch
-                path = patch.path
+                patch = None
 
         finally:
             remove_workspace(
                 workspace.workspace_id
             )
 
-        orchestration = (
-            orchestrate_patch(
-                patch.patch_id
+        if patch is not None:
+            orchestration = (
+                orchestrate_patch(
+                    patch.patch_id
+                )
             )
-        )
 
-        result = {
-            "pipeline": (
-                "software_engineer"
-            ),
-            "patch_id": (
-                patch.patch_id
-            ),
-            "path": patch.path,
-            "patch_applied": (
-                patch.applied
-            ),
-            "orchestration": (
-                orchestration
-            ),
-        }
+            result = {
+                "pipeline": (
+                    "software_engineer"
+                ),
+                "mode": "single_file",
+                "patch_id": (
+                    patch.patch_id
+                ),
+                "path": patch.path,
+                "patch_applied": (
+                    patch.applied
+                ),
+                "orchestration": (
+                    orchestration
+                ),
+            }
+
+        else:
+            patch_set_id = (
+                patch_set_run.patch_set_id
+            )
+
+            orchestration = (
+                orchestrate_patch_set_review(
+                    patch_set_id
+                )
+            )
+
+            result = {
+                "pipeline": (
+                    "software_engineer"
+                ),
+                "mode": "multi_file",
+                "patch_set_id": (
+                    patch_set_id
+                ),
+                "paths": [
+                    run.proposal.path
+                    for run
+                    in patch_set_run.engineering_runs
+                ],
+                "orchestration": (
+                    orchestration
+                ),
+            }
 
         orchestration_status = (
             orchestration.get(
@@ -263,13 +298,42 @@ def _run_implementation_task(
             orchestration_status
             == "review_failed"
         ):
+            review_summaries = [
+                review.get(
+                    "summary",
+                    "",
+                )
+                for review
+                in orchestration.get(
+                    "reviews",
+                    [],
+                )
+                if review.get(
+                    "decision"
+                ) != "pass"
+            ]
+
             return fail_task(
                 task_id=task.task_id,
                 error=(
-                    orchestration.get(
-                        "review_summary"
+                    "; ".join(
+                        summary
+                        for summary
+                        in review_summaries
+                        if summary
                     )
                     or "Engineering review failed."
+                ),
+            )
+
+        if (
+            orchestration_status
+            == "rejected"
+        ):
+            return fail_task(
+                task_id=task.task_id,
+                error=(
+                    "Engineering change was rejected."
                 ),
             )
 
@@ -279,11 +343,13 @@ def _run_implementation_task(
         }:
             return complete_task(
                 task_id=task.task_id,
-                result=json.dumps(
-                    result,
-                    indent=2,
-                    default=str,
-                ),
+                result=serialized_result,
+            )
+
+        if orchestration_status == "approved":
+            return set_task_reviewing(
+                task_id=task.task_id,
+                result=serialized_result,
             )
 
         raise ValueError(
