@@ -1237,6 +1237,16 @@ def verify_workspace_file(
     )
 
 
+def _extract_verification_line(
+    verification: WorkspaceVerificationResult,
+) -> int | None:
+    text = verification.stderr or verification.stdout
+    match = re.search(r"line (\d+)", text)
+    if not match:
+        return None
+    return int(match.group(1))
+
+
 def _build_workspace_repair_objective(
     *,
     original_objective: str,
@@ -1266,6 +1276,7 @@ def execute_llm_workspace_edit(
     current_objective = objective
     repair_attempt = 0
     last_verification = None
+    repair_target_line = None
 
     while True:
         proposal = propose_llm_workspace_edit(
@@ -1273,6 +1284,26 @@ def execute_llm_workspace_edit(
             path=path,
             objective=current_objective,
         )
+
+        if (
+            repair_target_line is not None
+            and not (
+                proposal.start_line
+                <= repair_target_line
+                <= proposal.end_line
+            )
+        ):
+            if repair_attempt >= MAX_WORKSPACE_REPAIR_ATTEMPTS:
+                raise WorkspaceEngineerError(
+                    "Repair proposal missed required "
+                    f"line {repair_target_line}."
+                )
+            repair_attempt += 1
+            current_objective += (
+                "\n\nYour repair must include line "
+                f"{repair_target_line}."
+            )
+            continue
 
         try:
             edit_result = apply_workspace_edit_proposal(
@@ -1319,6 +1350,11 @@ def execute_llm_workspace_edit(
             )
 
         last_verification = verification
+        repair_target_line = (
+            _extract_verification_line(
+                verification
+            )
+        )
         repair_attempt += 1
 
         current_objective = _build_workspace_repair_objective(
