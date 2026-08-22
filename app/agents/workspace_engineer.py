@@ -66,6 +66,8 @@ MAX_REPLACEMENT_LENGTH = 20000
 
 MAX_LLM_REQUEST_ATTEMPTS = 2
 
+MAX_WORKSPACE_REPAIR_ATTEMPTS = 2
+
 
 class WorkspaceEngineerError(
     RuntimeError
@@ -1235,41 +1237,75 @@ def verify_workspace_file(
     )
 
 
+def _build_workspace_repair_objective(
+    *,
+    original_objective: str,
+    verification: WorkspaceVerificationResult,
+    repair_attempt: int,
+) -> str:
+    error_text = (
+        verification.stderr
+        or verification.stdout
+        or "Verification failed."
+    )
+
+    return (
+        f"{original_objective}\n\n"
+        "Repair the existing failed edit.\n"
+        f"Attempt: {repair_attempt}\n"
+        f"Error: {error_text[:4000]}"
+    )
+
+
 def execute_llm_workspace_edit(
     *,
     workspace_id: str,
     path: str,
     objective: str,
 ) -> WorkspaceEngineeringRun:
-    proposal = propose_llm_workspace_edit(
-        workspace_id=workspace_id,
-        path=path,
-        objective=objective,
-    )
+    current_objective = objective
+    repair_attempt = 0
 
-    edit_result = apply_workspace_edit_proposal(
-        workspace_id=workspace_id,
-        proposal=proposal,
-    )
-
-    verification = verify_workspace_file(
-        workspace_id=workspace_id,
-        path=proposal.path,
-    )
-
-    if not verification.passed:
-        raise WorkspaceEngineerError(
-            "LLM workspace edit failed verification. "
-            f"return_code={verification.return_code} "
-            f"stderr={verification.stderr}"
+    while True:
+        proposal = propose_llm_workspace_edit(
+            workspace_id=workspace_id,
+            path=path,
+            objective=current_objective,
         )
 
-    return WorkspaceEngineeringRun(
-        workspace_id=workspace_id,
-        proposal=proposal,
-        edit_result=edit_result,
-        verification=verification,
-    )
+        edit_result = apply_workspace_edit_proposal(
+            workspace_id=workspace_id,
+            proposal=proposal,
+        )
+
+        verification = verify_workspace_file(
+            workspace_id=workspace_id,
+            path=proposal.path,
+        )
+
+        if verification.passed:
+            return WorkspaceEngineeringRun(
+                workspace_id=workspace_id,
+                proposal=proposal,
+                edit_result=edit_result,
+                verification=verification,
+            )
+
+        if repair_attempt >= MAX_WORKSPACE_REPAIR_ATTEMPTS:
+            raise WorkspaceEngineerError(
+                "LLM workspace edit failed verification "
+                "after repair attempts. "
+                f"return_code={verification.return_code} "
+                f"stderr={verification.stderr}"
+            )
+
+        repair_attempt += 1
+
+        current_objective = _build_workspace_repair_objective(
+            original_objective=objective,
+            verification=verification,
+            repair_attempt=repair_attempt,
+        )
 
 
 def create_workspace_patch_from_run(
