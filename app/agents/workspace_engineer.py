@@ -159,13 +159,15 @@ Rules:
 
 2. Modify only the file supplied in the request.
 
-3. Return exactly one contiguous line-range replacement.
+3. Return exactly one contiguous source replacement.
 
-4. start_line and end_line must refer to lines visible in
-   the supplied source context.
+4. search_text must exactly copy complete existing lines
+   visible in the supplied source context.
 
-5. replacement_text must contain the complete replacement
-   for that line range.
+5. search_text must identify one unique source block.
+
+6. replacement_text must contain the complete replacement
+   for that exact source block.
 
 6. Preserve existing behavior unless the engineering
    objective explicitly requires changing it.
@@ -186,8 +188,7 @@ Return exactly this JSON structure:
 Return exactly this JSON structure:
 
 {
-    "start_line": 1,
-    "end_line": 1,
+    "search_text": "exact existing source lines",
     "replacement_text": "literal replacement source code",
     "rationale": "short explanation of the proposed edit"
 }
@@ -202,13 +203,8 @@ Do not include Markdown or prose in replacement_text.
 EDIT_PROPOSAL_JSON_SCHEMA = {
     "type": "object",
     "properties": {
-        "start_line": {
-            "type": "integer",
-            "minimum": 1,
-        },
-        "end_line": {
-            "type": "integer",
-            "minimum": 1,
+        "search_text": {
+            "type": "string",
         },
         "replacement_text": {
             "type": "string",
@@ -218,8 +214,7 @@ EDIT_PROPOSAL_JSON_SCHEMA = {
         },
     },
     "required": [
-        "start_line",
-        "end_line",
+        "search_text",
         "replacement_text",
         "rationale",
     ],
@@ -685,6 +680,83 @@ def _validate_edit_proposal(
     )
 
 
+def _validate_anchor_edit_proposal(
+    *,
+    payload: Any,
+) -> tuple[str, str, str]:
+    if not isinstance(payload, dict):
+        raise WorkspaceEngineerError(
+            "LLM edit proposal must be a JSON object."
+        )
+
+    search_text = payload.get("search_text")
+    if not isinstance(search_text, str):
+        raise WorkspaceEngineerError(
+            "LLM search_text must be a string."
+        )
+    if not search_text.strip():
+        raise WorkspaceEngineerError(
+            "LLM search_text cannot be empty."
+        )
+
+    replacement_text = payload.get("replacement_text")
+    if not isinstance(replacement_text, str):
+        raise WorkspaceEngineerError(
+            "LLM replacement_text must be a string."
+        )
+
+    rationale = payload.get("rationale")
+    if not isinstance(rationale, str) or not rationale.strip():
+        raise WorkspaceEngineerError(
+            "LLM rationale must be a non-empty string."
+        )
+
+    return search_text, replacement_text, rationale.strip()
+
+
+def _resolve_anchor_line_range(
+    *,
+    search_text: str,
+    context_lines: list[str],
+    context_start_line: int,
+) -> tuple[int, int]:
+    search_lines = search_text.splitlines()
+
+    if not search_lines:
+        raise WorkspaceEngineerError(
+            "LLM search_text contains no source lines."
+        )
+
+    matches = []
+
+    for index in range(
+        len(context_lines) - len(search_lines) + 1
+    ):
+        if (
+            context_lines[
+                index:index + len(search_lines)
+            ]
+            == search_lines
+        ):
+            matches.append(index)
+
+    if len(matches) != 1:
+        raise WorkspaceEngineerError(
+            "LLM search_text must match exactly once "
+            f"in visible source context; matches={len(matches)}."
+        )
+
+    start_line = (
+        context_start_line + matches[0]
+    )
+
+    end_line = (
+        start_line + len(search_lines) - 1
+    )
+
+    return start_line, end_line
+
+
 def _extract_llm_message_content(
     response_data: dict[str, Any],
 ) -> str:
@@ -866,7 +938,7 @@ def propose_llm_workspace_edit(
         f"{normalized_objective}\n\n"
         "Target path:\n"
         f"{path}\n\n"
-        "Allowed edit line range:\n"
+        "Edit safety rule:\n"
         f"{context_start_line}-{context_end_line}\n"
         "Your start_line and end_line MUST stay "
         "inside this range.\n\n"
@@ -987,28 +1059,21 @@ def propose_llm_workspace_edit(
         ) from exc
 
     (
-        start_line,
-        end_line,
+        search_text,
         replacement_text,
         rationale,
-    ) = _validate_edit_proposal(
+    ) = _validate_anchor_edit_proposal(
         payload=proposal_payload,
-        source_line_count=len(
-            source_lines
-        ),
     )
 
-    if (
-        start_line < context_start_line
-        or end_line > context_end_line
-    ):
-        raise WorkspaceEngineerError(
-            "LLM proposed an edit outside "
-            "the visible source context. "
-            f"visible={context_start_line}-"
-            f"{context_end_line} "
-            f"proposed={start_line}-{end_line}"
-        )
+    (
+        start_line,
+        end_line,
+    ) = _resolve_anchor_line_range(
+        search_text=search_text,
+        context_lines=context_lines,
+        context_start_line=context_start_line,
+    )
 
     start_source_line = (
         source_lines[start_line - 1]
