@@ -869,7 +869,7 @@ def propose_llm_workspace_edit(
     )
 
     request_payload = {
-        "model": SCOPE_SELECTOR_MODEL,
+        "model": OLLAMA_MODEL,
         "stream": False,
         "think": False,
         "format": EDIT_PROPOSAL_JSON_SCHEMA,
@@ -911,12 +911,12 @@ def propose_llm_workspace_edit(
 
     for attempt in range(
         1,
-        SCOPE_SELECTOR_MAX_ATTEMPTS + 1,
+        MAX_LLM_REQUEST_ATTEMPTS + 1,
     ):
         try:
             with urlopen(
                 request,
-                timeout=SCOPE_SELECTOR_TIMEOUT_SECONDS,
+                timeout=OLLAMA_TIMEOUT_SECONDS,
             ) as response:
                 response_data = json.loads(
                     response.read().decode(
@@ -940,7 +940,7 @@ def propose_llm_workspace_edit(
 
             if (
                 attempt
-                >= SCOPE_SELECTOR_MAX_ATTEMPTS
+                >= MAX_LLM_REQUEST_ATTEMPTS
             ):
                 break
 
@@ -957,13 +957,13 @@ def propose_llm_workspace_edit(
             raise WorkspaceEngineerError(
                 "Ollama workspace engineer request "
                 "timed out after "
-                f"{SCOPE_SELECTOR_MAX_ATTEMPTS} attempts."
+                f"{MAX_LLM_REQUEST_ATTEMPTS} attempts."
             ) from last_error
 
         raise WorkspaceEngineerError(
             "Unable to reach Ollama workspace "
             "engineer service after "
-            f"{SCOPE_SELECTOR_MAX_ATTEMPTS} attempts."
+            f"{MAX_LLM_REQUEST_ATTEMPTS} attempts."
         ) from last_error
 
     content = _extract_llm_message_content(
