@@ -864,6 +864,10 @@ def propose_llm_workspace_edit(
         f"{normalized_objective}\n\n"
         "Target path:\n"
         f"{path}\n\n"
+        "Allowed edit line range:\n"
+        f"{context_start_line}-{context_end_line}\n"
+        "Your start_line and end_line MUST stay "
+        "inside this range.\n\n"
         "Current source code with line numbers:\n"
         f"{numbered_source}"
     )
