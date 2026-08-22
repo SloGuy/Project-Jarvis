@@ -866,6 +866,157 @@
                 select.add(option);
             }
         }
+
+        function wireTaskCreateForm() {
+            const form =
+                document.getElementById(
+                    "task-create-form"
+                );
+
+            if (!form) {
+                return;
+            }
+
+            form.addEventListener(
+                "submit",
+                async (event) => {
+                    event.preventDefault();
+
+                    const titleInput =
+                        document.getElementById(
+                            "task-create-title"
+                        );
+
+                    const objectiveInput =
+                        document.getElementById(
+                            "task-create-objective"
+                        );
+
+                    const agentSelect =
+                        document.getElementById(
+                            "task-create-agent"
+                        );
+
+                    const prioritySelect =
+                        document.getElementById(
+                            "task-create-priority"
+                        );
+
+                    const feedback =
+                        document.getElementById(
+                            "task-create-feedback"
+                        );
+
+                    const submitButton =
+                        form.querySelector(
+                            'button[type="submit"]'
+                        );
+
+                    const title =
+                        titleInput?.value.trim() || "";
+
+                    const objective =
+                        objectiveInput?.value.trim() || "";
+
+                    const assignedAgentId =
+                        agentSelect?.value || "";
+
+                    const priority =
+                        prioritySelect?.value || "normal";
+
+                    if (
+                        !title ||
+                        !objective ||
+                        !assignedAgentId
+                    ) {
+                        if (feedback) {
+                            feedback.textContent =
+                                "Title, objective, and assigned agent are required.";
+                        }
+
+                        return;
+                    }
+
+                    if (submitButton) {
+                        submitButton.disabled = true;
+                    }
+
+                    if (feedback) {
+                        feedback.textContent =
+                            "Creating task...";
+                    }
+
+                    try {
+                        const response =
+                            await fetch(
+                                "/agents/tasks",
+                                {
+                                    method: "POST",
+                                    headers: {
+                                        "Content-Type":
+                                            "application/json"
+                                    },
+                                    body: JSON.stringify(
+                                        {
+                                            title,
+                                            objective,
+                                            assigned_agent_id:
+                                                assignedAgentId,
+                                            priority
+                                        }
+                                    )
+                                }
+                            );
+
+                        let payload = {};
+
+                        try {
+                            payload =
+                                await response.json();
+                        } catch (error) {
+                            payload = {};
+                        }
+
+                        if (!response.ok) {
+                            throw new Error(
+                                payload.detail ||
+                                `Request failed with status ${response.status}.`
+                            );
+                        }
+
+                        if (feedback) {
+                            feedback.textContent =
+                                `Task created: ${payload.task_id}`;
+                        }
+
+                        form.reset();
+
+                        if (prioritySelect) {
+                            prioritySelect.value =
+                                "normal";
+                        }
+
+                        await loadTaskCreateAgents();
+                        await loadCommandCenter();
+
+                    } catch (error) {
+                        console.error(error);
+
+                        if (feedback) {
+                            feedback.textContent =
+                                error.message;
+                        }
+
+                    } finally {
+                        if (submitButton) {
+                            submitButton.disabled =
+                                false;
+                        }
+                    }
+                }
+            );
+        }
+
         let commandCenterData = {
             agents: [],
             tasks: [],
@@ -2035,6 +2186,7 @@
         }
 
         loadTaskCreateAgents();
+        wireTaskCreateForm();
         loadCommandCenter();
 
         setInterval(
