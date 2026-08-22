@@ -1265,6 +1265,7 @@ def execute_llm_workspace_edit(
 ) -> WorkspaceEngineeringRun:
     current_objective = objective
     repair_attempt = 0
+    last_verification = None
 
     while True:
         proposal = propose_llm_workspace_edit(
@@ -1273,10 +1274,28 @@ def execute_llm_workspace_edit(
             objective=current_objective,
         )
 
-        edit_result = apply_workspace_edit_proposal(
-            workspace_id=workspace_id,
-            proposal=proposal,
-        )
+        try:
+            edit_result = apply_workspace_edit_proposal(
+                workspace_id=workspace_id,
+                proposal=proposal,
+            )
+        except WorkspaceEngineerError as exc:
+            if "produced no changes" not in str(exc):
+                raise
+            if last_verification is None:
+                raise
+            if repair_attempt >= MAX_WORKSPACE_REPAIR_ATTEMPTS:
+                raise
+            repair_attempt += 1
+            current_objective = (
+                _build_workspace_repair_objective(
+                    original_objective=objective,
+                    verification=last_verification,
+                    repair_attempt=repair_attempt,
+                )
+                + "\n\nYour previous repair made no effective change."
+            )
+            continue
 
         verification = verify_workspace_file(
             workspace_id=workspace_id,
@@ -1299,6 +1318,7 @@ def execute_llm_workspace_edit(
                 f"stderr={verification.stderr}"
             )
 
+        last_verification = verification
         repair_attempt += 1
 
         current_objective = _build_workspace_repair_objective(
