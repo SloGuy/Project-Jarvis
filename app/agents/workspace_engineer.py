@@ -1174,6 +1174,46 @@ def verify_workspace_file(
             ),
         )
 
+    if suffix == ".html":
+        content = target_path.read_text(
+            encoding="utf-8"
+        )
+
+        ids = re.findall(
+            r"""\bid\s*=\s*["']([^"']+)["']""",
+            content,
+            re.IGNORECASE,
+        )
+
+        duplicate_ids = sorted({
+            value
+            for value in ids
+            if ids.count(value) > 1
+        })
+
+        if duplicate_ids:
+            duplicate_id = duplicate_ids[0]
+            matches = list(re.finditer(
+                rf'''\bid\s*=\s*["']{re.escape(duplicate_id)}["']''',
+                content,
+                re.IGNORECASE,
+            ))
+            duplicate_line = (
+                content[:matches[1].start()].count("\n") + 1
+            )
+
+            return WorkspaceVerificationResult(
+                command=("html_duplicate_ids", path),
+                return_code=1,
+                stdout="",
+                stderr=(
+                    f"Duplicate HTML id at line "
+                    f"{duplicate_line}: {duplicate_id}. "
+                    "Duplicate HTML id values: "
+                    + ", ".join(duplicate_ids)
+                ),
+                passed=False,
+            )
     text_extensions = {
         ".html",
         ".css",
