@@ -998,7 +998,10 @@ def propose_llm_workspace_edit(
     ):
         raise WorkspaceEngineerError(
             "LLM proposed an edit outside "
-            "the visible source context."
+            "the visible source context. "
+            f"visible={context_start_line}-"
+            f"{context_end_line} "
+            f"proposed={start_line}-{end_line}"
         )
 
     start_source_line = (
