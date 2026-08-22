@@ -35,7 +35,55 @@ def agents():
 def agent_tasks():
     return get_task_snapshot()
 
+@router.post('/tasks')
+def create_agent_task(body: dict):
+    from app.agents.tasks import create_task, TaskPriority
 
+    title = body.get('title')
+    objective = body.get('objective')
+    assigned_agent_id = body.get('assigned_agent_id')
+    priority = body.get('priority', 'normal')
+
+    if not isinstance(title, str) or not title.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Title must be a non-empty string.",
+        )
+    if not isinstance(objective, str) or not objective.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Objective must be a non-empty string.",
+        )
+    if assigned_agent_id is not None and not isinstance(assigned_agent_id, str):
+        raise HTTPException(
+            status_code=400,
+            detail="Assigned agent ID must be a string or null.",
+        )
+
+    try:
+        priority_enum = TaskPriority(priority)
+        task = create_task(
+            title=title,
+            objective=objective,
+            assigned_agent_id=assigned_agent_id,
+            priority=priority_enum,
+        )
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error),
+        ) from error
+
+    return {
+        "status": "success",
+        "task_id": task.task_id,
+        "title": task.title,
+        "objective": task.objective,
+        "assigned_agent_id": task.assigned_agent_id,
+        "priority": task.priority.value,
+        "task_status": task.status.value,
+        "created_at": task.created_at,
+    }
 @router.get("/approvals")
 def agent_approvals():
     return get_approval_snapshot()
