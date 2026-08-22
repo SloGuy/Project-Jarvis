@@ -1258,12 +1258,21 @@ def _build_workspace_repair_objective(
         or verification.stdout
         or "Verification failed."
     )
+    target_line = _extract_verification_line(
+        verification
+    )
 
     return (
-        f"{original_objective}\n\n"
-        "Repair the existing failed edit.\n"
-        f"Attempt: {repair_attempt}\n"
-        f"Error: {error_text[:4000]}"
+        "Repair the current source file so automated "
+        "verification passes.\n"
+        f"The failure is at line {target_line}.\n"
+        "Your proposed edit MUST include that line.\n"
+        "Do not repeat or redo the original edit.\n"
+        "Preserve all unrelated existing changes.\n"
+        f"Repair attempt: {repair_attempt}\n"
+        f"Verification error:\n{error_text[:4000]}\n"
+        "Original objective for context only:\n"
+        f"{original_objective}"
     )
 
 
