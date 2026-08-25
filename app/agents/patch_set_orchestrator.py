@@ -118,18 +118,13 @@ def orchestrate_patch_set_review(
     review_results = []
 
     for patch in patches:
-        review = latest_patch_review(
+        review_patch_snapshot(
             patch.patch_id
         )
 
-        if review is None:
-            review_patch_snapshot(
-                patch.patch_id
-            )
-
-            review = latest_patch_review(
-                patch.patch_id
-            )
+        review = latest_patch_review(
+            patch.patch_id
+        )
 
         if review is None:
             raise PatchSetOrchestratorError(
