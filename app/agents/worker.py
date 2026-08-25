@@ -47,7 +47,7 @@ MAX_ENGINEERING_REVISION_ROUNDS = 2
 
 ENGINEERING_REVISION_MODEL = os.getenv(
     "JARVIS_WORKSPACE_REVISION_MODEL",
-    "devstral-small-2:24b",
+    workspace_engineer.OLLAMA_MODEL,
 )
 
 _worker_running = True
