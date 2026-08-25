@@ -1281,6 +1281,33 @@ def verify_workspace_file(
             encoding="utf-8"
         )
 
+        style_blocks = list(
+            re.finditer(
+                r"<style\b[^>]*>(.*?)</style>",
+                content,
+                re.IGNORECASE | re.DOTALL,
+            )
+        )
+
+        for style_match in style_blocks:
+            css = style_match.group(1)
+
+            if css.count("{") != css.count("}"):
+                style_line = (
+                    content[:style_match.start()].count("\n") + 1
+                )
+
+                return WorkspaceVerificationResult(
+                    command=("html_css_braces", path),
+                    return_code=1,
+                    stdout="",
+                    stderr=(
+                        "Unbalanced CSS braces near line "
+                        f"{style_line}."
+                    ),
+                    passed=False,
+                )
+
         ids = re.findall(
             r"""\bid\s*=\s*["']([^"']+)["']""",
             content,
