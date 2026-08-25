@@ -1,3 +1,5 @@
+import re
+
 from app.agents.executor import (
     AgentExecutionError,
     inspect_code,
@@ -10,6 +12,10 @@ from app.agents.patches import (
 from app.agents.registry import (
     get_agent,
 )
+from app.agents.tasks import (
+    get_task,
+)
+
 from app.agents.reviews import (
     ReviewDecision,
     PatchReview,
@@ -187,6 +193,44 @@ def _verify_current_target(
     }
 
 
+def _review_objective_coverage(
+    patch: CodePatch,
+) -> list[str]:
+    task = get_task(
+        patch.task_id
+    )
+
+    if task is None:
+        return [
+            "Reviewer could not load the originating task."
+        ]
+
+    identifiers = {
+        value
+        for value in re.findall(
+            r"[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?",
+            task.objective,
+        )
+        if "_" in value or "." in value
+    }
+
+    diff = patch.diff or ""
+
+    missing = [
+        value
+        for value in sorted(identifiers)
+        if value not in diff
+    ]
+
+    return [
+        (
+            "Patch does not address required objective "
+            f"identifier: {value}"
+        )
+        for value in missing
+    ]
+
+
 def review_patch(
     patch_id: str,
 ) -> PatchReview:
@@ -226,6 +270,16 @@ def review_patch(
     )
 
     reasons = []
+
+    semantic_reasons = (
+        _review_objective_coverage(
+            patch
+        )
+    )
+
+    reasons.extend(
+        semantic_reasons
+    )
 
     if not diff_ok:
         reasons.extend(
