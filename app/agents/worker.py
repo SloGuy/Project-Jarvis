@@ -1,6 +1,8 @@
 import json
+import os
 import re
 import signal
+import subprocess
 import time
 from datetime import datetime, timezone
 
@@ -16,6 +18,8 @@ from app.agents.registry import (
 from app.agents.runner import (
     run_task,
 )
+import app.agents.workspace_engineer as workspace_engineer
+
 from app.agents.workspace_engineer import (
     create_llm_workspace_patch,
     execute_discovered_multi_file_edit,
@@ -40,6 +44,11 @@ from app.agents.tasks import (
 POLL_INTERVAL_SECONDS = 5
 
 MAX_ENGINEERING_REVISION_ROUNDS = 2
+
+ENGINEERING_REVISION_MODEL = os.getenv(
+    "JARVIS_WORKSPACE_REVISION_MODEL",
+    "devstral-small-2:24b",
+)
 
 _worker_running = True
 
@@ -171,11 +180,26 @@ def _run_multi_file_revision(
     task,
     objective: str,
 ):
+    primary_model = (
+        workspace_engineer.OLLAMA_MODEL
+    )
+
     workspace = create_workspace(
         base_branch="main",
     )
 
+    subprocess.run(
+        ["ollama", "stop", primary_model],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
     try:
+        workspace_engineer.OLLAMA_MODEL = (
+            ENGINEERING_REVISION_MODEL
+        )
+
         patch_set_run = (
             execute_discovered_multi_file_edit(
                 workspace_id=workspace.workspace_id,
@@ -186,6 +210,17 @@ def _run_multi_file_revision(
             )
         )
     finally:
+        subprocess.run(
+            ["ollama", "stop", ENGINEERING_REVISION_MODEL],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        workspace_engineer.OLLAMA_MODEL = (
+            primary_model
+        )
+
         remove_workspace(
             workspace.workspace_id
         )
