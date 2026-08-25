@@ -862,6 +862,15 @@ def propose_llm_workspace_edit(
             }
         }
 
+        explicit_identifiers = {
+            identifier
+            for identifier in re.findall(
+                r"[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?",
+                normalized_objective,
+            )
+            if "_" in identifier or "." in identifier
+        }
+
         best_line_index = 0
         best_score = 0
 
@@ -876,6 +885,12 @@ def propose_llm_workspace_edit(
                 1
                 for term in objective_terms
                 if term in normalized_line
+            )
+
+            score += sum(
+                10
+                for identifier in explicit_identifiers
+                if identifier.lower() in normalized_line
             )
 
             if score > best_score:
