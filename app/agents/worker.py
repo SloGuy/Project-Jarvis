@@ -39,6 +39,8 @@ from app.agents.tasks import (
 
 POLL_INTERVAL_SECONDS = 5
 
+MAX_ENGINEERING_REVISION_ROUNDS = 2
+
 _worker_running = True
 
 
@@ -146,6 +148,55 @@ def _is_implementation_task(
         keyword in text
         for keyword in IMPLEMENTATION_KEYWORDS
     )
+
+
+def _build_revision_objective(
+    *,
+    objective: str,
+    feedback: str,
+    revision_round: int,
+) -> str:
+    return (
+        f"{objective}\n\n"
+        "Engineering reviewer feedback:\n"
+        f"{feedback}\n\n"
+        f"Revision round: {revision_round}. "
+        "Correct the reviewer-identified omissions "
+        "while preserving valid existing behavior."
+    )
+
+
+def _run_multi_file_revision(
+    *,
+    task,
+    objective: str,
+):
+    workspace = create_workspace(
+        base_branch="main",
+    )
+
+    try:
+        patch_set_run = (
+            execute_discovered_multi_file_edit(
+                workspace_id=workspace.workspace_id,
+                task_id=task.task_id,
+                agent_id=task.assigned_agent_id,
+                objective=objective,
+                max_targets=3,
+            )
+        )
+    finally:
+        remove_workspace(
+            workspace.workspace_id
+        )
+
+    orchestration = (
+        orchestrate_patch_set_review(
+            patch_set_run.patch_set_id
+        )
+    )
+
+    return patch_set_run, orchestration
 
 
 def _run_implementation_task(
@@ -313,17 +364,67 @@ def _run_implementation_task(
                 ) != "pass"
             ]
 
-            return fail_task(
-                task_id=task.task_id,
-                error=(
-                    "; ".join(
+            feedback = (
+                "; ".join(
                         summary
                         for summary
                         in review_summaries
                         if summary
                     )
                     or "Engineering review failed."
-                ),
+            )
+
+            for revision_round in range(
+                1,
+                MAX_ENGINEERING_REVISION_ROUNDS + 1,
+            ):
+                revised_objective = (
+                    _build_revision_objective(
+                        objective=task.objective,
+                        feedback=feedback,
+                        revision_round=revision_round,
+                    )
+                )
+
+                patch_set_run, orchestration = (
+                    _run_multi_file_revision(
+                        task=task,
+                        objective=revised_objective,
+                    )
+                )
+
+                orchestration_status = (
+                    orchestration.get("status")
+                )
+
+                if orchestration_status != "review_failed":
+                    result["patch_set_id"] = (
+                        patch_set_run.patch_set_id
+                    )
+                    result["orchestration"] = orchestration
+                    serialized_result = json.dumps(
+                        result,
+                        indent=2,
+                        default=str,
+                    )
+                    break
+
+                feedback = "; ".join(
+                    review.get("summary", "")
+                    for review in orchestration.get("reviews", [])
+                    if review.get("decision") != "pass"
+                )
+
+        if orchestration_status == "awaiting_approval":
+            return set_task_reviewing(
+                task_id=task.task_id,
+                result=serialized_result,
+            )
+
+        if orchestration_status == "review_failed":
+            return fail_task(
+                task_id=task.task_id,
+                error=feedback or "Engineering review failed.",
             )
 
         if (
