@@ -881,6 +881,13 @@ def propose_llm_workspace_edit(
                 line.lower()
             )
 
+            nearby_text = "\n".join(
+                source_lines[
+                    max(0, index - 20):
+                    min(len(source_lines), index + 21)
+                ]
+            ).lower()
+
             score = sum(
                 1
                 for term in objective_terms
@@ -888,9 +895,15 @@ def propose_llm_workspace_edit(
             )
 
             score += sum(
+                2
+                for term in objective_terms
+                if term in nearby_text
+            )
+
+            score += sum(
                 10
                 for identifier in explicit_identifiers
-                if identifier.lower() in normalized_line
+                if identifier.lower() in nearby_text
             )
 
             if score > best_score:
