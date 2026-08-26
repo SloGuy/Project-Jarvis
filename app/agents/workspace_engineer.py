@@ -1048,6 +1048,7 @@ def propose_llm_workspace_edit(
         ],
         "options": {
             "temperature": 0.1,
+            "num_ctx": 8192,
         },
     }
 
