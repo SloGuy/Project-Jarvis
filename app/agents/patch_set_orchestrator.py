@@ -146,15 +146,15 @@ def orchestrate_patch_set_review(
             }
         )
 
-    combined_diff = "\n".join(
-        patch.diff or ""
+    combined_proposed_content = "\n".join(
+        patch.proposed_content or ""
         for patch in patches
     )
 
     objective_reasons = (
         review_objective_coverage(
             task_id=patches[0].task_id,
-            diff=combined_diff,
+            diff=combined_proposed_content,
         )
         if patches
         else [

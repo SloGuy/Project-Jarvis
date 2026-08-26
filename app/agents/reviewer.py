@@ -207,11 +207,31 @@ def review_objective_coverage(
             "Reviewer could not load the originating task."
         ]
 
+    objective_lines = (
+        task.objective.splitlines()
+    )
+
+    positive_lines = [
+        line
+        for line in objective_lines
+        if not re.search(
+            r"\b("
+            r"do not|don't|must not|never|without"
+            r")\b",
+            line,
+            re.IGNORECASE,
+        )
+    ]
+
+    positive_objective = "\n".join(
+        positive_lines
+    )
+
     identifiers = {
         value
         for value in re.findall(
             r"[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?",
-            task.objective,
+            positive_objective,
         )
         if "_" in value or "." in value
     }
@@ -236,7 +256,7 @@ def _review_objective_coverage(
 ) -> list[str]:
     return review_objective_coverage(
         task_id=patch.task_id,
-        diff=patch.diff or "",
+        diff=patch.proposed_content or "",
     )
 
 
