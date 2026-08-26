@@ -12,6 +12,14 @@ from app.agents.orchestrator import (
 from app.agents.patch_set_orchestrator import (
     orchestrate_patch_set_review,
 )
+from app.agents.patch_sets import (
+    create_patch_set,
+    get_patch_set,
+)
+from app.agents.patches import (
+    create_patch,
+    get_patch,
+)
 from app.agents.registry import (
     get_agents,
 )
@@ -26,7 +34,9 @@ from app.agents.workspace_engineer import (
 )
 from app.agents.workspaces import (
     create_workspace,
+    read_workspace_file,
     remove_workspace,
+    write_workspace_file,
 )
 from app.agents.tasks import (
     DEFAULT_MAX_RECOVERY_ATTEMPTS,
@@ -175,10 +185,109 @@ def _build_revision_objective(
     )
 
 
+def _seed_workspace_from_patch_set(
+    *,
+    workspace_id: str,
+    patch_set_id: str,
+) -> tuple[str, ...]:
+    patch_set = get_patch_set(
+        patch_set_id
+    )
+
+    if patch_set is None:
+        raise ValueError(
+            f"Patch set not found: {patch_set_id}"
+        )
+
+    seeded_paths = []
+
+    for patch_id in patch_set.patch_ids:
+        patch = get_patch(
+            patch_id
+        )
+
+        if patch is None:
+            raise ValueError(
+                f"Patch not found: {patch_id}"
+            )
+
+        write_workspace_file(
+            workspace_id=workspace_id,
+            relative_path=patch.path,
+            content=patch.proposed_content,
+        )
+
+        seeded_paths.append(
+            patch.path
+        )
+
+    return tuple(
+        seeded_paths
+    )
+
+
+def _create_cumulative_patch_set(
+    *,
+    workspace_id: str,
+    task,
+    description: str,
+    paths: tuple[str, ...],
+) -> str:
+    patch_ids = []
+
+    for path in sorted(
+        set(paths)
+    ):
+        proposed_content = (
+            read_workspace_file(
+                workspace_id=workspace_id,
+                relative_path=path,
+            )
+        )
+
+        try:
+            patch = create_patch(
+                task_id=task.task_id,
+                agent_id=task.assigned_agent_id,
+                path=path,
+                proposed_content=proposed_content,
+                description=description,
+            )
+        except ValueError as exc:
+            if (
+                "Proposed content does not change the file."
+                in str(exc)
+            ):
+                continue
+
+            raise
+
+        patch_ids.append(
+            patch.patch_id
+        )
+
+    if not patch_ids:
+        raise ValueError(
+            "Cumulative revision produced no changes."
+        )
+
+    patch_set = create_patch_set(
+        task_id=task.task_id,
+        agent_id=task.assigned_agent_id,
+        description=description,
+        patch_ids=tuple(
+            patch_ids
+        ),
+    )
+
+    return patch_set.patch_set_id
+
+
 def _run_multi_file_revision(
     *,
     task,
     objective: str,
+    previous_patch_set_id: str,
 ):
     primary_model = (
         workspace_engineer.OLLAMA_MODEL
@@ -186,6 +295,13 @@ def _run_multi_file_revision(
 
     workspace = create_workspace(
         base_branch="main",
+    )
+
+    seeded_paths = (
+        _seed_workspace_from_patch_set(
+            workspace_id=workspace.workspace_id,
+            patch_set_id=previous_patch_set_id,
+        )
     )
 
     subprocess.run(
@@ -209,6 +325,26 @@ def _run_multi_file_revision(
                 max_targets=3,
             )
         )
+
+        revised_paths = tuple(
+            run.proposal.path
+            for run
+            in patch_set_run.engineering_runs
+        )
+
+        cumulative_paths = (
+            seeded_paths
+            + revised_paths
+        )
+
+        cumulative_patch_set_id = (
+            _create_cumulative_patch_set(
+                workspace_id=workspace.workspace_id,
+                task=task,
+                description=objective,
+                paths=cumulative_paths,
+            )
+        )
     finally:
         subprocess.run(
             ["ollama", "stop", ENGINEERING_REVISION_MODEL],
@@ -227,11 +363,15 @@ def _run_multi_file_revision(
 
     orchestration = (
         orchestrate_patch_set_review(
-            patch_set_run.patch_set_id
+            cumulative_patch_set_id
         )
     )
 
-    return patch_set_run, orchestration
+    return (
+        patch_set_run,
+        cumulative_patch_set_id,
+        orchestration,
+    )
 
 
 def _run_implementation_task(
@@ -401,13 +541,37 @@ def _run_implementation_task(
 
             feedback = (
                 "; ".join(
-                        summary
-                        for summary
-                        in review_summaries
-                        if summary
-                    )
-                    or "Engineering review failed."
+                    summary
+                    for summary
+                    in review_summaries
+                    if summary
+                )
+                or "Engineering review failed."
             )
+
+            if patch is not None:
+                revision_seed_patch_set = (
+                    create_patch_set(
+                        task_id=task.task_id,
+                        agent_id=task.assigned_agent_id,
+                        description=(
+                            "Revision seed for "
+                            f"{task.title}"
+                        ),
+                        patch_ids=(
+                            patch.patch_id,
+                        ),
+                    )
+                )
+
+                previous_patch_set_id = (
+                    revision_seed_patch_set.patch_set_id
+                )
+
+            else:
+                previous_patch_set_id = (
+                    result["patch_set_id"]
+                )
 
             for revision_round in range(
                 1,
@@ -421,34 +585,65 @@ def _run_implementation_task(
                     )
                 )
 
-                patch_set_run, orchestration = (
-                    _run_multi_file_revision(
-                        task=task,
-                        objective=revised_objective,
-                    )
+                (
+                    patch_set_run,
+                    cumulative_patch_set_id,
+                    orchestration,
+                ) = _run_multi_file_revision(
+                    task=task,
+                    objective=revised_objective,
+                    previous_patch_set_id=(
+                        previous_patch_set_id
+                    ),
+                )
+
+                previous_patch_set_id = (
+                    cumulative_patch_set_id
                 )
 
                 orchestration_status = (
-                    orchestration.get("status")
+                    orchestration.get(
+                        "status"
+                    )
                 )
 
-                if orchestration_status != "review_failed":
+                if (
+                    orchestration_status
+                    != "review_failed"
+                ):
                     result["patch_set_id"] = (
-                        patch_set_run.patch_set_id
+                        cumulative_patch_set_id
                     )
-                    result["orchestration"] = orchestration
-                    serialized_result = json.dumps(
-                        result,
-                        indent=2,
-                        default=str,
+
+                    result["orchestration"] = (
+                        orchestration
                     )
+
+                    serialized_result = (
+                        json.dumps(
+                            result,
+                            indent=2,
+                            default=str,
+                        )
+                    )
+
                     break
 
                 feedback = "; ".join(
-                    review.get("summary", "")
-                    for review in orchestration.get("reviews", [])
-                    if review.get("decision") != "pass"
+                    review.get(
+                        "summary",
+                        "",
+                    )
+                    for review
+                    in orchestration.get(
+                        "reviews",
+                        [],
+                    )
+                    if review.get(
+                        "decision"
+                    ) != "pass"
                 )
+
 
         if orchestration_status == "awaiting_approval":
             return set_task_reviewing(
