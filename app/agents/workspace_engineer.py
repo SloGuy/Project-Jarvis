@@ -797,6 +797,61 @@ def _extract_llm_message_content(
     return content
 
 
+def _parse_llm_json_object(
+    content: str,
+) -> dict[str, Any]:
+    candidates = [
+        content.strip(),
+    ]
+
+    stripped = content.strip()
+
+    if stripped.startswith("```"):
+        lines = stripped.splitlines()
+
+        if lines:
+            lines = lines[1:]
+
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+
+        candidates.append(
+            "\n".join(lines).strip()
+        )
+
+    first_brace = stripped.find("{")
+    last_brace = stripped.rfind("}")
+
+    if (
+        first_brace != -1
+        and last_brace != -1
+        and last_brace > first_brace
+    ):
+        candidates.append(
+            stripped[
+                first_brace:last_brace + 1
+            ]
+        )
+
+    for candidate in candidates:
+        if not candidate:
+            continue
+
+        try:
+            payload = json.loads(
+                candidate
+            )
+        except json.JSONDecodeError:
+            continue
+
+        if isinstance(payload, dict):
+            return payload
+
+    raise WorkspaceEngineerError(
+        "LLM returned invalid edit proposal JSON."
+    )
+
+
 def propose_llm_workspace_edit(
     *,
     workspace_id: str,
@@ -1076,15 +1131,11 @@ def propose_llm_workspace_edit(
         response_data
     )
 
-    try:
-        proposal_payload = json.loads(
+    proposal_payload = (
+        _parse_llm_json_object(
             content
         )
-
-    except json.JSONDecodeError as exc:
-        raise WorkspaceEngineerError(
-            "LLM returned invalid edit proposal JSON."
-        ) from exc
+    )
 
     (
         search_text,
