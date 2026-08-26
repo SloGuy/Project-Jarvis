@@ -732,13 +732,36 @@ def _resolve_anchor_line_range(
     for index in range(
         len(context_lines) - len(search_lines) + 1
     ):
-        if (
-            context_lines[
+        candidate_lines = context_lines[
+            index:index + len(search_lines)
+        ]
+
+        if candidate_lines == search_lines:
+            matches.append(index)
+
+    if not matches:
+        normalized_search = [
+            line.strip()
+            for line in search_lines
+        ]
+
+        for index in range(
+            len(context_lines) - len(search_lines) + 1
+        ):
+            candidate_lines = context_lines[
                 index:index + len(search_lines)
             ]
-            == search_lines
-        ):
-            matches.append(index)
+
+            normalized_candidate = [
+                line.strip()
+                for line in candidate_lines
+            ]
+
+            if (
+                normalized_candidate
+                == normalized_search
+            ):
+                matches.append(index)
 
     if len(matches) != 1:
         raise WorkspaceEngineerError(
