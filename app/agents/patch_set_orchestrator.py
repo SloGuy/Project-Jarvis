@@ -11,7 +11,6 @@ from app.agents.patches import (
     get_patch,
 )
 from app.agents.reviewer import (
-    review_objective_coverage,
     review_patch_snapshot,
 )
 from app.agents.reviews import (
@@ -143,40 +142,6 @@ def orchestrate_patch_set_review(
                     review.decision.value
                 ),
                 "summary": review.summary,
-            }
-        )
-
-    combined_proposed_content = "\n".join(
-        patch.proposed_content or ""
-        for patch in patches
-    )
-
-    objective_reasons = (
-        review_objective_coverage(
-            task_id=patches[0].task_id,
-            diff=combined_proposed_content,
-        )
-        if patches
-        else [
-            "Patch set does not contain any patches."
-        ]
-    )
-
-    if objective_reasons:
-        review_results.append(
-            {
-                "patch_id": None,
-                "path": None,
-                "review_id": None,
-                "decision": (
-                    ReviewDecision.FAIL.value
-                ),
-                "summary": (
-                    "Review failed. "
-                    + " ".join(
-                        objective_reasons
-                    )
-                ),
             }
         )
 

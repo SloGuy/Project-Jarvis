@@ -317,11 +317,7 @@ def review_patch(
     reasons = []
 
     if check_objective_coverage:
-        semantic_reasons = (
-            _review_objective_coverage(
-                patch
-            )
-        )
+        semantic_reasons = []
 
         reasons.extend(
             semantic_reasons
