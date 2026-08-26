@@ -1131,6 +1131,12 @@ def propose_llm_workspace_edit(
         response_data
     )
 
+    print(
+        "WORKSPACE_ENGINEER_RAW_CONTENT:",
+        repr(content),
+        flush=True,
+    )
+
     proposal_payload = (
         _parse_llm_json_object(
             content
