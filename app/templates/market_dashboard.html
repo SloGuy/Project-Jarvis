@@ -3784,10 +3784,17 @@ async function loadWatchlist() {
             activityStatus.className =
                 "status positive";
 
-            activitySummary.textContent =
+            activitySummary.innerHTML =
                 recentDecisions.length
                     ? (
-                        `${recentDecisions.length} recent autonomous decision`
+                        recentDecisions[0]
+                            ? (
+                                `Latest: ${recentDecisions[0].symbol} · ${String(recentDecisions[0].action || "unknown").toUpperCase()}`
+                                + ` (${recentDecisions[0].confidence_percent === null || recentDecisions[0].confidence_percent === undefined ? "—" : `${Number(recentDecisions[0].confidence_percent).toFixed(1)}%`} confidence)`
+                                + `<br>Rationale: ${recentDecisions[0].rationale || "No rationale recorded."}`
+                                + `<br>Constraint impact: ${recentDecisions[0].approved ? (recentDecisions[0].rejection_reasons && recentDecisions[0].rejection_reasons.length ? recentDecisions[0].rejection_reasons.join(", ") : "None") : (recentDecisions[0].rejection_reasons && recentDecisions[0].rejection_reasons.length ? recentDecisions[0].rejection_reasons.join(", ") : "Rejected")}`
+                            )
+                        : `${recentDecisions.length} recent autonomous decision`
                         + `${recentDecisions.length === 1 ? "" : "s"}`
                     )
                     : "No autonomous decisions recorded yet.";
