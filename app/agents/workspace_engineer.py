@@ -1471,10 +1471,16 @@ def execute_llm_workspace_edit(
                 objective=current_objective,
             )
         except WorkspaceEngineerError as exc:
-            if (
+            error_text = str(exc)
+
+            retryable_proposal_error = (
                 "outside the visible source context"
-                not in str(exc)
-            ):
+                in error_text
+                or "LLM returned invalid edit proposal JSON."
+                in error_text
+            )
+
+            if not retryable_proposal_error:
                 raise
 
             if (
@@ -1484,12 +1490,26 @@ def execute_llm_workspace_edit(
                 raise
 
             proposal_retries += 1
-            current_objective += (
-                "\n\nYour previous proposal was invalid. "
-                + str(exc)
-                + " Return a new proposal strictly inside "
-                "the visible line range."
-            )
+
+            if (
+                "LLM returned invalid edit proposal JSON."
+                in error_text
+            ):
+                current_objective += (
+                    "\n\nYour previous edit proposal was "
+                    "invalid JSON. Return only a valid edit "
+                    "proposal matching the required JSON "
+                    "schema. Do not include markdown, code "
+                    "fences, or commentary."
+                )
+            else:
+                current_objective += (
+                    "\n\nYour previous proposal was invalid. "
+                    + error_text
+                    + " Return a new proposal strictly inside "
+                    "the visible line range."
+                )
+
             continue
 
         proposal_retries = 0
