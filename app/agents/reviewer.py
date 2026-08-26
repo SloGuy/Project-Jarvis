@@ -193,11 +193,13 @@ def _verify_current_target(
     }
 
 
-def _review_objective_coverage(
-    patch: CodePatch,
+def review_objective_coverage(
+    *,
+    task_id: str,
+    diff: str,
 ) -> list[str]:
     task = get_task(
-        patch.task_id
+        task_id
     )
 
     if task is None:
@@ -214,8 +216,6 @@ def _review_objective_coverage(
         if "_" in value or "." in value
     }
 
-    diff = patch.diff or ""
-
     missing = [
         value
         for value in sorted(identifiers)
@@ -231,8 +231,19 @@ def _review_objective_coverage(
     ]
 
 
+def _review_objective_coverage(
+    patch: CodePatch,
+) -> list[str]:
+    return review_objective_coverage(
+        task_id=patch.task_id,
+        diff=patch.diff or "",
+    )
+
+
 def review_patch(
     patch_id: str,
+    *,
+    check_objective_coverage: bool = True,
 ) -> PatchReview:
     _validate_reviewer()
 
@@ -271,15 +282,16 @@ def review_patch(
 
     reasons = []
 
-    semantic_reasons = (
-        _review_objective_coverage(
-            patch
+    if check_objective_coverage:
+        semantic_reasons = (
+            _review_objective_coverage(
+                patch
+            )
         )
-    )
 
-    reasons.extend(
-        semantic_reasons
-    )
+        reasons.extend(
+            semantic_reasons
+        )
 
     if not diff_ok:
         reasons.extend(
@@ -340,9 +352,14 @@ def review_patch(
 
 def review_patch_snapshot(
     patch_id: str,
+    *,
+    check_objective_coverage: bool = True,
 ) -> dict:
     review = review_patch(
-        patch_id
+        patch_id,
+        check_objective_coverage=(
+            check_objective_coverage
+        ),
     )
 
     return {
