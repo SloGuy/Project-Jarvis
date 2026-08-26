@@ -233,7 +233,21 @@ def review_objective_coverage(
             r"[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?",
             positive_objective,
         )
-        if "_" in value or "." in value
+        if (
+            "_" in value
+            or "." in value
+        )
+        and not value.lower().endswith(
+            (
+                ".py",
+                ".html",
+                ".css",
+                ".js",
+                ".json",
+                ".md",
+                ".txt",
+            )
+        )
     }
 
     missing = [

@@ -585,17 +585,35 @@ def _run_implementation_task(
                     )
                 )
 
-                (
-                    patch_set_run,
-                    cumulative_patch_set_id,
-                    orchestration,
-                ) = _run_multi_file_revision(
-                    task=task,
-                    objective=revised_objective,
-                    previous_patch_set_id=(
+                try:
+                    (
+                        patch_set_run,
+                        cumulative_patch_set_id,
+                        orchestration,
+                    ) = _run_multi_file_revision(
+                        task=task,
+                        objective=revised_objective,
+                        previous_patch_set_id=(
+                            previous_patch_set_id
+                        ),
+                    )
+
+                except workspace_engineer.WorkspaceEngineerError as exc:
+                    if (
+                        "Workspace edit produced no changes."
+                        not in str(exc)
+                    ):
+                        raise
+
+                    cumulative_patch_set_id = (
                         previous_patch_set_id
-                    ),
-                )
+                    )
+
+                    orchestration = (
+                        orchestrate_patch_set_review(
+                            cumulative_patch_set_id
+                        )
+                    )
 
                 previous_patch_set_id = (
                     cumulative_patch_set_id
