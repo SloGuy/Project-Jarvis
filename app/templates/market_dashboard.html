@@ -968,7 +968,11 @@
             <span>Alert Center</span>
         </a>
 
-        <a class="jarvis-nav-item" href="#portfolio">
+        <a
+            class="jarvis-nav-item"
+            href="#portfolio"
+            data-jarvis-view="portfolio"
+        >
             <span class="jarvis-nav-icon">▣</span>
             <span>Portfolio</span>
         </a>
@@ -1624,6 +1628,27 @@
 
     </div>
 
+    <div
+        class="jarvis-view jarvis-secondary-view"
+        id="jarvis-view-portfolio"
+        data-view-name="portfolio"
+        hidden
+    >
+        <div class="jarvis-view-heading">
+            <div>
+                <div class="jarvis-view-eyebrow">
+                    JARVIS CAPITAL SYSTEM
+                </div>
+
+                <h1>PORTFOLIO</h1>
+
+                <p>
+                    Capital allocation, positions, performance,
+                    transactions, risk, and portfolio intelligence.
+                </p>
+            </div>
+        </div>
+
     <section style="margin-bottom: 18px;">
         <div
             style="
@@ -1826,6 +1851,8 @@
             </div>
         </div>
     </section>
+
+    </div>
 
     <section
         class="panel"
@@ -2500,11 +2527,21 @@ const jarvisAutonomousView = document.getElementById(
     "jarvis-view-autonomous"
 );
 
+const jarvisPortfolioView = document.getElementById(
+    "jarvis-view-portfolio"
+);
+
 function setJarvisView(viewName) {
     const showDashboard = viewName === "dashboard";
 
     if (jarvisAutonomousView) {
-        jarvisAutonomousView.hidden = showDashboard;
+        jarvisAutonomousView.hidden =
+            viewName !== "autonomous";
+    }
+
+    if (jarvisPortfolioView) {
+        jarvisPortfolioView.hidden =
+            viewName !== "portfolio";
     }
 
     document.querySelectorAll(
