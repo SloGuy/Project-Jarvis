@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+]<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -958,7 +958,11 @@
             <span>Watchlist</span>
         </a>
 
-        <a class="jarvis-nav-item" href="#market-intelligence">
+        <a
+            class="jarvis-nav-item"
+            href="#market-intelligence"
+            data-jarvis-view="market-intelligence"
+        >
             <span class="jarvis-nav-icon">▦</span>
             <span>Market Intelligence</span>
         </a>
@@ -1965,6 +1969,27 @@
         </div>
     </section>
 
+    <div
+        class="jarvis-view jarvis-secondary-view"
+        id="jarvis-view-market-intelligence"
+        data-view-name="market-intelligence"
+        hidden
+    >
+        <div class="jarvis-view-heading">
+            <div>
+                <div class="jarvis-view-eyebrow">
+                    JARVIS MARKET INTELLIGENCE
+                </div>
+
+                <h1>MARKET INTELLIGENCE</h1>
+
+                <p>
+                    Historical trends, move explanations,
+                    recent movers, and linked market news.
+                </p>
+            </div>
+        </div>
+
     <section class="panel" style="margin-bottom: 18px;">
         <div class="chart-controls">
             <h2 style="margin: 0; margin-right: auto;">
@@ -2085,6 +2110,8 @@
         <h2>Recent Linked News</h2>
         <div id="recent-news"></div>
     </section>
+
+    </div>
 
     <section
         class="panel"
@@ -2523,26 +2550,17 @@ const jarvisNavItems = document.querySelectorAll(
     "[data-jarvis-view]"
 );
 
-const jarvisAutonomousView = document.getElementById(
-    "jarvis-view-autonomous"
-);
-
-const jarvisPortfolioView = document.getElementById(
-    "jarvis-view-portfolio"
+const jarvisViews = document.querySelectorAll(
+    ".jarvis-view"
 );
 
 function setJarvisView(viewName) {
     const showDashboard = viewName === "dashboard";
 
-    if (jarvisAutonomousView) {
-        jarvisAutonomousView.hidden =
-            viewName !== "autonomous";
-    }
-
-    if (jarvisPortfolioView) {
-        jarvisPortfolioView.hidden =
-            viewName !== "portfolio";
-    }
+    jarvisViews.forEach((view) => {
+        view.hidden =
+            view.dataset.viewName !== viewName;
+    });
 
     document.querySelectorAll(
         "body > main > :not(.jarvis-view)"
@@ -2572,6 +2590,7 @@ jarvisNavItems.forEach((item) => {
         );
     });
 });
+
 const jarvisActionsButton =
     document.getElementById(
         "jarvis-actions-button"
