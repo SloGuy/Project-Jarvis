@@ -988,6 +988,41 @@ def propose_llm_workspace_edit(
                 best_score = score
                 best_line_index = index
 
+        objective_lower = (
+            normalized_objective.lower()
+        )
+
+        html_style_task = (
+            Path(path).suffix.lower() == ".html"
+            and any(
+                term in objective_lower
+                for term in (
+                    "css",
+                    "style",
+                    "styling",
+                    "presentation-only",
+                )
+            )
+            and "do not modify javascript"
+            in objective_lower
+        )
+
+        if html_style_task:
+            style_end_index = next(
+                (
+                    index
+                    for index, line
+                    in enumerate(source_lines)
+                    if "</style>" in line.lower()
+                ),
+                None,
+            )
+
+            if style_end_index is not None:
+                best_line_index = (
+                    style_end_index
+                )
+
         half_window = (
             MAX_SOURCE_CONTEXT_LINES
             // 2
