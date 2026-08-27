@@ -441,10 +441,442 @@
                 overflow-x: auto;
             }
         }
+
+        /* =========================================================
+           JARVIS MARKET INTELLIGENCE — APPLICATION SHELL
+           ========================================================= */
+
+        :root {
+            --background: #070d18;
+            --sidebar: #09111f;
+            --panel: #0d1626;
+            --panel-light: #111d31;
+            --panel-hover: #14223a;
+            --text: #edf4ff;
+            --muted: #8293af;
+            --positive: #27df91;
+            --negative: #ff5364;
+            --warning: #f5b942;
+            --accent: #3395ff;
+            --accent-soft: rgba(51, 149, 255, 0.12);
+            --border: #1d2b42;
+            --border-bright: #293b59;
+        }
+
+        body {
+            min-height: 100vh;
+            background:
+                radial-gradient(
+                    circle at 75% -10%,
+                    rgba(32, 83, 145, 0.10),
+                    transparent 32%
+                ),
+                var(--background);
+        }
+
+        main {
+            width: min(1500px, calc(100% - 48px));
+            margin: 0 auto;
+            padding: 24px 0 60px;
+        }
+
+        header {
+            padding-bottom: 18px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        header h1 {
+            margin-bottom: 6px;
+            font-size: 1.45rem;
+            line-height: 1.2;
+            letter-spacing: -0.02em;
+        }
+
+        .subtitle {
+            font-size: 0.9rem;
+        }
+
+        .panel {
+            background:
+                linear-gradient(
+                    145deg,
+                    rgba(17, 29, 49, 0.72),
+                    rgba(10, 18, 32, 0.94)
+                );
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            box-shadow:
+                0 12px 30px rgba(0, 0, 0, 0.16),
+                inset 0 1px 0 rgba(255, 255, 255, 0.015);
+        }
+
+        .panel:hover {
+            border-color: var(--border-bright);
+        }
+
+        h2 {
+            font-size: 1rem;
+            letter-spacing: 0.01em;
+        }
+
+        .metric {
+            margin-top: 6px;
+            font-size: 1.45rem;
+            letter-spacing: -0.02em;
+        }
+
+        table {
+            font-size: 0.9rem;
+        }
+
+        th {
+            padding: 10px;
+            color: #8498b8;
+            font-size: 0.7rem;
+            letter-spacing: 0.04em;
+        }
+
+        td {
+            padding: 11px 10px;
+        }
+
+        tbody tr {
+            transition:
+                background 0.15s ease,
+                border-color 0.15s ease;
+        }
+
+        tbody tr:hover {
+            background: rgba(51, 149, 255, 0.035);
+        }
+
+        .status {
+            background: rgba(13, 22, 38, 0.92);
+            border-color: var(--border-bright);
+            font-size: 0.7rem;
+            letter-spacing: 0.04em;
+        }
+
+        .chart-stat {
+            background: rgba(17, 29, 49, 0.65);
+            border-color: var(--border);
+            border-radius: 8px;
+        }
+
+        .action-button {
+            background: #111d31;
+            border-color: #263958;
+            border-radius: 7px;
+            transition:
+                background 0.15s ease,
+                border-color 0.15s ease,
+                transform 0.15s ease;
+        }
+
+        .action-button:hover {
+            background: #162640;
+            border-color: #36527d;
+        }
+
+        .positive {
+            color: var(--positive);
+        }
+
+        .negative {
+            color: var(--negative);
+        }
+
+        @media (max-width: 900px) {
+            main {
+                width: min(100% - 28px, 1500px);
+                padding-top: 16px;
+            }
+        }
+
+        /* =========================================================
+           JARVIS MARKET SIDEBAR
+           ========================================================= */
+
+        .jarvis-sidebar {
+            position: fixed;
+            inset: 0 auto 0 0;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            width: 218px;
+            min-height: 100vh;
+            padding: 20px 14px 16px;
+            background:
+                linear-gradient(
+                    180deg,
+                    rgba(10, 18, 32, 0.98),
+                    rgba(6, 12, 23, 0.99)
+                );
+            border-right: 1px solid var(--border);
+        }
+
+        .jarvis-brand {
+            display: flex;
+            align-items: center;
+            gap: 11px;
+            padding: 2px 4px 24px;
+        }
+
+        .jarvis-brand-mark {
+            display: grid;
+            place-items: center;
+            width: 36px;
+            height: 36px;
+            flex: 0 0 36px;
+            border: 1px solid rgba(51, 149, 255, 0.55);
+            border-radius: 50%;
+            color: var(--accent);
+            background: rgba(51, 149, 255, 0.08);
+            font-size: 1rem;
+            font-weight: 900;
+            box-shadow:
+                inset 0 0 18px rgba(51, 149, 255, 0.08);
+        }
+
+        .jarvis-brand-name {
+            color: #f2f6ff;
+            font-size: 1rem;
+            font-weight: 900;
+            letter-spacing: 0.08em;
+        }
+
+        .jarvis-brand-subtitle {
+            margin-top: 2px;
+            color: #6f86a8;
+            font-size: 0.57rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+        }
+
+        .jarvis-nav {
+            display: grid;
+            gap: 5px;
+        }
+
+        .jarvis-nav-item {
+            display: flex;
+            align-items: center;
+            gap: 11px;
+            min-height: 39px;
+            padding: 0 10px;
+            border: 1px solid transparent;
+            border-radius: 7px;
+            color: #8ea2c1;
+            text-decoration: none;
+            font-size: 0.78rem;
+            font-weight: 600;
+            transition:
+                color 0.15s ease,
+                background 0.15s ease,
+                border-color 0.15s ease;
+        }
+
+        .jarvis-nav-item:hover {
+            color: #dce8fa;
+            background: rgba(255, 255, 255, 0.025);
+        }
+
+        .jarvis-nav-item.active {
+            color: #f5f8ff;
+            background: rgba(51, 149, 255, 0.09);
+            border-color: rgba(51, 149, 255, 0.06);
+        }
+
+        .jarvis-nav-item.active .jarvis-nav-icon {
+            color: var(--accent);
+        }
+
+        .jarvis-nav-icon {
+            display: grid;
+            place-items: center;
+            width: 20px;
+            color: #7489a9;
+            font-size: 1rem;
+        }
+
+        .jarvis-sidebar-spacer {
+            flex: 1;
+            min-height: 32px;
+        }
+
+        .jarvis-system-card {
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: rgba(14, 25, 43, 0.72);
+        }
+
+        .jarvis-system-heading {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 9px;
+            color: #8da0bd;
+            font-size: 0.56rem;
+            font-weight: 900;
+            letter-spacing: 0.05em;
+        }
+
+        .jarvis-system-operational {
+            color: var(--positive);
+            font-size: 0.5rem;
+        }
+
+        .jarvis-system-row {
+            display: grid;
+            grid-template-columns: 8px 1fr auto;
+            align-items: center;
+            gap: 6px;
+            min-height: 26px;
+            color: #c3d0e4;
+            font-size: 0.64rem;
+        }
+
+        .jarvis-system-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--positive);
+            box-shadow: 0 0 8px rgba(39, 223, 145, 0.45);
+        }
+
+        .jarvis-system-state {
+            color: var(--positive);
+            font-size: 0.58rem;
+            font-weight: 700;
+        }
+
+        .jarvis-sidebar-footer {
+            margin-top: 14px;
+            padding: 12px 6px 0;
+            border-top: 1px solid var(--border);
+            color: #7386a5;
+            font-size: 0.68rem;
+        }
+
+        body > main {
+            width: auto;
+            max-width: none;
+            margin: 0 0 0 218px;
+            padding: 20px 26px 60px;
+        }
+
+        @media (max-width: 900px) {
+            .jarvis-sidebar {
+                display: none;
+            }
+
+            body > main {
+                width: min(100% - 28px, 1500px);
+                margin: 0 auto;
+                padding: 16px 0 50px;
+            }
+        }
     </style>
 </head>
 
 <body>
+
+<aside class="jarvis-sidebar">
+    <div class="jarvis-brand">
+        <div class="jarvis-brand-mark">J</div>
+
+        <div>
+            <div class="jarvis-brand-name">JARVIS</div>
+            <div class="jarvis-brand-subtitle">
+                MARKET INTELLIGENCE
+            </div>
+        </div>
+    </div>
+
+    <nav class="jarvis-nav">
+        <a class="jarvis-nav-item active" href="#">
+            <span class="jarvis-nav-icon">⌂</span>
+            <span>Dashboard</span>
+        </a>
+
+        <a class="jarvis-nav-item" href="#watchlists">
+            <span class="jarvis-nav-icon">☆</span>
+            <span>Watchlist</span>
+        </a>
+
+        <a class="jarvis-nav-item" href="#market-intelligence">
+            <span class="jarvis-nav-icon">▦</span>
+            <span>Market Intelligence</span>
+        </a>
+
+        <a class="jarvis-nav-item" href="#alert-center">
+            <span class="jarvis-nav-icon">♢</span>
+            <span>Alert Center</span>
+        </a>
+
+        <a class="jarvis-nav-item" href="#portfolio">
+            <span class="jarvis-nav-icon">▣</span>
+            <span>Portfolio</span>
+        </a>
+
+        <a class="jarvis-nav-item" href="#autonomous-trading">
+            <span class="jarvis-nav-icon">◇</span>
+            <span>Autonomous Trading</span>
+        </a>
+
+        <a class="jarvis-nav-item" href="#broad-market-scanner">
+            <span class="jarvis-nav-icon">◎</span>
+            <span>Broad Market Scanner</span>
+        </a>
+
+        <a class="jarvis-nav-item" href="#settings">
+            <span class="jarvis-nav-icon">⚙</span>
+            <span>Settings</span>
+        </a>
+    </nav>
+
+    <div class="jarvis-sidebar-spacer"></div>
+
+    <div class="jarvis-system-card">
+        <div class="jarvis-system-heading">
+            <span>SYSTEM STATUS</span>
+            <span class="jarvis-system-operational">
+                OPERATIONAL
+            </span>
+        </div>
+
+        <div class="jarvis-system-row">
+            <span class="jarvis-system-dot"></span>
+            <span>Market Data</span>
+            <span class="jarvis-system-state">Live</span>
+        </div>
+
+        <div class="jarvis-system-row">
+            <span class="jarvis-system-dot"></span>
+            <span>Collector</span>
+            <span class="jarvis-system-state">Live</span>
+        </div>
+
+        <div class="jarvis-system-row">
+            <span class="jarvis-system-dot"></span>
+            <span>Broad Scanner</span>
+            <span class="jarvis-system-state">Live</span>
+        </div>
+
+        <div class="jarvis-system-row">
+            <span class="jarvis-system-dot"></span>
+            <span>Autonomous</span>
+            <span class="jarvis-system-state">Ready</span>
+        </div>
+    </div>
+
+    <div class="jarvis-sidebar-footer">
+        Jarvis v2.0.0
+    </div>
+</aside>
+
 <main>
     <header>
         <div>
