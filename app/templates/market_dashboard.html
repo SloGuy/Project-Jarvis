@@ -778,6 +778,154 @@
                 padding: 16px 0 50px;
             }
         }
+
+        /* =========================================================
+           MARKET DASHBOARD HEADER + STATUS STRIP
+           ========================================================= */
+
+        .market-dashboard-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 24px;
+            min-height: 82px;
+            margin-bottom: 20px;
+            padding: 0 2px 17px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .market-dashboard-header h1 {
+            margin: 0;
+            color: #eef5ff;
+            font-size: 1.15rem;
+            font-weight: 850;
+            letter-spacing: 0.015em;
+        }
+
+        .market-dashboard-subtitle {
+            margin: 7px 0 0;
+            color: #7890b5;
+            font-size: 0.76rem;
+        }
+
+        .market-dashboard-header-status {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .market-dashboard-time {
+            color: #7387a8;
+            font-size: 0.7rem;
+            white-space: nowrap;
+        }
+
+        .market-status-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 14px;
+            margin-bottom: 14px;
+        }
+
+        .market-status-card {
+            position: relative;
+            min-height: 100px;
+            padding: 16px;
+            overflow: hidden;
+            background:
+                linear-gradient(
+                    145deg,
+                    rgba(17, 29, 49, 0.76),
+                    rgba(9, 17, 30, 0.96)
+                );
+            border: 1px solid var(--border);
+            border-radius: 9px;
+        }
+
+        .market-status-card::after {
+            content: "";
+            position: absolute;
+            right: -28px;
+            bottom: -42px;
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: rgba(51, 149, 255, 0.025);
+        }
+
+        .market-status-label {
+            position: relative;
+            z-index: 1;
+            margin-bottom: 9px;
+            color: #7891b6;
+            font-size: 0.64rem;
+            font-weight: 850;
+            letter-spacing: 0.055em;
+        }
+
+        .market-status-value {
+            position: relative;
+            z-index: 1;
+            color: #f1f6ff;
+            font-size: 1.35rem;
+            font-weight: 850;
+            letter-spacing: -0.025em;
+        }
+
+        .market-status-unit {
+            margin-left: 4px;
+            color: #7288a8;
+            font-size: 0.68rem;
+            font-weight: 600;
+        }
+
+        .market-status-detail {
+            position: relative;
+            z-index: 1;
+            margin-top: 8px;
+            color: #657c9f;
+            font-size: 0.65rem;
+        }
+
+        .jarvis-dashboard-watchlists {
+            margin-bottom: 14px;
+        }
+
+        .jarvis-dashboard-watchlists .market-grid {
+            gap: 14px;
+            margin-bottom: 0;
+        }
+
+        .jarvis-dashboard-watchlists .panel {
+            border-radius: 9px;
+            padding: 15px;
+        }
+
+        @media (max-width: 1200px) {
+            .market-status-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 700px) {
+            .market-status-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .market-dashboard-header {
+                flex-direction: column;
+            }
+
+            .market-dashboard-header-status {
+                width: 100%;
+                justify-content: space-between;
+            }
+        }
+
+        /* Jarvis application view visibility */
+        body > main > [hidden] {
+            display: none !important;
+        }
     </style>
 </head>
 
@@ -796,7 +944,11 @@
     </div>
 
     <nav class="jarvis-nav">
-        <a class="jarvis-nav-item active" href="#">
+        <a
+            class="jarvis-nav-item active"
+            href="#dashboard"
+            data-jarvis-view="dashboard"
+        >
             <span class="jarvis-nav-icon">⌂</span>
             <span>Dashboard</span>
         </a>
@@ -821,7 +973,11 @@
             <span>Portfolio</span>
         </a>
 
-        <a class="jarvis-nav-item" href="#autonomous-trading">
+        <a
+            class="jarvis-nav-item"
+            href="#autonomous-trading"
+            data-jarvis-view="autonomous"
+        >
             <span class="jarvis-nav-icon">◇</span>
             <span>Autonomous Trading</span>
         </a>
@@ -878,47 +1034,225 @@
 </aside>
 
 <main>
-    <header>
+    <header class="market-dashboard-header">
         <div>
-            <h1>Jarvis Market Intelligence</h1>
-            <p class="subtitle" id="summary">
-                Loading intelligence...
+            <h1>MARKET DASHBOARD</h1>
+
+            <p class="market-dashboard-subtitle" id="summary">
+                Loading market intelligence...
             </p>
-            <p
-                id="dashboard-last-updated"
-                class="muted"
-                style="font-size: 0.85rem;"
-            >
-                Last updated: —
-        </p>
         </div>
 
-        <div class="status" id="status">
-            Loading
+        <div class="market-dashboard-header-status">
+            <div
+                class="status"
+                id="status"
+            >
+                Loading
+            </div>
+
+            <div
+                id="dashboard-last-updated"
+                class="market-dashboard-time"
+            >
+                Last updated: —
+            </div>
         </div>
     </header>
 
-    <section class="grid summary-grid">
-        <div class="panel">
-            <div class="muted">Tracked Assets</div>
-            <div class="metric" id="tracked-assets">—</div>
+    <section class="market-status-grid">
+        <div class="market-status-card">
+            <div class="market-status-label">
+                MARKET UNIVERSE
+            </div>
+
+            <div class="market-status-value">
+                <span id="tracked-assets">—</span>
+                <span class="market-status-unit">
+                    assets
+                </span>
+            </div>
+
+            <div class="market-status-detail">
+                Assets currently tracked by Jarvis
+            </div>
         </div>
 
-        <div class="panel">
-            <div class="muted">Stored Observations</div>
-            <div class="metric" id="observations">—</div>
+        <div class="market-status-card">
+            <div class="market-status-label">
+                MARKET DATA
+            </div>
+
+            <div
+                class="market-status-value"
+                id="observations"
+            >
+                —
+            </div>
+
+            <div class="market-status-detail">
+                Stored market observations
+            </div>
         </div>
 
-        <div class="panel">
-            <div class="muted">Active Movers</div>
-            <div class="metric" id="movers-count">—</div>
+        <div class="market-status-card">
+            <div class="market-status-label">
+                ACTIVE MOVERS
+            </div>
+
+            <div
+                class="market-status-value"
+                id="movers-count"
+            >
+                —
+            </div>
+
+            <div class="market-status-detail">
+                Assets showing meaningful movement
+            </div>
         </div>
 
-        <div class="panel">
-            <div class="muted">Stored News Articles</div>
-            <div class="metric" id="news-count">—</div>
+        <div class="market-status-card">
+            <div class="market-status-label">
+                NEWS INTELLIGENCE
+            </div>
+
+            <div
+                class="market-status-value"
+                id="news-count"
+            >
+                —
+            </div>
+
+            <div class="market-status-detail">
+                Linked articles in Jarvis memory
+            </div>
         </div>
     </section>
+
+    <div class="jarvis-dashboard-watchlists">
+    <section class="grid market-grid">
+        <div class="panel">
+            <div
+                style="
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 12px;
+                    margin-bottom: 14px;
+                "
+            >
+                <div>
+                    <h2 style="margin: 0;">
+                        Stock Watchlist
+                    </h2>
+
+                    <div
+                        id="stock-watchlist-count"
+                        class="muted"
+                        style="
+                            margin-top: 5px;
+                            font-size: 0.82rem;
+                        "
+                    >
+                        Loading...
+                    </div>
+                </div>
+
+                <button
+                    type="button"
+                    id="edit-stock-watchlist"
+                    class="secondary"
+                >
+                    Edit
+                </button>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Symbol</th>
+                        <th>Price</th>
+                        <th>Daily Change</th>
+                    </tr>
+                </thead>
+
+                <tbody id="stocks-body"></tbody>
+            </table>
+        </div>
+
+        <div class="panel">
+            <div
+                style="
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 12px;
+                    margin-bottom: 14px;
+                "
+            >
+                <div>
+                    <h2 style="margin: 0;">
+                        Crypto Watchlist
+                    </h2>
+
+                    <div
+                        id="crypto-watchlist-count"
+                        class="muted"
+                        style="
+                            margin-top: 5px;
+                            font-size: 0.82rem;
+                        "
+                    >
+                        Loading...
+                    </div>
+                </div>
+
+                <button
+                    type="button"
+                    id="edit-crypto-watchlist"
+                    class="secondary"
+                >
+                    Edit
+                </button>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Symbol</th>
+                        <th>Price</th>
+                        <th>24H Change</th>
+                    </tr>
+                </thead>
+
+                <tbody id="crypto-body"></tbody>
+            </table>
+        </div>
+    </section>
+
+    </div>
+
+    <div
+        class="jarvis-view jarvis-secondary-view"
+        id="jarvis-view-autonomous"
+        data-view-name="autonomous"
+        hidden
+    >
+        <div class="jarvis-view-heading">
+            <div>
+                <div class="jarvis-view-eyebrow">
+                    JARVIS CAPITAL SYSTEM
+                </div>
+
+                <h1>AUTONOMOUS TRADING</h1>
+
+                <p>
+                    Experiment performance, learning analytics,
+                    and recent autonomous decisions.
+                </p>
+            </div>
+        </div>
 
     <section style="margin-bottom: 24px;">
         <div
@@ -1288,6 +1622,8 @@
         </div>
     </section>
 
+    </div>
+
     <section style="margin-bottom: 18px;">
         <div
             style="
@@ -1599,106 +1935,6 @@
                     —
                 </div>
             </div>
-        </div>
-    </section>
-
-    <section class="grid market-grid">
-        <div class="panel">
-            <div
-                style="
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                    gap: 12px;
-                    margin-bottom: 14px;
-                "
-            >
-                <div>
-                    <h2 style="margin: 0;">
-                        Stock Watchlist
-                    </h2>
-
-                    <div
-                        id="stock-watchlist-count"
-                        class="muted"
-                        style="
-                            margin-top: 5px;
-                            font-size: 0.82rem;
-                        "
-                    >
-                        Loading...
-                    </div>
-                </div>
-
-                <button
-                    type="button"
-                    id="edit-stock-watchlist"
-                    class="secondary"
-                >
-                    Edit
-                </button>
-            </div>
-
-            <table>
-                <thead>
-                    <tr>
-                        <th>Symbol</th>
-                        <th>Price</th>
-                        <th>Daily Change</th>
-                    </tr>
-                </thead>
-
-                <tbody id="stocks-body"></tbody>
-            </table>
-        </div>
-
-        <div class="panel">
-            <div
-                style="
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                    gap: 12px;
-                    margin-bottom: 14px;
-                "
-            >
-                <div>
-                    <h2 style="margin: 0;">
-                        Crypto Watchlist
-                    </h2>
-
-                    <div
-                        id="crypto-watchlist-count"
-                        class="muted"
-                        style="
-                            margin-top: 5px;
-                            font-size: 0.82rem;
-                        "
-                    >
-                        Loading...
-                    </div>
-                </div>
-
-                <button
-                    type="button"
-                    id="edit-crypto-watchlist"
-                    class="secondary"
-                >
-                    Edit
-                </button>
-            </div>
-
-            <table>
-                <thead>
-                    <tr>
-                        <th>Symbol</th>
-                        <th>Price</th>
-                        <th>24H Change</th>
-                    </tr>
-                </thead>
-
-                <tbody id="crypto-body"></tbody>
-            </table>
         </div>
     </section>
 
@@ -2256,6 +2492,49 @@
 </div>
 
 <script>
+const jarvisNavItems = document.querySelectorAll(
+    "[data-jarvis-view]"
+);
+
+const jarvisAutonomousView = document.getElementById(
+    "jarvis-view-autonomous"
+);
+
+function setJarvisView(viewName) {
+    const showDashboard = viewName === "dashboard";
+
+    if (jarvisAutonomousView) {
+        jarvisAutonomousView.hidden = showDashboard;
+    }
+
+    document.querySelectorAll(
+        "body > main > :not(.jarvis-view)"
+    ).forEach((element) => {
+        element.hidden = !showDashboard;
+    });
+
+    jarvisNavItems.forEach((item) => {
+        item.classList.toggle(
+            "active",
+            item.dataset.jarvisView === viewName
+        );
+    });
+
+    window.scrollTo({
+        top: 0,
+        behavior: "auto",
+    });
+}
+
+jarvisNavItems.forEach((item) => {
+    item.addEventListener("click", (event) => {
+        event.preventDefault();
+
+        setJarvisView(
+            item.dataset.jarvisView || "dashboard"
+        );
+    });
+});
 const jarvisActionsButton =
     document.getElementById(
         "jarvis-actions-button"
