@@ -20,6 +20,9 @@ from app.market_db.backup_status import get_market_backup_status
 from app.market_db.operations import get_market_operations
 from app.market_db.news_queries import get_recent_market_news
 from app.market_db.move_explainer import explain_market_move
+from app.broad_market_scanner import (
+    get_broad_market_scanner_snapshot,
+)
 from app.market_db.paper_trading import (
     PaperTradingError,
     buy_asset,
@@ -776,6 +779,11 @@ def market_trend(
 @app.get("/market/operations")
 def market_operations():
     return get_market_operations()
+
+
+@app.get("/market/broad-scanner")
+def market_broad_scanner():
+    return get_broad_market_scanner_snapshot()
 
 
 

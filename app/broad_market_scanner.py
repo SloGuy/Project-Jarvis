@@ -47,6 +47,11 @@ OBSERVATION_STATE_FILE = (
     / "broad_market_observations.json"
 )
 
+LATEST_SCAN_STATE_FILE = (
+    STATE_DIRECTORY
+    / "broad_market_latest_scan.json"
+)
+
 
 def utc_now() -> str:
     return datetime.now(
@@ -161,6 +166,64 @@ def _save_observations(
             handle,
             indent=2,
         )
+
+
+def _save_latest_scan(
+    payload: dict,
+) -> None:
+    STATE_DIRECTORY.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    with LATEST_SCAN_STATE_FILE.open(
+        "w",
+        encoding="utf-8",
+    ) as handle:
+        json.dump(
+            payload,
+            handle,
+            indent=2,
+        )
+
+
+def get_broad_market_scanner_snapshot() -> dict:
+    try:
+        with LATEST_SCAN_STATE_FILE.open(
+            "r",
+            encoding="utf-8",
+        ) as handle:
+            payload = json.load(handle)
+
+        if isinstance(payload, dict):
+            return payload
+
+    except (
+        FileNotFoundError,
+        ValueError,
+        TypeError,
+        json.JSONDecodeError,
+    ):
+        pass
+
+    return {
+        "status": "unavailable",
+        "scanned_at": None,
+        "total_broad_universe": len(
+            get_broad_stock_symbols()
+        ),
+        "batch_size": 0,
+        "batch_cursor": _load_cursor(),
+        "next_cursor": _load_cursor(),
+        "symbols_scanned": [],
+        "available_count": 0,
+        "failure_count": 0,
+        "interesting_count": 0,
+        "promotion_candidate_count": 0,
+        "interesting_assets": [],
+        "promotion_candidates": [],
+        "failures": [],
+    }
 
 
 def get_scan_batch(
@@ -677,7 +740,7 @@ def scan_broad_market(
         next_cursor
     )
 
-    return {
+    scan_result = {
         "status": "success",
         "scanned_at": utc_now(),
         "total_broad_universe": len(
@@ -703,6 +766,12 @@ def scan_broad_market(
         ),
         "failures": failures,
     }
+
+    _save_latest_scan(
+        scan_result
+    )
+
+    return scan_result
 
 
 if __name__ == "__main__":

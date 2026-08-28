@@ -994,7 +994,11 @@
             <span>Autonomous Trading</span>
         </a>
 
-        <a class="jarvis-nav-item" href="#broad-market-scanner">
+        <a
+            class="jarvis-nav-item"
+            href="#broad-market-scanner"
+            data-jarvis-view="broad-market-scanner"
+        >
             <span class="jarvis-nav-icon">◎</span>
             <span>Broad Market Scanner</span>
         </a>
@@ -2320,6 +2324,211 @@
         <div id="alerts"></div>
     </section>
 
+    </div>
+
+    <div
+        class="jarvis-view jarvis-secondary-view"
+        id="jarvis-view-broad-market-scanner"
+        data-view-name="broad-market-scanner"
+        hidden
+    >
+        <div class="jarvis-view-heading">
+            <div>
+                <div class="jarvis-view-eyebrow">
+                    JARVIS MARKET DISCOVERY
+                </div>
+
+                <h1>BROAD MARKET SCANNER</h1>
+
+                <p>
+                    Scan coverage, interesting assets,
+                    persistence signals, and promotion candidates.
+                </p>
+            </div>
+        </div>
+
+        <div class="grid summary-grid">
+            <div class="panel">
+                <div class="muted">
+                    Broad Universe
+                </div>
+
+                <div
+                    class="metric"
+                    id="scanner-universe-count"
+                >
+                    —
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="muted">
+                    Batch Scanned
+                </div>
+
+                <div
+                    class="metric"
+                    id="scanner-batch-count"
+                >
+                    —
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="muted">
+                    Interesting Assets
+                </div>
+
+                <div
+                    class="metric"
+                    id="scanner-interesting-count"
+                >
+                    —
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="muted">
+                    Promotion Candidates
+                </div>
+
+                <div
+                    class="metric"
+                    id="scanner-promotion-count"
+                >
+                    —
+                </div>
+            </div>
+        </div>
+
+        <section
+            class="panel"
+            style="margin-bottom: 18px;"
+        >
+            <div
+                style="
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: flex-start;
+                    gap: 16px;
+                    flex-wrap: wrap;
+                    margin-bottom: 14px;
+                "
+            >
+                <div>
+                    <h2 style="margin-bottom: 6px;">
+                        Scan Status
+                    </h2>
+
+                    <div
+                        class="muted"
+                        id="scanner-status-summary"
+                    >
+                        Loading broad market scanner...
+                    </div>
+                </div>
+
+                <div
+                    class="status"
+                    id="scanner-status"
+                >
+                    Loading
+                </div>
+            </div>
+
+            <div class="grid summary-grid">
+                <div class="panel">
+                    <div class="muted">
+                        Available Quotes
+                    </div>
+
+                    <div
+                        class="metric"
+                        id="scanner-available-count"
+                    >
+                        —
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="muted">
+                        Failures
+                    </div>
+
+                    <div
+                        class="metric"
+                        id="scanner-failure-count"
+                    >
+                        —
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="muted">
+                        Batch Cursor
+                    </div>
+
+                    <div
+                        class="metric"
+                        id="scanner-batch-cursor"
+                    >
+                        —
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="muted">
+                        Next Cursor
+                    </div>
+
+                    <div
+                        class="metric"
+                        id="scanner-next-cursor"
+                    >
+                        —
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section
+            class="panel"
+            style="margin-bottom: 18px;"
+        >
+            <h2>Interesting Assets</h2>
+
+            <table>
+                <thead>
+                <tr>
+                    <th>Symbol</th>
+                    <th>Price</th>
+                    <th>Move</th>
+                    <th>Interest Score</th>
+                    <th>Interest Level</th>
+                    <th>Persistence</th>
+                    <th>Promotion</th>
+                </tr>
+                </thead>
+
+                <tbody id="scanner-interesting-body">
+                    <tr>
+                        <td colspan="7" class="empty">
+                            Loading interesting assets...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="panel">
+            <h2>Promotion Candidates</h2>
+
+            <div id="scanner-promotion-candidates">
+                <div class="empty">
+                    Loading promotion candidates...
+                </div>
+            </div>
+        </section>
     </div>
 </main>
 
@@ -6194,6 +6403,241 @@ async function loadWatchlist() {
         }
     }
 
+    async function loadBroadMarketScanner() {
+        const scannerStatus =
+            document.getElementById(
+                "scanner-status"
+            );
+
+        const scannerStatusSummary =
+            document.getElementById(
+                "scanner-status-summary"
+            );
+
+        try {
+            const response = await fetch(
+                "/market/broad-scanner"
+            );
+
+            if (!response.ok) {
+                throw new Error(
+                    `Broad Market Scanner request failed: ${response.status}`
+                );
+            }
+
+            const data = await response.json();
+
+            document.getElementById(
+                "scanner-universe-count"
+            ).textContent =
+                data.total_broad_universe ?? 0;
+
+            document.getElementById(
+                "scanner-batch-count"
+            ).textContent =
+                data.batch_size ?? 0;
+
+            document.getElementById(
+                "scanner-interesting-count"
+            ).textContent =
+                data.interesting_count ?? 0;
+
+            document.getElementById(
+                "scanner-promotion-count"
+            ).textContent =
+                data.promotion_candidate_count ?? 0;
+
+            document.getElementById(
+                "scanner-available-count"
+            ).textContent =
+                data.available_count ?? 0;
+
+            document.getElementById(
+                "scanner-failure-count"
+            ).textContent =
+                data.failure_count ?? 0;
+
+            document.getElementById(
+                "scanner-batch-cursor"
+            ).textContent =
+                data.batch_cursor ?? "—";
+
+            document.getElementById(
+                "scanner-next-cursor"
+            ).textContent =
+                data.next_cursor ?? "—";
+
+            scannerStatus.textContent =
+                data.status === "success"
+                    ? "Live"
+                    : "Unavailable";
+
+            scannerStatus.className =
+                data.status === "success"
+                    ? "status positive"
+                    : "status negative";
+
+            const scannedAt =
+                data.scanned_at
+                    ? new Date(
+                        data.scanned_at
+                    ).toLocaleString([], {
+                        month: "short",
+                        day: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                    })
+                    : "Unknown";
+
+            scannerStatusSummary.textContent =
+                `Last scan ${scannedAt} · `
+                + `${data.available_count ?? 0} quotes available · `
+                + `${data.failure_count ?? 0} failures`;
+
+            const interestingBody =
+                document.getElementById(
+                    "scanner-interesting-body"
+                );
+
+            const interestingAssets =
+                data.interesting_assets || [];
+
+            if (interestingAssets.length === 0) {
+                interestingBody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="empty">
+                            No interesting assets in the latest scan.
+                        </td>
+                    </tr>
+                `;
+            } else {
+                interestingBody.innerHTML =
+                    interestingAssets.map((asset) => {
+                        const promotionEligible =
+                            asset.promotion?.eligible === true;
+
+                        return `
+                            <tr>
+                                <td>
+                                    <strong>${asset.symbol}</strong>
+                                </td>
+
+                                <td>
+                                    ${formatPrice(
+                                        asset.price_usd
+                                    )}
+                                </td>
+
+                                <td
+                                    class="${changeClass(
+                                        asset.change_percent
+                                    )}"
+                                >
+                                    ${formatPercent(
+                                        asset.change_percent
+                                    )}
+                                </td>
+
+                                <td>
+                                    ${Number(
+                                        asset.interest_score || 0
+                                    ).toFixed(2)}
+                                </td>
+
+                                <td>
+                                    ${
+                                        asset.interest_level
+                                            ? asset.interest_level
+                                                .charAt(0)
+                                                .toUpperCase()
+                                                + asset.interest_level.slice(1)
+                                            : "—"
+                                    }
+                                </td>
+
+                                <td>
+                                    ${asset.persistence_matches ?? 0}
+                                </td>
+
+                                <td>
+                                    ${
+                                        promotionEligible
+                                            ? "Eligible"
+                                            : "Watching"
+                                    }
+                                </td>
+                            </tr>
+                        `;
+                    }).join("");
+            }
+
+            const promotionContainer =
+                document.getElementById(
+                    "scanner-promotion-candidates"
+                );
+
+            const promotionCandidates =
+                data.promotion_candidates || [];
+
+            if (promotionCandidates.length === 0) {
+                promotionContainer.innerHTML = `
+                    <div class="empty">
+                        No fresh promotion candidates
+                        in the latest scan.
+                    </div>
+                `;
+            } else {
+                promotionContainer.innerHTML =
+                    promotionCandidates.map((asset) => `
+                        <div class="alert">
+                            <strong>${asset.symbol}</strong>
+
+                            <div
+                                class="muted"
+                                style="margin-top: 6px;"
+                            >
+                                Interest score:
+                                ${Number(
+                                    asset.interest_score || 0
+                                ).toFixed(2)}
+
+                                · Persistence:
+                                ${asset.persistence_matches ?? 0}
+                            </div>
+                        </div>
+                    `).join("");
+            }
+
+        } catch (error) {
+            scannerStatus.textContent =
+                "Error";
+
+            scannerStatus.className =
+                "status negative";
+
+            scannerStatusSummary.textContent =
+                error.message;
+
+            document.getElementById(
+                "scanner-interesting-body"
+            ).innerHTML = `
+                <tr>
+                    <td colspan="7" class="empty">
+                        Unable to load broad market scanner.
+                    </td>
+                </tr>
+            `;
+
+            document.getElementById(
+                "scanner-promotion-candidates"
+            ).innerHTML = `
+                <div class="empty">
+                    Unable to load promotion candidates.
+                </div>
+            `;
+        }
+    }
+
     async function loadIntelligence() {
         try {
             const response = await fetch("/market/intelligence");
@@ -6416,6 +6860,7 @@ async function loadWatchlist() {
     loadPortfolio();
     loadPortfolioInsight();
     loadAlertCenter();
+    loadBroadMarketScanner();
     loadIntelligence();
     loadMarketUniverse();
     loadOperations();
