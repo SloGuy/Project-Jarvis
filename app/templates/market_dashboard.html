@@ -1,4 +1,4 @@
-]<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -953,7 +953,11 @@
             <span>Dashboard</span>
         </a>
 
-        <a class="jarvis-nav-item" href="#watchlists">
+        <a
+            class="jarvis-nav-item"
+            href="#watchlist"
+            data-jarvis-view="watchlist"
+        >
             <span class="jarvis-nav-icon">☆</span>
             <span>Watchlist</span>
         </a>
@@ -1003,7 +1007,11 @@
             <span>Broad Market Scanner</span>
         </a>
 
-        <a class="jarvis-nav-item" href="#settings">
+        <a
+            class="jarvis-nav-item"
+            href="#settings"
+            data-jarvis-view="settings"
+        >
             <span class="jarvis-nav-icon">⚙</span>
             <span>Settings</span>
         </a>
@@ -1014,33 +1022,56 @@
     <div class="jarvis-system-card">
         <div class="jarvis-system-heading">
             <span>SYSTEM STATUS</span>
-            <span class="jarvis-system-operational">
-                OPERATIONAL
+            <span
+                class="jarvis-system-operational"
+                id="sidebar-system-status"
+            >
+                LOADING
             </span>
         </div>
 
         <div class="jarvis-system-row">
             <span class="jarvis-system-dot"></span>
             <span>Market Data</span>
-            <span class="jarvis-system-state">Live</span>
+            <span
+                class="jarvis-system-state"
+                id="sidebar-market-data-status"
+            >
+                Loading
+            </span>
         </div>
 
         <div class="jarvis-system-row">
             <span class="jarvis-system-dot"></span>
             <span>Collector</span>
-            <span class="jarvis-system-state">Live</span>
+            <span
+                class="jarvis-system-state"
+                id="sidebar-collector-status"
+            >
+                Loading
+            </span>
         </div>
 
         <div class="jarvis-system-row">
             <span class="jarvis-system-dot"></span>
             <span>Broad Scanner</span>
-            <span class="jarvis-system-state">Live</span>
+            <span
+                class="jarvis-system-state"
+                id="sidebar-scanner-status"
+            >
+                Loading
+            </span>
         </div>
 
         <div class="jarvis-system-row">
             <span class="jarvis-system-dot"></span>
             <span>Autonomous</span>
-            <span class="jarvis-system-state">Ready</span>
+            <span
+                class="jarvis-system-state"
+                id="sidebar-autonomous-status"
+            >
+                Loading
+            </span>
         </div>
     </div>
 
@@ -1146,7 +1177,119 @@
         </div>
     </section>
 
-    <div class="jarvis-dashboard-watchlists">
+    <section
+        class="grid summary-grid"
+        style="margin-bottom: 18px;"
+    >
+        <div class="panel">
+            <div class="muted">
+                CAPITAL SNAPSHOT
+            </div>
+
+            <div
+                class="metric"
+                id="dashboard-portfolio-value"
+                style="margin-top: 8px;"
+            >
+                —
+            </div>
+
+            <div
+                class="muted"
+                id="dashboard-portfolio-summary"
+                style="margin-top: 7px;"
+            >
+                Loading portfolio...
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="muted">
+                AUTONOMOUS TRADING
+            </div>
+
+            <div
+                class="metric"
+                id="dashboard-experiment-day"
+                style="margin-top: 8px;"
+            >
+                —
+            </div>
+
+            <div
+                class="muted"
+                id="dashboard-experiment-summary"
+                style="margin-top: 7px;"
+            >
+                Loading experiment...
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="muted">
+                ALERT SUMMARY
+            </div>
+
+            <div
+                class="metric"
+                id="dashboard-alert-count"
+                style="margin-top: 8px;"
+            >
+                —
+            </div>
+
+            <div
+                class="muted"
+                id="dashboard-alert-summary"
+                style="margin-top: 7px;"
+            >
+                Loading alerts...
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="muted">
+                MARKET DISCOVERY
+            </div>
+
+            <div
+                class="metric"
+                id="dashboard-discovery-count"
+                style="margin-top: 8px;"
+            >
+                —
+            </div>
+
+            <div
+                class="muted"
+                id="dashboard-discovery-summary"
+                style="margin-top: 7px;"
+            >
+                Loading scanner...
+            </div>
+        </div>
+    </section>
+
+    <div
+        class="jarvis-view jarvis-secondary-view"
+        id="jarvis-view-watchlist"
+        data-view-name="watchlist"
+        hidden
+    >
+        <div class="jarvis-view-heading">
+            <div>
+                <div class="jarvis-view-eyebrow">
+                    JARVIS MARKET MONITORING
+                </div>
+
+                <h1>WATCHLIST</h1>
+
+                <p>
+                    Live stock and crypto tracking,
+                    pricing, and daily movement.
+                </p>
+            </div>
+        </div>
     <section class="grid market-grid">
         <div class="panel">
             <div
@@ -2192,19 +2335,6 @@
                     justify-content: flex-end;
                 "
             >
-                <button
-                    type="button"
-                    id="enable-notifications"
-                    style="
-                        padding: 7px 11px;
-                        font-size: 0.78rem;
-                        font-weight: 700;
-                        cursor: pointer;
-                    "
-                >
-                    Enable Notifications
-                </button>
-
                 <span
                     class="status positive"
                     id="alert-center-status"
@@ -2212,48 +2342,6 @@
                     Live
                 </span>
             </div>
-        </div>
-
-        <div
-            style="
-                display: flex;
-                gap: 18px;
-                flex-wrap: wrap;
-                margin-bottom: 18px;
-                padding: 10px 0 2px;
-            "
-        >
-            <label>
-                <input
-                    type="checkbox"
-                    id="notify-autonomous-trades"
-                >
-                Autonomous trades
-            </label>
-
-            <label>
-                <input
-                    type="checkbox"
-                    id="notify-portfolio-moves"
-                >
-                Portfolio moves
-            </label>
-
-            <label>
-                <input
-                    type="checkbox"
-                    id="notify-market-alerts"
-                >
-                High / critical market alerts
-            </label>
-
-            <label>
-                <input
-                    type="checkbox"
-                    id="notify-execution-failures"
-                >
-                Execution failures
-            </label>
         </div>
 
         <div
@@ -2526,6 +2614,179 @@
             <div id="scanner-promotion-candidates">
                 <div class="empty">
                     Loading promotion candidates...
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <div
+        class="jarvis-view jarvis-secondary-view"
+        id="jarvis-view-settings"
+        data-view-name="settings"
+        hidden
+    >
+        <div class="jarvis-view-heading">
+            <div>
+                <div class="jarvis-view-eyebrow">
+                    JARVIS SYSTEM
+                </div>
+
+                <h1>SETTINGS</h1>
+
+                <p>
+                    Notification preferences,
+                    interface controls, and system information.
+                </p>
+            </div>
+        </div>
+
+        <section
+            class="panel"
+            style="margin-bottom: 18px;"
+        >
+            <div
+                style="
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: flex-start;
+                    gap: 16px;
+                    flex-wrap: wrap;
+                "
+            >
+                <div>
+                    <h2 style="margin-bottom: 6px;">
+                        Notifications
+                    </h2>
+
+                    <div class="muted">
+                        Choose which Jarvis events can trigger
+                        browser notifications.
+                    </div>
+                </div>
+
+                <button
+                    type="button"
+                    id="enable-notifications"
+                    class="secondary"
+                >
+                    Enable Notifications
+                </button>
+            </div>
+
+            <div
+                style="
+                    display: grid;
+                    grid-template-columns:
+                        repeat(
+                            auto-fit,
+                            minmax(220px, 1fr)
+                        );
+                    gap: 12px;
+                    margin-top: 18px;
+                "
+            >
+                <label class="panel">
+                    <input
+                        type="checkbox"
+                        id="notify-autonomous-trades"
+                    >
+                    Autonomous trades
+                </label>
+
+                <label class="panel">
+                    <input
+                        type="checkbox"
+                        id="notify-portfolio-moves"
+                    >
+                    Portfolio moves
+                </label>
+
+                <label class="panel">
+                    <input
+                        type="checkbox"
+                        id="notify-market-alerts"
+                    >
+                    High / critical market alerts
+                </label>
+
+                <label class="panel">
+                    <input
+                        type="checkbox"
+                        id="notify-execution-failures"
+                    >
+                    Execution failures
+                </label>
+            </div>
+        </section>
+
+        <section class="panel">
+            <h2>System Information</h2>
+
+            <div
+                class="grid summary-grid"
+                style="
+                    margin-top: 18px;
+                    margin-bottom: 0;
+                "
+            >
+                <div class="panel">
+                    <div class="muted">
+                        Application
+                    </div>
+
+                    <div
+                        style="
+                            margin-top: 7px;
+                            font-weight: 700;
+                        "
+                    >
+                        Jarvis Market Intelligence
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="muted">
+                        Version
+                    </div>
+
+                    <div
+                        style="
+                            margin-top: 7px;
+                            font-weight: 700;
+                        "
+                    >
+                        v2.0.0
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="muted">
+                        Market Data
+                    </div>
+
+                    <div
+                        style="
+                            margin-top: 7px;
+                            font-weight: 700;
+                        "
+                    >
+                        Live
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="muted">
+                        Autonomous Trading
+                    </div>
+
+                    <div
+                        style="
+                            margin-top: 7px;
+                            font-weight: 700;
+                        "
+                    >
+                        Ready
+                    </div>
                 </div>
             </div>
         </section>
@@ -4153,6 +4414,31 @@ async function loadWatchlist() {
             const data = await response.json();
 
             document.getElementById(
+                "sidebar-market-data-status"
+            ).textContent =
+                data.database.reachable
+                    ? (
+                        data.collector.fresh
+                            ? "Live"
+                            : "Stale"
+                    )
+                    : "Offline";
+
+            document.getElementById(
+                "sidebar-collector-status"
+            ).textContent =
+                data.collector.timer_active
+                    ? data.collector.status
+                    : "Inactive";
+
+            document.getElementById(
+                "sidebar-system-status"
+            ).textContent =
+                String(
+                    data.status || "unavailable"
+                ).toUpperCase();
+
+            document.getElementById(
                 "operations-status"
             ).textContent = data.status;
 
@@ -4276,6 +4562,21 @@ async function loadWatchlist() {
                 "operations-summary"
             ).textContent =
                 "Operational health could not be loaded.";
+
+            document.getElementById(
+                "sidebar-system-status"
+            ).textContent =
+                "UNAVAILABLE";
+
+            document.getElementById(
+                "sidebar-market-data-status"
+            ).textContent =
+                "Unavailable";
+
+            document.getElementById(
+                "sidebar-collector-status"
+            ).textContent =
+                "Unavailable";
 
             console.error(error);
         }
@@ -4637,6 +4938,13 @@ async function loadWatchlist() {
 
             const data = await response.json();
 
+            document.getElementById(
+                "sidebar-autonomous-status"
+            ).textContent =
+                data.experiment
+                    ? "Ready"
+                    : "Unavailable";
+
             const experiment = data.experiment;
             const portfolio = data.portfolio;
             const performance = data.performance;
@@ -4676,6 +4984,17 @@ async function loadWatchlist() {
 
             const durationDays =
                 Number(experiment.duration_days || 180);
+
+            document.getElementById(
+                "dashboard-experiment-day"
+            ).textContent =
+                `Day ${dayNumber}`;
+
+            document.getElementById(
+                "dashboard-experiment-summary"
+            ).textContent =
+                `${performance.completed_trade_count} completed trades`
+                + ` · ${experiment.strategy_name}`;
 
             const progressPercent = Math.min(
                 100,
@@ -5016,6 +5335,11 @@ async function loadWatchlist() {
                 "Unable to load autonomous activity.";
 
             document.getElementById(
+                "sidebar-autonomous-status"
+            ).textContent =
+                "Unavailable";
+
+            document.getElementById(
                 "experiment-summary"
             ).textContent =
                 error.message;
@@ -5168,6 +5492,21 @@ async function loadWatchlist() {
             currentPortfolioData = data;
 
             syncExperimentPortfolio(data);
+
+            document.getElementById(
+                "dashboard-portfolio-value"
+            ).textContent =
+                formatPrice(
+                    data.total_value_usd
+                );
+
+            document.getElementById(
+                "dashboard-portfolio-summary"
+            ).textContent =
+                `${formatPrice(
+                    data.cash_balance_usd
+                )} cash · `
+                + `${data.position_count} open positions`;
 
             if (data.status !== "success") {
                 throw new Error(
@@ -6045,6 +6384,17 @@ async function loadWatchlist() {
             const severityCounts =
                 data.severity_counts || {};
 
+            document.getElementById(
+                "dashboard-alert-count"
+            ).textContent =
+                data.event_count || 0;
+
+            document.getElementById(
+                "dashboard-alert-summary"
+            ).textContent =
+                `${severityCounts.critical || 0} critical`
+                + ` · ${severityCounts.high || 0} high`;
+
             const categoryCounts =
                 data.category_counts || {};
 
@@ -6426,6 +6776,25 @@ async function loadWatchlist() {
             }
 
             const data = await response.json();
+
+            document.getElementById(
+                "sidebar-scanner-status"
+            ).textContent =
+                data.status === "success"
+                    ? "Live"
+                    : "Unavailable";
+
+            document.getElementById(
+                "dashboard-discovery-count"
+            ).textContent =
+                data.interesting_count ?? 0;
+
+            document.getElementById(
+                "dashboard-discovery-summary"
+            ).textContent =
+                `${data.batch_size ?? 0} scanned`
+                + ` · ${data.promotion_candidate_count ?? 0}`
+                + " promotion candidates";
 
             document.getElementById(
                 "scanner-universe-count"
