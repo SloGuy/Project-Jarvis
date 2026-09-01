@@ -137,42 +137,62 @@ def _evaluate_thesis_correctness(
     strategy_name: str,
     exit_market_context: dict[str, Any],
 ) -> bool | None:
-    if strategy_name != "momentum_alignment_v1":
+    if strategy_name == "momentum_alignment_v1":
+        short_term_percent = exit_market_context.get(
+            "short_term_percent"
+        )
+
+        trend_percent = exit_market_context.get(
+            "trend_percent"
+        )
+
+        if (
+            short_term_percent is None
+            or trend_percent is None
+        ):
+            return None
+
+        short_term = Decimal(
+            str(short_term_percent)
+        )
+
+        trend = Decimal(
+            str(trend_percent)
+        )
+
+        if (
+            short_term > Decimal("0")
+            and trend > Decimal("0")
+        ):
+            return True
+
+        if (
+            short_term < Decimal("0")
+            and trend < Decimal("0")
+        ):
+            return False
+
         return None
 
-    short_term_percent = exit_market_context.get(
-        "short_term_percent"
-    )
+    if strategy_name == "mean_reversion_v1":
+        z_score = exit_market_context.get(
+            "z_score"
+        )
 
-    trend_percent = exit_market_context.get(
-        "trend_percent"
-    )
+        if z_score is None:
+            return None
 
-    if (
-        short_term_percent is None
-        or trend_percent is None
-    ):
+        normalized_z_score = Decimal(
+            str(z_score)
+        )
+
+        if normalized_z_score >= Decimal("-0.25"):
+            return True
+
+        if normalized_z_score <= Decimal("-1.50"):
+            return False
+
         return None
-
-    short_term_percent = Decimal(
-        str(short_term_percent)
-    )
-
-    trend_percent = Decimal(
-        str(trend_percent)
-    )
-
-    if (
-        short_term_percent > Decimal("0")
-        and trend_percent > Decimal("0")
-    ):
-        return True
-
-    if (
-        short_term_percent < Decimal("0")
-        and trend_percent < Decimal("0")
-    ):
-        return False
 
     return None
 
