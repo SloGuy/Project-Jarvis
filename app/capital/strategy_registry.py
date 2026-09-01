@@ -63,13 +63,13 @@ _STRATEGIES: dict[str, StrategyDefinition] = {
             "using rolling price deviation and recovery."
         ),
         version="1.0",
-        stage=StrategyStage.CANDIDATE,
+        stage=StrategyStage.PAPER,
         implementation_module=(
             "app.autonomous_trading.mean_reversion_strategy"
         ),
         evaluator_name="evaluate_mean_reversion_strategy",
-        active_experiment=False,
-        enabled=False,
+        active_experiment=True,
+        enabled=True,
     ),
 }
 

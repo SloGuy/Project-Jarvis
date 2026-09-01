@@ -32,6 +32,12 @@ decision = SimpleNamespace(
 record = SimpleNamespace(id=42)
 
 
+locked_policy = replace(
+    MEAN_REVERSION_1000_POLICY,
+    autonomous_execution_enabled=False,
+)
+
+
 with (
     patch(
         "app.capital.candidate_pipeline."
@@ -53,7 +59,7 @@ with (
         candidate=candidate,
         portfolio_id=3,
         portfolio_summary={"status": "success"},
-        policy=MEAN_REVERSION_1000_POLICY,
+        policy=locked_policy,
     )
 
 

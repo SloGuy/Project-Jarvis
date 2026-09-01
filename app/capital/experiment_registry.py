@@ -1,5 +1,5 @@
 from dataclasses import asdict, dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from enum import Enum
 from typing import Any
@@ -68,6 +68,16 @@ MEAN_REVERSION_EXPERIMENT_ID = (
     "mean_reversion_v1_paper_2026"
 )
 
+MEAN_REVERSION_EXPERIMENT_STARTED_AT = datetime(
+    2026,
+    9,
+    1,
+    18,
+    20,
+    28,
+    tzinfo=timezone.utc,
+)
+
 
 _EXPERIMENTS: dict[str, ExperimentDefinition] = {
     MOMENTUM_PAPER_EXPERIMENT_ID: ExperimentDefinition(
@@ -93,9 +103,9 @@ _EXPERIMENTS: dict[str, ExperimentDefinition] = {
         name="Mean Reversion V1 Paper Experiment",
         strategy_name=MEAN_REVERSION_V1,
         portfolio_name=MEAN_REVERSION_PORTFOLIO_NAME,
-        status=ExperimentStatus.PLANNED,
-        execution_mode="dry_run",
-        started_at=None,
+        status=ExperimentStatus.RUNNING,
+        execution_mode="autonomous_paper_trading",
+        started_at=MEAN_REVERSION_EXPERIMENT_STARTED_AT,
         duration_days=180,
         starting_capital_usd=(
             MEAN_REVERSION_1000_POLICY.starting_capital_usd
