@@ -10,6 +10,9 @@ from app.capital.experiment_registry import (
 from app.capital.strategy_registry import (
     list_strategies,
 )
+from app.capital.portfolio_status import (
+    get_strategy_portfolios,
+)
 
 
 def get_capital_status(
@@ -54,5 +57,8 @@ def get_capital_status(
             experiment.to_dict()
             for experiment in experiments
         ],
+        "strategy_portfolios": (
+            get_strategy_portfolios()
+        ),
         "active_experiment": active_experiment,
     }
