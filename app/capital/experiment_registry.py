@@ -14,6 +14,15 @@ from app.autonomous_trading.momentum_strategy import (
 from app.autonomous_trading.policy import (
     INITIAL_1000_POLICY,
 )
+from app.autonomous_trading.mean_reversion_strategy import (
+    STRATEGY_NAME as MEAN_REVERSION_V1,
+)
+from app.capital.policies import (
+    MEAN_REVERSION_1000_POLICY,
+)
+from app.capital.portfolio_service import (
+    MEAN_REVERSION_PORTFOLIO_NAME,
+)
 
 
 class ExperimentStatus(str, Enum):
@@ -29,9 +38,10 @@ class ExperimentDefinition:
     experiment_id: str
     name: str
     strategy_name: str
+    portfolio_name: str
     status: ExperimentStatus
     execution_mode: str
-    started_at: datetime
+    started_at: datetime | None
     duration_days: int
     starting_capital_usd: Decimal
     risk_policy_name: str
@@ -39,7 +49,11 @@ class ExperimentDefinition:
     def to_dict(self) -> dict[str, Any]:
         data = asdict(self)
         data["status"] = self.status.value
-        data["started_at"] = self.started_at.isoformat()
+        data["started_at"] = (
+            self.started_at.isoformat()
+            if self.started_at is not None
+            else None
+        )
         data["starting_capital_usd"] = float(
             self.starting_capital_usd
         )
@@ -50,12 +64,17 @@ MOMENTUM_PAPER_EXPERIMENT_ID = (
     "momentum_alignment_v1_paper_2026"
 )
 
+MEAN_REVERSION_EXPERIMENT_ID = (
+    "mean_reversion_v1_paper_2026"
+)
+
 
 _EXPERIMENTS: dict[str, ExperimentDefinition] = {
     MOMENTUM_PAPER_EXPERIMENT_ID: ExperimentDefinition(
         experiment_id=MOMENTUM_PAPER_EXPERIMENT_ID,
         name="Momentum Alignment V1 Paper Experiment",
         strategy_name=MOMENTUM_ALIGNMENT_V1,
+        portfolio_name="Primary Portfolio",
         status=ExperimentStatus.RUNNING,
         execution_mode=(
             "autonomous_paper_trading"
@@ -68,6 +87,22 @@ _EXPERIMENTS: dict[str, ExperimentDefinition] = {
             INITIAL_1000_POLICY.starting_capital_usd
         ),
         risk_policy_name=INITIAL_1000_POLICY.name,
+    ),
+    MEAN_REVERSION_EXPERIMENT_ID: ExperimentDefinition(
+        experiment_id=MEAN_REVERSION_EXPERIMENT_ID,
+        name="Mean Reversion V1 Paper Experiment",
+        strategy_name=MEAN_REVERSION_V1,
+        portfolio_name=MEAN_REVERSION_PORTFOLIO_NAME,
+        status=ExperimentStatus.PLANNED,
+        execution_mode="dry_run",
+        started_at=None,
+        duration_days=180,
+        starting_capital_usd=(
+            MEAN_REVERSION_1000_POLICY.starting_capital_usd
+        ),
+        risk_policy_name=(
+            MEAN_REVERSION_1000_POLICY.name
+        ),
     ),
 }
 

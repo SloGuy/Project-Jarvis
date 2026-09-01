@@ -5,6 +5,9 @@ from typing import Any
 from app.autonomous_trading.momentum_strategy import (
     STRATEGY_NAME as MOMENTUM_ALIGNMENT_V1,
 )
+from app.autonomous_trading.mean_reversion_strategy import (
+    STRATEGY_NAME as MEAN_REVERSION_V1,
+)
 
 
 class StrategyStage(str, Enum):
@@ -51,6 +54,22 @@ _STRATEGIES: dict[str, StrategyDefinition] = {
         evaluator_name="evaluate_momentum_strategy",
         active_experiment=True,
         enabled=True,
+    ),
+    MEAN_REVERSION_V1: StrategyDefinition(
+        name=MEAN_REVERSION_V1,
+        display_name="Mean Reversion V1",
+        description=(
+            "Long-only statistical mean-reversion strategy "
+            "using rolling price deviation and recovery."
+        ),
+        version="1.0",
+        stage=StrategyStage.CANDIDATE,
+        implementation_module=(
+            "app.autonomous_trading.mean_reversion_strategy"
+        ),
+        evaluator_name="evaluate_mean_reversion_strategy",
+        active_experiment=False,
+        enabled=False,
     ),
 }
 

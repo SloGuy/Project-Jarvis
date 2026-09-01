@@ -18,6 +18,7 @@ class CandidateConversionError(ValueError):
 def candidate_to_trade_proposal(
     *,
     candidate: StrategyCandidate,
+    portfolio_id: int | None = None,
 ) -> TradeProposal | None:
     """
     Convert a strategy candidate into a priced trade proposal.
@@ -30,7 +31,9 @@ def candidate_to_trade_proposal(
     if candidate.action == StrategyAction.HOLD:
         return None
 
-    portfolio = get_portfolio_summary()
+    portfolio = get_portfolio_summary(
+        portfolio_id=portfolio_id,
+    )
 
     if portfolio.get("status") != "success":
         raise CandidateConversionError(
