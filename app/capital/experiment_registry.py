@@ -4,10 +4,6 @@ from decimal import Decimal
 from enum import Enum
 from typing import Any
 
-from app.autonomous_trading.experiment_status import (
-    EXPERIMENT_DURATION_DAYS,
-    EXPERIMENT_STARTED_AT,
-)
 from app.autonomous_trading.momentum_strategy import (
     STRATEGY_NAME as MOMENTUM_ALIGNMENT_V1,
 )
@@ -59,6 +55,18 @@ class ExperimentDefinition:
         )
         return data
 
+
+EXPERIMENT_DURATION_DAYS = 180
+
+EXPERIMENT_STARTED_AT = datetime(
+    2026,
+    8,
+    13,
+    9,
+    14,
+    1,
+    tzinfo=timezone.utc,
+)
 
 MOMENTUM_PAPER_EXPERIMENT_ID = (
     "momentum_alignment_v1_paper_2026"

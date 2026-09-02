@@ -605,6 +605,9 @@ def market_autonomous_experiment(
 
 @app.get("/market/autonomous/journal-analytics")
 def market_autonomous_journal_analytics(
+    portfolio_id: int | None = Query(
+        default=None
+    ),
     limit: int = Query(
         default=1000,
         ge=1,
@@ -612,6 +615,7 @@ def market_autonomous_journal_analytics(
     ),
 ):
     analytics = get_journal_analytics(
+        portfolio_id=portfolio_id,
         limit=limit,
     )
 

@@ -10,27 +10,14 @@ from app.autonomous_trading.journal_queries import (
 from app.autonomous_trading.learning_loop import (
     get_learning_report,
 )
-from app.autonomous_trading.policy import (
-    INITIAL_1000_POLICY,
-)
 from app.autonomous_trading.journal_analytics import (
     get_journal_analytics,
 )
+from app.capital.experiment_registry import (
+    list_experiments,
+)
 from app.market_db.portfolio_queries import (
     get_portfolio_summary,
-)
-
-
-EXPERIMENT_DURATION_DAYS = 180
-
-EXPERIMENT_STARTED_AT = datetime(
-    2026,
-    8,
-    13,
-    9,
-    14,
-    1,
-    tzinfo=timezone.utc,
 )
 
 
@@ -41,18 +28,16 @@ def _utc_now() -> datetime:
 def _experiment_day(
     *,
     now: datetime,
+    started_at: datetime,
+    duration_days: int,
 ) -> int:
-    elapsed = now - EXPERIMENT_STARTED_AT
-
+    elapsed = now - started_at
     day_number = elapsed.days + 1
 
-    if day_number < 1:
-        return 1
-
-    if day_number > EXPERIMENT_DURATION_DAYS:
-        return EXPERIMENT_DURATION_DAYS
-
-    return day_number
+    return min(
+        duration_days,
+        max(1, day_number),
+    )
 
 
 def get_experiment_status(
@@ -75,6 +60,26 @@ def get_experiment_status(
     resolved_portfolio_id = int(
         portfolio["portfolio"]["id"]
     )
+
+    resolved_portfolio_name = str(
+        portfolio["portfolio"]["name"]
+    )
+
+    experiment = next(
+        (
+            candidate
+            for candidate in list_experiments()
+            if candidate.portfolio_name
+            == resolved_portfolio_name
+        ),
+        None,
+    )
+
+    if experiment is None:
+        raise ValueError(
+            "No Capital experiment is registered "
+            f"for portfolio {resolved_portfolio_name}."
+        )
 
     analytics = get_journal_analytics(
         portfolio_id=resolved_portfolio_id,
@@ -132,7 +137,7 @@ def get_experiment_status(
     )
 
     starting_capital = float(
-        INITIAL_1000_POLICY.starting_capital_usd
+        experiment.starting_capital_usd
     )
 
     current_value = float(
@@ -158,28 +163,36 @@ def get_experiment_status(
         "status": "success",
         "generated_at": now.isoformat(),
         "experiment": {
-            "name": (
-                "Autonomous Paper Trading Experiment"
+            "experiment_id": (
+                experiment.experiment_id
             ),
+            "name": experiment.name,
             "strategy_name": (
-                "momentum_alignment_v1"
+                experiment.strategy_name
             ),
             "execution_mode": (
-                "autonomous_paper_trading"
-                if (
-                    INITIAL_1000_POLICY
-                    .autonomous_execution_enabled
-                )
-                else "disabled"
+                experiment.execution_mode
             ),
             "started_at": (
-                EXPERIMENT_STARTED_AT.isoformat()
+                experiment.started_at.isoformat()
+                if experiment.started_at
+                is not None
+                else None
             ),
             "duration_days": (
-                EXPERIMENT_DURATION_DAYS
+                experiment.duration_days
             ),
-            "day_number": _experiment_day(
-                now=now,
+            "day_number": (
+                _experiment_day(
+                    now=now,
+                    started_at=(
+                        experiment.started_at
+                        or now
+                    ),
+                    duration_days=(
+                        experiment.duration_days
+                    ),
+                )
             ),
             "starting_capital_usd": (
                 starting_capital
