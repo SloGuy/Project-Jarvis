@@ -1642,6 +1642,27 @@
     </section>
 
     <section style="margin-bottom: 24px;">
+        <div class="panel" style="padding: 22px;">
+            <div style="display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; flex-wrap: wrap; margin-bottom: 18px;">
+                <div>
+                    <div class="muted">Comparative Analytics</div>
+                    <h2 style="margin: 6px 0;">Capital Performance Lab</h2>
+                    <div class="muted" id="performance-lab-summary">
+                        Loading strategy comparison...
+                    </div>
+                </div>
+                <div class="status" id="performance-lab-status">
+                    Loading
+                </div>
+            </div>
+
+            <div class="grid summary-grid" id="performance-lab-grid">
+                <div class="empty">Loading performance data...</div>
+            </div>
+        </div>
+    </section>
+
+    <section style="margin-bottom: 24px;">
         <div
             class="panel"
             style="
@@ -5458,6 +5479,112 @@ async function loadWatchlist() {
         }
     }
 
+    async function loadPerformanceLab() {
+        const status = document.getElementById(
+            "performance-lab-status"
+        );
+        const summary = document.getElementById(
+            "performance-lab-summary"
+        );
+        const grid = document.getElementById(
+            "performance-lab-grid"
+        );
+
+        try {
+            const response = await fetch(
+                "/capital/performance"
+            );
+
+            if (!response.ok) {
+                throw new Error(
+                    `Performance request failed: ${response.status}`
+                );
+            }
+
+            const data = await response.json();
+
+            const names = {
+                momentum_alignment_v1:
+                    "Momentum Alignment V1",
+                mean_reversion_v1:
+                    "Mean Reversion V1",
+            };
+
+            const number = value =>
+                value === null || value === undefined
+                    ? "—"
+                    : Number(value).toFixed(2);
+
+            grid.innerHTML = data.strategies.map(
+                strategy => {
+                    const totalReturn = Number(
+                        strategy.total_return_percent || 0
+                    );
+
+                    const profitFactor =
+                        strategy.profit_factor === null
+                            ? "No losses"
+                            : number(strategy.profit_factor);
+
+                    return `
+                        <div class="chart-stat">
+                            <div class="muted">
+                                ${names[strategy.strategy_name]
+                                    || strategy.strategy_name}
+                                · Portfolio ${strategy.portfolio_id}
+                            </div>
+
+                            <div class="metric"
+                                style="margin-top: 8px;">
+                                ${totalReturn >= 0 ? "+" : ""}
+                                ${totalReturn.toFixed(2)}%
+                            </div>
+
+                            <div class="${changeClass(totalReturn)}"
+                                style="font-weight: 800; margin-top: 6px;">
+                                ${strategy.sample_maturity} sample
+                            </div>
+
+                            <div class="muted"
+                                style="line-height: 1.75; margin-top: 12px;">
+                                Closed trades:
+                                ${strategy.closed_trade_count}
+                                <br>Win rate:
+                                ${number(strategy.win_rate_percent)}%
+                                <br>Average return:
+                                ${number(strategy.average_return_percent)}%
+                                <br>Expectancy:
+                                $${number(strategy.expectancy_usd)}
+                                <br>Profit factor:
+                                ${profitFactor}
+                                <br>Maximum drawdown:
+                                ${number(
+                                    strategy.maximum_drawdown_percent
+                                )}%
+                                <br>Current exposure:
+                                ${number(strategy.exposure_percent)}%
+                            </div>
+                        </div>
+                    `;
+                }
+            ).join("");
+
+            summary.textContent =
+                `${data.strategy_count} strategies compared `
+                + "on isolated portfolio evidence";
+
+            status.textContent = "Live";
+            status.className = "status positive";
+        } catch (error) {
+            summary.textContent =
+                "Unable to load performance comparison.";
+            status.textContent = "Error";
+            status.className = "status negative";
+            grid.innerHTML =
+                `<div class="empty">${error.message}</div>`;
+        }
+    }
+
     async function loadJournalAnalytics() {
         const statusElement =
             document.getElementById(
@@ -7338,6 +7465,7 @@ async function loadWatchlist() {
 
     loadExperimentStatus();
     loadStrategyPortfolios();
+    loadPerformanceLab();
     loadJournalAnalytics();
     loadPortfolio();
     loadPortfolioInsight();
