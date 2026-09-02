@@ -1621,6 +1621,27 @@
     </section>
 
     <section style="margin-bottom: 24px;">
+        <div class="panel" style="padding: 22px;">
+            <div style="display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; flex-wrap: wrap; margin-bottom: 18px;">
+                <div>
+                    <div class="muted">Capital Allocation</div>
+                    <h2 style="margin: 6px 0;">Strategy Portfolios</h2>
+                    <div class="muted" id="strategy-portfolios-summary">
+                        Loading strategy portfolios...
+                    </div>
+                </div>
+                <div class="status" id="strategy-portfolios-status">
+                    Loading
+                </div>
+            </div>
+
+            <div class="grid summary-grid" id="strategy-portfolios-grid">
+                <div class="empty">Loading portfolio data...</div>
+            </div>
+        </div>
+    </section>
+
+    <section style="margin-bottom: 24px;">
         <div
             class="panel"
             style="
@@ -5346,6 +5367,97 @@ async function loadWatchlist() {
         }
     }
 
+    async function loadStrategyPortfolios() {
+        const status = document.getElementById(
+            "strategy-portfolios-status"
+        );
+        const summary = document.getElementById(
+            "strategy-portfolios-summary"
+        );
+        const grid = document.getElementById(
+            "strategy-portfolios-grid"
+        );
+
+        try {
+            const response = await fetch("/capital/status");
+
+            if (!response.ok) {
+                throw new Error(
+                    `Capital request failed: ${response.status}`
+                );
+            }
+
+            const data = await response.json();
+            const portfolios = data.strategy_portfolios || [];
+            const strategies = new Map(
+                (data.strategies || []).map(
+                    strategy => [strategy.name, strategy]
+                )
+            );
+
+            const money = value =>
+                Number(value || 0).toLocaleString(
+                    "en-US",
+                    {
+                        style: "currency",
+                        currency: "USD",
+                    }
+                );
+
+            grid.innerHTML = portfolios.map(portfolio => {
+                const strategy =
+                    strategies.get(portfolio.strategy_name) || {};
+
+                const name =
+                    strategy.display_name
+                    || portfolio.strategy_name;
+
+                const returnPercent = Number(
+                    portfolio.total_return_percent || 0
+                );
+
+                return `
+                    <div class="chart-stat">
+                        <div class="muted">
+                            ${name} · Portfolio ${portfolio.portfolio_id}
+                        </div>
+                        <div class="metric" style="margin-top: 8px;">
+                            ${money(portfolio.current_value_usd)}
+                        </div>
+                        <div class="${changeClass(returnPercent)}"
+                            style="font-weight: 800; margin-top: 6px;">
+                            ${returnPercent >= 0 ? "+" : ""}
+                            ${returnPercent.toFixed(2)}%
+                        </div>
+                        <div class="muted"
+                            style="line-height: 1.7; margin-top: 12px;">
+                            ${portfolio.experiment_status}
+                            · ${portfolio.execution_mode}
+                            <br>Cash: ${money(portfolio.cash_balance_usd)}
+                            <br>Open positions:
+                            ${portfolio.open_position_count}
+                            <br>Transactions:
+                            ${portfolio.transaction_count}
+                        </div>
+                    </div>
+                `;
+            }).join("");
+
+            summary.textContent =
+                `${portfolios.length} isolated strategy portfolios`;
+
+            status.textContent = "Live";
+            status.className = "status positive";
+        } catch (error) {
+            summary.textContent =
+                "Unable to load strategy portfolios.";
+            status.textContent = "Error";
+            status.className = "status negative";
+            grid.innerHTML =
+                `<div class="empty">${error.message}</div>`;
+        }
+    }
+
     async function loadJournalAnalytics() {
         const statusElement =
             document.getElementById(
@@ -7225,6 +7337,7 @@ async function loadWatchlist() {
     window.addEventListener("resize", loadTrend);
 
     loadExperimentStatus();
+    loadStrategyPortfolios();
     loadJournalAnalytics();
     loadPortfolio();
     loadPortfolioInsight();
