@@ -13,6 +13,9 @@ from app.capital.strategy_registry import (
 from app.capital.portfolio_status import (
     get_strategy_portfolios,
 )
+from app.capital.research_service import (
+    get_research_summary,
+)
 
 
 def get_capital_status(
@@ -59,6 +62,9 @@ def get_capital_status(
         ],
         "strategy_portfolios": (
             get_strategy_portfolios()
+        ),
+        "research": (
+            get_research_summary()
         ),
         "active_experiment": active_experiment,
     }

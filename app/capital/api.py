@@ -6,11 +6,19 @@ from app.capital.status_service import (
 from app.capital.performance_lab import (
     get_performance_lab,
 )
+from app.capital.research_api import (
+    router as research_router,
+)
 
 
 router = APIRouter(
     prefix="/capital",
     tags=["capital"],
+)
+
+
+router.include_router(
+    research_router
 )
 
 
