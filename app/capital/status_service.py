@@ -22,6 +22,9 @@ from app.capital.committee_service import (
 from app.capital.safety_audit import (
     get_capital_safety_audit,
 )
+from app.capital.market_regime import (
+    get_market_regime,
+)
 
 
 def get_capital_status(
@@ -68,6 +71,9 @@ def get_capital_status(
         ],
         "strategy_portfolios": (
             get_strategy_portfolios()
+        ),
+        "market_regime": (
+            get_market_regime()
         ),
         "research": (
             get_research_summary()

@@ -18,6 +18,9 @@ from app.capital.committee_service import (
 from app.capital.safety_audit import (
     get_capital_safety_audit,
 )
+from app.capital.market_regime import (
+    get_market_regime,
+)
 
 
 router = APIRouter(
@@ -54,6 +57,11 @@ def capital_performance() -> dict:
 @router.get("/rankings")
 def capital_rankings() -> dict:
     return get_strategy_rankings()
+
+
+@router.get("/regime")
+def capital_market_regime() -> dict:
+    return get_market_regime()
 
 
 @router.get("/committee")
