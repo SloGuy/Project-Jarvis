@@ -1663,6 +1663,25 @@
     </section>
 
     <section style="margin-bottom: 24px;">
+        <div class="panel" style="padding: 22px;">
+            <div class="muted">Profit Drivers</div>
+            <h2 style="margin: 6px 0;">
+                Strategy Attribution
+            </h2>
+            <div class="muted" style="margin-bottom: 18px;">
+                Strongest contributors, weakest assets,
+                concentration, and exit-rule performance.
+            </div>
+
+            <div id="capital-attribution-content">
+                <div class="empty">
+                    Loading attribution data...
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section style="margin-bottom: 24px;">
         <div
             class="panel"
             style="
@@ -5585,6 +5604,117 @@ async function loadWatchlist() {
         }
     }
 
+    async function loadCapitalAttribution() {
+        const content = document.getElementById(
+            "capital-attribution-content"
+        );
+
+        try {
+            const response = await fetch(
+                "/capital/performance"
+            );
+
+            if (!response.ok) {
+                throw new Error(
+                    `Attribution request failed: ${response.status}`
+                );
+            }
+
+            const data = await response.json();
+
+            const names = {
+                momentum_alignment_v1:
+                    "Momentum Alignment V1",
+                mean_reversion_v1:
+                    "Mean Reversion V1",
+            };
+
+            const signedMoney = value => {
+                const number = Number(value || 0);
+
+                return (
+                    `${number >= 0 ? "+" : "−"}$`
+                    + `${Math.abs(number).toFixed(2)}`
+                );
+            };
+
+            content.innerHTML = `
+                <div class="grid summary-grid">
+                    ${data.strategies.map(strategy => {
+                        const best = strategy.best_symbol;
+                        const weakest = strategy.worst_symbol;
+
+                        const exits = (
+                            strategy.performance_by_exit_rule
+                            || []
+                        ).map(exit => `
+                            <div style="margin-top: 8px;">
+                                ${exit.exit_rule}:
+                                ${signedMoney(
+                                    exit.realized_gain_loss_usd
+                                )}
+                                · ${exit.trade_count} trades
+                            </div>
+                        `).join("");
+
+                        return `
+                            <div class="chart-stat">
+                                <strong>
+                                    ${names[strategy.strategy_name]
+                                        || strategy.strategy_name}
+                                </strong>
+
+                                <div class="muted"
+                                    style="line-height: 1.75; margin-top: 12px;">
+                                    Best contributor:
+                                    ${best
+                                        ? `${best.symbol} `
+                                            + signedMoney(
+                                                best.realized_gain_loss_usd
+                                            )
+                                        : "—"}
+                                    <br>
+                                    Weakest contributor:
+                                    ${weakest
+                                        ? `${weakest.symbol} `
+                                            + signedMoney(
+                                                weakest.realized_gain_loss_usd
+                                            )
+                                        : "—"}
+                                    <br>
+                                    Top-profit concentration:
+                                    ${Number(
+                                        strategy
+                                            .top_profit_concentration_percent
+                                        || 0
+                                    ).toFixed(2)}%
+                                </div>
+
+                                <div style="margin-top: 14px;">
+                                    <div class="muted">
+                                        Exit-rule attribution
+                                    </div>
+                                    ${exits || `
+                                        <div class="muted"
+                                            style="margin-top: 8px;">
+                                            No completed exits.
+                                        </div>
+                                    `}
+                                </div>
+                            </div>
+                        `;
+                    }).join("")}
+                </div>
+            `;
+        } catch (error) {
+            content.innerHTML = `
+                <div class="empty">
+                    ${error.message}
+                </div>
+            `;
+        }
+    }
+
     async function loadJournalAnalytics() {
         const statusElement =
             document.getElementById(
@@ -7466,6 +7596,7 @@ async function loadWatchlist() {
     loadExperimentStatus();
     loadStrategyPortfolios();
     loadPerformanceLab();
+    loadCapitalAttribution();
     loadJournalAnalytics();
     loadPortfolio();
     loadPortfolioInsight();
