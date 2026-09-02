@@ -13,6 +13,9 @@ from app.autonomous_trading.learning_loop import (
 from app.autonomous_trading.policy import (
     INITIAL_1000_POLICY,
 )
+from app.autonomous_trading.journal_analytics import (
+    get_journal_analytics,
+)
 from app.market_db.portfolio_queries import (
     get_portfolio_summary,
 )
@@ -69,20 +72,63 @@ def get_experiment_status(
         transaction_limit=10,
     )
 
+    resolved_portfolio_id = int(
+        portfolio["portfolio"]["id"]
+    )
+
+    analytics = get_journal_analytics(
+        portfolio_id=resolved_portfolio_id,
+    )
+
     learning = get_learning_report()
+
+    thesis_evaluated = (
+        analytics["thesis_correct_count"]
+        + analytics["thesis_failed_count"]
+    )
+
+    learning["summary"] = {
+        "closed_trade_count": (
+            analytics["closed_trade_count"]
+        ),
+        "wins": analytics["win_count"],
+        "losses": analytics["loss_count"],
+        "breakeven": analytics["breakeven_count"],
+        "win_rate_percent": (
+            analytics["win_rate_percent"]
+        ),
+        "total_realized_gain_loss_usd": (
+            analytics[
+                "cumulative_realized_gain_loss_usd"
+            ]
+        ),
+        "average_return_percent": (
+            analytics["average_return_percent"]
+        ),
+        "thesis_accuracy_percent": (
+            analytics["thesis_correct_count"]
+            / thesis_evaluated
+            * 100
+            if thesis_evaluated
+            else None
+        ),
+    }
 
     decisions = get_recent_trade_decisions(
         limit=decision_limit,
+        portfolio_id=resolved_portfolio_id,
     )
 
     open_journal = get_trade_journal(
         status="open",
         limit=100,
+        portfolio_id=resolved_portfolio_id,
     )
 
     closed_journal = get_trade_journal(
         status="closed",
         limit=100,
+        portfolio_id=resolved_portfolio_id,
     )
 
     starting_capital = float(

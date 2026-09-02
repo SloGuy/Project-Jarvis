@@ -116,6 +116,8 @@ def get_trade_journal(
     *,
     status: str | None = None,
     limit: int = 100,
+    portfolio_id: int | None = None,
+    strategy_name: str | None = None,
 ) -> dict[str, Any]:
     if limit <= 0:
         raise ValueError(
@@ -156,6 +158,27 @@ def get_trade_journal(
                 == normalized_status
             )
 
+        if portfolio_id is not None:
+            query = query.where(
+                AutonomousTradeJournal.portfolio_id
+                == portfolio_id
+            )
+
+        if strategy_name is not None:
+            normalized_strategy_name = (
+                strategy_name.strip()
+            )
+
+            if not normalized_strategy_name:
+                raise ValueError(
+                    "strategy_name must not be empty."
+                )
+
+            query = query.where(
+                AutonomousTradeJournal.strategy_name
+                == normalized_strategy_name
+            )
+
         rows = session.execute(
             query
             .order_by(
@@ -175,6 +198,8 @@ def get_trade_journal(
     return {
         "status": "success",
         "filter": normalized_status,
+        "portfolio_id": portfolio_id,
+        "strategy_name": strategy_name,
         "count": len(journals),
         "journals": journals,
     }

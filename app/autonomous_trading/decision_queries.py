@@ -13,6 +13,8 @@ def get_recent_trade_decisions(
     *,
     limit: int = 20,
     approved: bool | None = None,
+    portfolio_id: int | None = None,
+    strategy_name: str | None = None,
 ) -> list[dict[str, Any]]:
     """
     Return recent autonomous trade decisions.
@@ -45,11 +47,33 @@ def get_recent_trade_decisions(
                 .is_(approved)
             )
 
+        if portfolio_id is not None:
+            statement = statement.where(
+                AutonomousTradeDecision.portfolio_id
+                == portfolio_id
+            )
+
+        if strategy_name is not None:
+            normalized_strategy_name = (
+                strategy_name.strip()
+            )
+
+            if not normalized_strategy_name:
+                raise ValueError(
+                    "strategy_name must not be empty."
+                )
+
+            statement = statement.where(
+                AutonomousTradeDecision.strategy_name
+                == normalized_strategy_name
+            )
+
         rows = session.execute(statement).all()
 
         return [
             {
                 "decision_id": decision.id,
+                "portfolio_id": decision.portfolio_id,
                 "symbol": asset.symbol,
                 "action": decision.action,
                 "quantity": float(decision.quantity),

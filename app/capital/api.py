@@ -3,6 +3,9 @@ from fastapi import APIRouter, Query
 from app.capital.status_service import (
     get_capital_status,
 )
+from app.capital.performance_lab import (
+    get_performance_lab,
+)
 
 
 router = APIRouter(
@@ -24,3 +27,8 @@ def capital_status(
         portfolio_id=portfolio_id,
         decision_limit=decision_limit,
     )
+
+
+@router.get("/performance")
+def capital_performance() -> dict:
+    return get_performance_lab()

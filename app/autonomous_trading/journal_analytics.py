@@ -18,9 +18,13 @@ def _safe_average(
 def get_journal_analytics(
     *,
     limit: int = 1000,
+    portfolio_id: int | None = None,
+    strategy_name: str | None = None,
 ) -> dict[str, Any]:
     journal_result = get_trade_journal(
-        limit=limit
+        limit=limit,
+        portfolio_id=portfolio_id,
+        strategy_name=strategy_name,
     )
 
     journals = journal_result.get(
