@@ -15,6 +15,9 @@ from app.capital.graduation_gates import (
 from app.capital.performance_lab import (
     get_performance_lab,
 )
+from app.capital.strategy_ranking import (
+    rank_strategies,
+)
 
 
 def utc_now_iso() -> str:
@@ -163,6 +166,10 @@ def evaluate_strategy_committee(
 def get_capital_committee() -> dict[str, Any]:
     performance = get_performance_lab()
 
+    rankings = rank_strategies(
+        performance["strategies"]
+    )
+
     reports = [
         evaluate_strategy_committee(
             strategy_performance=strategy,
@@ -179,6 +186,30 @@ def get_capital_committee() -> dict[str, Any]:
         ),
         "live_capital_enabled": False,
         "human_approval_required": True,
+        "ranking_methodology_version": (
+            "capital_score_v1"
+        ),
+        "strategy_rankings": [
+            {
+                "rank": ranking["rank"],
+                "strategy_name": (
+                    ranking["strategy_name"]
+                ),
+                "experiment_id": (
+                    ranking["experiment_id"]
+                ),
+                "capital_score": (
+                    ranking["capital_score"]
+                ),
+                "raw_performance_score": (
+                    ranking[
+                        "raw_performance_score"
+                    ]
+                ),
+                "evidence": ranking["evidence"],
+            }
+            for ranking in rankings
+        ],
         "report_count": len(reports),
         "reports": [
             report.to_dict()
