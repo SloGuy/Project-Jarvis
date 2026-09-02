@@ -394,3 +394,29 @@ def get_market_regime(
         series=benchmark["series"],
         now=normalized_now,
     )
+
+
+def classify_market_regime_at(
+    *,
+    series: list[dict[str, Any]],
+    observed_at: datetime,
+) -> dict[str, Any]:
+    normalized_time = _normalize_datetime(
+        observed_at
+    )
+
+    historical_series = [
+        point
+        for point in series
+        if (
+            _parse_datetime(
+                point["observed_at"]
+            )
+            <= normalized_time
+        )
+    ]
+
+    return classify_market_regime(
+        series=historical_series,
+        now=normalized_time,
+    )

@@ -6,6 +6,7 @@ from datetime import (
 
 from app.capital.market_regime import (
     classify_market_regime,
+    classify_market_regime_at,
 )
 
 
@@ -188,6 +189,22 @@ for result in (
         result["live_capital_authority"]
         is False
     )
+
+historical = classify_market_regime_at(
+    series=bullish_series,
+    observed_at=datetime.fromisoformat(
+        bullish_series[-2]["observed_at"]
+    ),
+)
+
+assert (
+    historical["status"]
+    == "insufficient_data"
+)
+assert (
+    historical["combined_regime"]
+    == "uncertain"
+)
 
 print("bullish_classification: PASS")
 print("bearish_classification: PASS")
