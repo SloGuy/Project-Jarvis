@@ -219,6 +219,9 @@ def get_performance_lab() -> dict[str, Any]:
                 "sample_maturity": (
                     _sample_maturity(closed_count)
                 ),
+                **_attribution_summary(
+                    analytics
+                ),
             }
         )
 
@@ -226,4 +229,73 @@ def get_performance_lab() -> dict[str, Any]:
         "status": "success",
         "strategy_count": len(results),
         "strategies": results,
+    }
+
+
+def _attribution_summary(
+    analytics: dict[str, Any],
+) -> dict[str, Any]:
+    by_symbol = analytics[
+        "performance_by_symbol"
+    ]
+
+    by_exit_rule = analytics[
+        "performance_by_exit_rule"
+    ]
+
+    best_symbol = (
+        max(
+            by_symbol,
+            key=lambda item: item[
+                "realized_gain_loss_usd"
+            ],
+        )
+        if by_symbol
+        else None
+    )
+
+    worst_symbol = (
+        min(
+            by_symbol,
+            key=lambda item: item[
+                "realized_gain_loss_usd"
+            ],
+        )
+        if by_symbol
+        else None
+    )
+
+    positive_symbol_profit = sum(
+        max(
+            0.0,
+            float(
+                item["realized_gain_loss_usd"]
+            ),
+        )
+        for item in by_symbol
+    )
+
+    top_profit_concentration = (
+        float(
+            best_symbol[
+                "realized_gain_loss_usd"
+            ]
+        )
+        / positive_symbol_profit
+        * 100
+        if (
+            best_symbol is not None
+            and positive_symbol_profit > 0
+        )
+        else None
+    )
+
+    return {
+        "performance_by_symbol": by_symbol,
+        "performance_by_exit_rule": by_exit_rule,
+        "best_symbol": best_symbol,
+        "worst_symbol": worst_symbol,
+        "top_profit_concentration_percent": (
+            top_profit_concentration
+        ),
     }
