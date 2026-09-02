@@ -9,6 +9,12 @@ from app.capital.performance_lab import (
 from app.capital.research_api import (
     router as research_router,
 )
+from app.capital.committee_service import (
+    get_capital_committee,
+)
+from app.capital.safety_audit import (
+    get_capital_safety_audit,
+)
 
 
 router = APIRouter(
@@ -40,3 +46,13 @@ def capital_status(
 @router.get("/performance")
 def capital_performance() -> dict:
     return get_performance_lab()
+
+
+@router.get("/committee")
+def capital_committee() -> dict:
+    return get_capital_committee()
+
+
+@router.get("/audit")
+def capital_audit() -> dict:
+    return get_capital_safety_audit()

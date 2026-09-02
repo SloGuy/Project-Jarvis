@@ -16,6 +16,12 @@ from app.capital.portfolio_status import (
 from app.capital.research_service import (
     get_research_summary,
 )
+from app.capital.committee_service import (
+    get_capital_committee,
+)
+from app.capital.safety_audit import (
+    get_capital_safety_audit,
+)
 
 
 def get_capital_status(
@@ -65,6 +71,12 @@ def get_capital_status(
         ),
         "research": (
             get_research_summary()
+        ),
+        "capital_committee": (
+            get_capital_committee()
+        ),
+        "safety_audit": (
+            get_capital_safety_audit()
         ),
         "active_experiment": active_experiment,
     }
