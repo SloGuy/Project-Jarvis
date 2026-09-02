@@ -6,6 +6,15 @@ from app.autonomous_trading.journal_analytics import (
 from app.autonomous_trading.journal_queries import (
     get_trade_journal,
 )
+from app.capital.benchmark import (
+    get_benchmark_performance,
+)
+from app.capital.equity_curve import (
+    get_portfolio_equity_curve,
+)
+from app.capital.experiment_registry import (
+    require_experiment,
+)
 from app.capital.portfolio_status import (
     get_strategy_portfolios,
 )
@@ -75,6 +84,36 @@ def get_performance_lab() -> dict[str, Any]:
 
         portfolio_id = int(
             portfolio["portfolio_id"]
+        )
+
+        experiment = require_experiment(
+            experiment_id=portfolio[
+                "experiment_id"
+            ]
+        )
+
+        equity_curve = get_portfolio_equity_curve(
+            portfolio_id=portfolio_id,
+            started_at=experiment.started_at,
+            starting_capital_usd=float(
+                portfolio["starting_capital_usd"]
+            ),
+        )
+
+        benchmark = get_benchmark_performance(
+            started_at=experiment.started_at,
+        )
+
+        return_observations = equity_curve[
+            "return_observation_count"
+        ]
+
+        risk_metric_status = (
+            "insufficient"
+            if return_observations < 20
+            else "developing"
+            if return_observations < 60
+            else "substantial"
         )
 
         analytics = get_journal_analytics(
@@ -197,7 +236,7 @@ def get_performance_lab() -> dict[str, Any]:
                 ),
                 "gross_profit_usd": gross_profit,
                 "gross_loss_usd": gross_loss,
-                "maximum_drawdown_percent": (
+                "realized_trade_drawdown_percent": (
                     _maximum_drawdown_percent(
                         starting_capital_usd=float(
                             portfolio[
@@ -206,6 +245,68 @@ def get_performance_lab() -> dict[str, Any]:
                         ),
                         journals=journals,
                     )
+                ),
+                "maximum_drawdown_percent": (
+                    equity_curve[
+                        "maximum_drawdown_percent"
+                    ]
+                ),
+                "annualized_volatility_percent": (
+                    equity_curve[
+                        "annualized_volatility_percent"
+                    ]
+                ),
+                "sharpe_ratio_zero_rate": (
+                    equity_curve[
+                        "sharpe_ratio_zero_rate"
+                    ]
+                ),
+                "sortino_ratio_zero_rate": (
+                    equity_curve[
+                        "sortino_ratio_zero_rate"
+                    ]
+                ),
+                "risk_metric_status": (
+                    risk_metric_status
+                ),
+                "time_series_observation_count": (
+                    equity_curve["observation_count"]
+                ),
+                "benchmark_symbol": (
+                    benchmark["symbol"]
+                ),
+                "benchmark_return_percent": (
+                    benchmark[
+                        "total_return_percent"
+                    ]
+                ),
+                "benchmark_volatility_percent": (
+                    benchmark[
+                        "annualized_volatility_percent"
+                    ]
+                ),
+                "benchmark_drawdown_percent": (
+                    benchmark[
+                        "maximum_drawdown_percent"
+                    ]
+                ),
+                "excess_return_percent": (
+                    float(
+                        portfolio[
+                            "total_return_percent"
+                        ]
+                    )
+                    - float(
+                        benchmark[
+                            "total_return_percent"
+                        ]
+                    )
+                ),
+                "equity_curve": (
+                    equity_curve["series"]
+                ),
+                "benchmark_series": (
+                    benchmark["series"]
                 ),
                 "thesis_accuracy_percent": (
                     thesis_accuracy
