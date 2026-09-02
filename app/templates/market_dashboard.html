@@ -5545,6 +5545,20 @@ async function loadWatchlist() {
                             ? "No losses"
                             : number(strategy.profit_factor);
 
+                    const riskReady =
+                        strategy.risk_metric_status
+                        !== "insufficient";
+
+                    const riskPercent = value =>
+                        riskReady
+                            ? `${number(value)}%`
+                            : "Collecting data";
+
+                    const riskRatio = value =>
+                        riskReady
+                            ? number(value)
+                            : "Collecting data";
+
                     return `
                         <div class="chart-stat">
                             <div class="muted">
@@ -5576,10 +5590,36 @@ async function loadWatchlist() {
                                 $${number(strategy.expectancy_usd)}
                                 <br>Profit factor:
                                 ${profitFactor}
+                                <br>SPY benchmark:
+                                ${number(
+                                    strategy.benchmark_return_percent
+                                )}%
+                                <br>Excess return:
+                                ${number(
+                                    strategy.excess_return_percent
+                                )}%
                                 <br>Maximum drawdown:
                                 ${number(
                                     strategy.maximum_drawdown_percent
                                 )}%
+                                <br>Annualized volatility:
+                                ${riskPercent(
+                                    strategy
+                                        .annualized_volatility_percent
+                                )}
+                                <br>Sharpe ratio:
+                                ${riskRatio(
+                                    strategy.sharpe_ratio_zero_rate
+                                )}
+                                <br>Sortino ratio:
+                                ${riskRatio(
+                                    strategy.sortino_ratio_zero_rate
+                                )}
+                                <br>Time-series evidence:
+                                ${strategy.risk_metric_status}
+                                (${strategy
+                                    .time_series_observation_count}
+                                observations)
                                 <br>Current exposure:
                                 ${number(strategy.exposure_percent)}%
                             </div>
