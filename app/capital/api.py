@@ -24,6 +24,9 @@ from app.capital.market_regime import (
 from app.capital.regime_performance import (
     get_regime_performance,
 )
+from app.capital.allocator import (
+    get_shadow_allocation,
+)
 
 
 router = APIRouter(
@@ -70,6 +73,11 @@ def capital_market_regime() -> dict:
 @router.get("/regime-performance")
 def capital_regime_performance() -> dict:
     return get_regime_performance()
+
+
+@router.get("/allocation")
+def capital_allocation() -> dict:
+    return get_shadow_allocation()
 
 
 @router.get("/committee")
