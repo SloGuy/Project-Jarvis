@@ -6156,9 +6156,18 @@ async function loadWatchlist() {
             const audit = data.safety_audit || {};
             const candidates =
                 research.candidates || [];
+
+            const activeCandidates =
+                candidates.filter(
+                    candidate => ![
+                        "archived",
+                        "rejected",
+                    ].includes(candidate.status)
+                );
             const reports =
                 committee.reports || [];
-            const candidate = candidates[0];
+            const candidate =
+                activeCandidates[0];
 
             const names = {
                 momentum_alignment_v1:
@@ -6189,7 +6198,10 @@ async function loadWatchlist() {
             ).join("");
 
             grid.innerHTML = `
-                <div class="chart-stat">
+                <div
+                    class="chart-stat"
+                    data-capital-research-card
+                >
                     <div class="muted">
                         Research Department
                     </div>
@@ -6282,9 +6294,15 @@ async function loadWatchlist() {
                 </div>
             `;
 
+            if (!candidate) {
+                grid.querySelector(
+                    "[data-capital-research-card]"
+                )?.remove();
+            }
+
             summary.textContent =
-                `${research.candidate_count || 0} research candidate`
-                + `${research.candidate_count === 1 ? "" : "s"}`
+                `${activeCandidates.length || 0} research candidate`
+                + `${activeCandidates.length === 1 ? "" : "s"}`
                 + ` · ${reports.length} Committee reports`
                 + ` · live capital disabled`;
 
