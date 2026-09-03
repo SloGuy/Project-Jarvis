@@ -8,6 +8,9 @@ from app.autonomous_trading.momentum_strategy import (
 from app.autonomous_trading.mean_reversion_strategy import (
     STRATEGY_NAME as MEAN_REVERSION_V1,
 )
+from app.autonomous_trading.volatility_breakout_strategy import (
+    STRATEGY_NAME as VOLATILITY_BREAKOUT_V1,
+)
 
 
 class StrategyStage(str, Enum):
@@ -68,6 +71,26 @@ _STRATEGIES: dict[str, StrategyDefinition] = {
             "app.autonomous_trading.mean_reversion_strategy"
         ),
         evaluator_name="evaluate_mean_reversion_strategy",
+        active_experiment=True,
+        enabled=True,
+    ),
+    VOLATILITY_BREAKOUT_V1: StrategyDefinition(
+        name=VOLATILITY_BREAKOUT_V1,
+        display_name="Volatility Breakout V1",
+        description=(
+            "Long-only volatility breakout strategy "
+            "using range compression, price expansion, "
+            "directional confirmation, and bounded exits."
+        ),
+        version="1.0",
+        stage=StrategyStage.PAPER,
+        implementation_module=(
+            "app.autonomous_trading."
+            "volatility_breakout_strategy"
+        ),
+        evaluator_name=(
+            "evaluate_volatility_breakout_strategy"
+        ),
         active_experiment=True,
         enabled=True,
     ),

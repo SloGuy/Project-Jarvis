@@ -10,6 +10,10 @@ MEAN_REVERSION_PORTFOLIO_NAME = (
     "Jarvis Capital - Mean Reversion V1 Paper"
 )
 
+VOLATILITY_BREAKOUT_PORTFOLIO_NAME = (
+    "Jarvis Capital - Volatility Breakout V1 Paper"
+)
+
 
 def get_or_create_paper_portfolio(
     *,
@@ -65,5 +69,12 @@ def get_or_create_paper_portfolio(
 def get_or_create_mean_reversion_portfolio() -> Portfolio:
     return get_or_create_paper_portfolio(
         name=MEAN_REVERSION_PORTFOLIO_NAME,
+        starting_cash_usd=Decimal("1000.00"),
+    )
+
+
+def get_or_create_volatility_breakout_portfolio() -> Portfolio:
+    return get_or_create_paper_portfolio(
+        name=VOLATILITY_BREAKOUT_PORTFOLIO_NAME,
         starting_cash_usd=Decimal("1000.00"),
     )

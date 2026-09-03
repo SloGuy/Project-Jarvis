@@ -10,3 +10,10 @@ MEAN_REVERSION_1000_POLICY = replace(
     name="mean_reversion_1000",
     autonomous_execution_enabled=True,
 )
+
+
+VOLATILITY_BREAKOUT_1000_POLICY = replace(
+    INITIAL_1000_POLICY,
+    name="volatility_breakout_1000",
+    autonomous_execution_enabled=True,
+)

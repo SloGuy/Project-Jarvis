@@ -15,9 +15,14 @@ from app.autonomous_trading.mean_reversion_strategy import (
 )
 from app.capital.policies import (
     MEAN_REVERSION_1000_POLICY,
+    VOLATILITY_BREAKOUT_1000_POLICY,
 )
 from app.capital.portfolio_service import (
     MEAN_REVERSION_PORTFOLIO_NAME,
+    VOLATILITY_BREAKOUT_PORTFOLIO_NAME,
+)
+from app.autonomous_trading.volatility_breakout_strategy import (
+    STRATEGY_NAME as VOLATILITY_BREAKOUT_V1,
 )
 
 
@@ -76,6 +81,10 @@ MEAN_REVERSION_EXPERIMENT_ID = (
     "mean_reversion_v1_paper_2026"
 )
 
+VOLATILITY_BREAKOUT_EXPERIMENT_ID = (
+    "volatility_breakout_v1_paper_2026"
+)
+
 MEAN_REVERSION_EXPERIMENT_STARTED_AT = datetime(
     2026,
     9,
@@ -83,6 +92,17 @@ MEAN_REVERSION_EXPERIMENT_STARTED_AT = datetime(
     18,
     20,
     28,
+    tzinfo=timezone.utc,
+)
+
+
+VOLATILITY_BREAKOUT_EXPERIMENT_STARTED_AT = datetime(
+    2026,
+    9,
+    3,
+    5,
+    34,
+    45,
     tzinfo=timezone.utc,
 )
 
@@ -121,6 +141,41 @@ _EXPERIMENTS: dict[str, ExperimentDefinition] = {
         risk_policy_name=(
             MEAN_REVERSION_1000_POLICY.name
         ),
+    ),
+    VOLATILITY_BREAKOUT_EXPERIMENT_ID: (
+        ExperimentDefinition(
+            experiment_id=(
+                VOLATILITY_BREAKOUT_EXPERIMENT_ID
+            ),
+            name=(
+                "Volatility Breakout V1 "
+                "Paper Experiment"
+            ),
+            strategy_name=(
+                VOLATILITY_BREAKOUT_V1
+            ),
+            portfolio_name=(
+                VOLATILITY_BREAKOUT_PORTFOLIO_NAME
+            ),
+            status=ExperimentStatus.RUNNING,
+            execution_mode=(
+                "autonomous_paper_trading"
+                if VOLATILITY_BREAKOUT_1000_POLICY
+                .autonomous_execution_enabled
+                else "disabled"
+            ),
+            started_at=(
+                VOLATILITY_BREAKOUT_EXPERIMENT_STARTED_AT
+            ),
+            duration_days=180,
+            starting_capital_usd=(
+                VOLATILITY_BREAKOUT_1000_POLICY
+                .starting_capital_usd
+            ),
+            risk_policy_name=(
+                VOLATILITY_BREAKOUT_1000_POLICY.name
+            ),
+        )
     ),
 }
 

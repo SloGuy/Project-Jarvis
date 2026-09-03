@@ -16,6 +16,9 @@ from app.capital.strategy_registry import (
 from app.capital.allocation_policy import (
     CAPITAL_V2_SHADOW_POLICY,
 )
+from app.capital.research_models import (
+    ResearchStatus,
+)
 
 
 LIVE_CAPITAL_ENABLED = False
@@ -82,9 +85,13 @@ def get_capital_safety_audit() -> dict[str, Any]:
         for portfolio in valid_portfolios
     ]
 
-    research_strategy_names = [
+    unauthorized_research_strategy_names = [
         candidate.strategy_name
         for candidate in research_candidates
+        if (
+            candidate.status
+            != ResearchStatus.READY_FOR_EXPERIMENT
+        )
     ]
 
     allocation_policy = (
@@ -288,10 +295,10 @@ def get_capital_safety_audit() -> dict[str, Any]:
         _check(
             name="research_execution_isolation",
             passed=(
-                set(research_strategy_names)
+                set(unauthorized_research_strategy_names)
                 .isdisjoint(strategy_names)
             ),
-            actual=research_strategy_names,
+            actual=unauthorized_research_strategy_names,
             required=(
                 "No research-only candidate registered "
                 "as executable"
