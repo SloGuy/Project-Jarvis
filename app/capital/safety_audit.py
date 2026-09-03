@@ -18,6 +18,7 @@ from app.capital.allocation_policy import (
 )
 from app.capital.research_models import (
     ResearchStatus,
+    ResearchVerdict,
 )
 
 
@@ -88,9 +89,15 @@ def get_capital_safety_audit() -> dict[str, Any]:
     unauthorized_research_strategy_names = [
         candidate.strategy_name
         for candidate in research_candidates
-        if (
+        if not (
             candidate.status
-            != ResearchStatus.READY_FOR_EXPERIMENT
+            == ResearchStatus.READY_FOR_EXPERIMENT
+            or (
+                candidate.status
+                == ResearchStatus.ARCHIVED
+                and candidate.verdict
+                == ResearchVerdict.PROMISING
+            )
         )
     ]
 
