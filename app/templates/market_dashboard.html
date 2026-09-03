@@ -1697,6 +1697,52 @@
 
     <section style="margin-bottom: 24px;">
         <div class="panel" style="padding: 22px;">
+            <div
+                style="
+                    display: flex;
+                    justify-content: space-between;
+                    gap: 16px;
+                    align-items: flex-start;
+                    flex-wrap: wrap;
+                    margin-bottom: 18px;
+                "
+            >
+                <div>
+                    <div class="muted">
+                        Capital V2 Intelligence
+                    </div>
+                    <h2 style="margin: 6px 0;">
+                        Regime & Shadow Allocation
+                    </h2>
+                    <div
+                        class="muted"
+                        id="capital-intelligence-summary"
+                    >
+                        Loading allocation intelligence...
+                    </div>
+                </div>
+
+                <div
+                    class="status"
+                    id="capital-intelligence-status"
+                >
+                    Loading
+                </div>
+            </div>
+
+            <div
+                class="grid summary-grid"
+                id="capital-intelligence-grid"
+            >
+                <div class="empty">
+                    Loading Capital V2 intelligence...
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section style="margin-bottom: 24px;">
+        <div class="panel" style="padding: 22px;">
             <div style="display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; flex-wrap: wrap; margin-bottom: 18px;">
                 <div>
                     <div class="muted">Comparative Analytics</div>
@@ -5616,6 +5662,206 @@ async function loadWatchlist() {
         }
     }
 
+    async function loadCapitalIntelligence() {
+        const status = document.getElementById(
+            "capital-intelligence-status"
+        );
+        const summary = document.getElementById(
+            "capital-intelligence-summary"
+        );
+        const grid = document.getElementById(
+            "capital-intelligence-grid"
+        );
+
+        try {
+            const response = await fetch(
+                "/capital/status"
+            );
+
+            if (!response.ok) {
+                throw new Error(
+                    `Capital V2 request failed: ${response.status}`
+                );
+            }
+
+            const data = await response.json();
+            const regime = data.market_regime || {};
+            const allocation =
+                data.shadow_allocation || {};
+            const recommendations =
+                allocation.recommendations || [];
+
+            const rankings = new Map(
+                (
+                    data.capital_committee
+                        ?.strategy_rankings
+                    || []
+                ).map(
+                    ranking => [
+                        ranking.strategy_name,
+                        ranking,
+                    ]
+                )
+            );
+
+            const label = value =>
+                String(value || "unknown")
+                    .replaceAll("_", " ");
+
+            const money = value =>
+                Number(value || 0).toLocaleString(
+                    "en-US",
+                    {
+                        style: "currency",
+                        currency: "USD",
+                    }
+                );
+
+            const regimeMetrics =
+                regime.metrics || {};
+
+            const cards = [
+                `
+                    <div class="chart-stat">
+                        <div class="muted">
+                            Current Market Regime
+                        </div>
+                        <div class="metric"
+                            style="margin-top: 8px;">
+                            ${label(
+                                regime.combined_regime
+                            ).toUpperCase()}
+                        </div>
+                        <div class="muted"
+                            style="line-height: 1.7; margin-top: 12px;">
+                            Trend:
+                            ${label(regime.trend_regime)}
+                            <br>Volatility:
+                            ${label(regime.volatility_regime)}
+                            <br>20-session return:
+                            ${Number(
+                                regimeMetrics
+                                    .window_return_percent
+                                || 0
+                            ).toFixed(2)}%
+                            <br>Evidence:
+                            ${regime.evidence?.label || "unknown"}
+                        </div>
+                    </div>
+                `,
+                `
+                    <div class="chart-stat">
+                        <div class="muted">
+                            Shadow Capital Reserve
+                        </div>
+                        <div class="metric"
+                            style="margin-top: 8px;">
+                            ${money(
+                                allocation.cash_reserve_usd
+                            )}
+                        </div>
+                        <div class="positive"
+                            style="font-weight: 800; margin-top: 6px;">
+                            ${Number(
+                                allocation
+                                    .cash_reserve_percent
+                                || 0
+                            ).toFixed(2)}% cash
+                        </div>
+                        <div class="muted"
+                            style="line-height: 1.7; margin-top: 12px;">
+                            Deployed:
+                            ${Number(
+                                allocation.deployed_percent
+                                || 0
+                            ).toFixed(2)}%
+                            <br>Policy:
+                            ${allocation.policy_name || "—"}
+                            <br>Mode:
+                            ${String(
+                                allocation.mode || "unknown"
+                            ).toUpperCase()}
+                        </div>
+                    </div>
+                `,
+                ...recommendations.map(item => {
+                    const ranking =
+                        rankings.get(
+                            item.strategy_name
+                        ) || {};
+
+                    return `
+                        <div class="chart-stat">
+                            <div class="muted">
+                                Rank #${item.rank}
+                                · ${label(item.strategy_name)}
+                            </div>
+                            <div class="metric"
+                                style="margin-top: 8px;">
+                                ${Number(
+                                    item
+                                        .recommended_allocation_percent
+                                    || 0
+                                ).toFixed(2)}%
+                            </div>
+                            <div class="positive"
+                                style="font-weight: 800; margin-top: 6px;">
+                                ${money(
+                                    item
+                                        .recommended_allocation_usd
+                                )}
+                                shadow allocation
+                            </div>
+                            <div class="muted"
+                                style="line-height: 1.7; margin-top: 12px;">
+                                Capital score:
+                                ${Number(
+                                    ranking.capital_score
+                                    || 0
+                                ).toFixed(2)}
+                                <br>Evidence:
+                                ${item.evidence_label}
+                                <br>Committee:
+                                ${String(
+                                    item.committee_decision
+                                ).toUpperCase()}
+                                <br>Regime multiplier:
+                                ${Number(
+                                    item.regime_multiplier
+                                ).toFixed(2)}×
+                                <br>Next action:
+                                ${label(item.next_action)}
+                                <br>${item.regime_rationale}
+                            </div>
+                        </div>
+                    `;
+                }),
+            ];
+
+            grid.innerHTML = cards.join("");
+
+            summary.textContent =
+                `${recommendations.length} strategies`
+                + ` · ${Number(
+                    allocation.deployed_percent || 0
+                ).toFixed(2)}% deployed`
+                + ` · ${Number(
+                    allocation.cash_reserve_percent || 0
+                ).toFixed(2)}% cash`
+                + " · no execution authority";
+
+            status.textContent = "Shadow";
+            status.className = "status positive";
+        } catch (error) {
+            summary.textContent =
+                "Unable to load Capital V2 intelligence.";
+            status.textContent = "Error";
+            status.className = "status negative";
+            grid.innerHTML =
+                `<div class="empty">${error.message}</div>`;
+        }
+    }
+
     async function loadPerformanceLab() {
         const status = document.getElementById(
             "performance-lab-status"
@@ -7961,6 +8207,7 @@ async function loadWatchlist() {
 
     loadExperimentStatus();
     loadStrategyPortfolios();
+    loadCapitalIntelligence();
     loadPerformanceLab();
     loadCapitalAttribution();
     loadCapitalGovernance();
@@ -7988,6 +8235,10 @@ async function loadWatchlist() {
     );
     setInterval(
         loadCapitalGovernance,
+        60000
+    );
+    setInterval(
+        loadCapitalIntelligence,
         60000
     );
     setInterval(loadPortfolio, 5000);

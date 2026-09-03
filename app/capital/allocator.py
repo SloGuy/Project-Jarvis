@@ -121,6 +121,26 @@ def _regime_adjustment(
     )
 
 
+def _next_action(
+    *,
+    committee_decision: str,
+    evidence_label: str,
+) -> str:
+    if committee_decision == "kill":
+        return "retirement_review"
+
+    if committee_decision == "revise":
+        return "return_to_research"
+
+    if committee_decision == "promote":
+        return "human_promotion_review"
+
+    if evidence_label != "substantial":
+        return "continue_experiment"
+
+    return "committee_reassessment"
+
+
 def build_shadow_allocation(
     *,
     rankings: list[dict[str, Any]],
@@ -211,6 +231,10 @@ def build_shadow_allocation(
                 "rank": ranking["rank"],
                 "strategy_name": strategy_name,
                 "committee_decision": decision,
+                "next_action": _next_action(
+                    committee_decision=decision,
+                    evidence_label=evidence_label,
+                ),
                 "evidence_label": evidence_label,
                 "evidence_cap_percent": (
                     evidence_cap

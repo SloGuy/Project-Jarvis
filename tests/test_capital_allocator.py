@@ -118,6 +118,20 @@ assert (
     is False
 )
 
+assert (
+    by_strategy["momentum_v1"][
+        "next_action"
+    ]
+    == "continue_experiment"
+)
+
+assert (
+    blocked_by_strategy[
+        "mean_reversion_v1"
+    ]["next_action"]
+    == "retirement_review"
+)
+
 print("cash_reserve_enforcement: PASS")
 print("total_allocation_enforcement: PASS")
 print("evidence_cap_enforcement: PASS")

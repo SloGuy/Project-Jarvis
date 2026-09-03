@@ -13,6 +13,9 @@ from app.capital.research_service import (
 from app.capital.strategy_registry import (
     list_strategies,
 )
+from app.capital.allocation_policy import (
+    CAPITAL_V2_SHADOW_POLICY,
+)
 
 
 LIVE_CAPITAL_ENABLED = False
@@ -84,6 +87,10 @@ def get_capital_safety_audit() -> dict[str, Any]:
         for candidate in research_candidates
     ]
 
+    allocation_policy = (
+        CAPITAL_V2_SHADOW_POLICY
+    )
+
     checks = [
         _check(
             name="live_capital_disabled",
@@ -93,7 +100,7 @@ def get_capital_safety_audit() -> dict[str, Any]:
             actual=LIVE_CAPITAL_ENABLED,
             required=False,
             rationale=(
-                "Jarvis Capital V1 must remain "
+                "Jarvis Capital V2 must remain "
                 "paper-only."
             ),
         ),
@@ -107,6 +114,79 @@ def get_capital_safety_audit() -> dict[str, Any]:
             rationale=(
                 "Any future live-capital transition "
                 "requires explicit human approval."
+            ),
+        ),
+        _check(
+            name="shadow_allocator_authority",
+            passed=(
+                allocation_policy.shadow_mode
+                and not allocation_policy
+                .paper_execution_enabled
+                and not allocation_policy
+                .live_execution_enabled
+            ),
+            actual={
+                "shadow_mode": (
+                    allocation_policy.shadow_mode
+                ),
+                "paper_execution_enabled": (
+                    allocation_policy
+                    .paper_execution_enabled
+                ),
+                "live_execution_enabled": (
+                    allocation_policy
+                    .live_execution_enabled
+                ),
+            },
+            required={
+                "shadow_mode": True,
+                "paper_execution_enabled": False,
+                "live_execution_enabled": False,
+            },
+            rationale=(
+                "The V2 allocator may recommend "
+                "allocations but cannot execute them."
+            ),
+        ),
+        _check(
+            name="allocator_risk_boundaries",
+            passed=(
+                allocation_policy
+                .minimum_cash_reserve_percent
+                >= 40
+                and allocation_policy
+                .maximum_total_allocation_percent
+                <= 60
+                and allocation_policy
+                .minimum_cash_reserve_percent
+                + allocation_policy
+                .maximum_total_allocation_percent
+                == 100
+                and allocation_policy
+                .insufficient_evidence_cap_percent
+                < allocation_policy
+                .developing_evidence_cap_percent
+                < allocation_policy
+                .substantial_evidence_cap_percent
+            ),
+            actual={
+                "minimum_cash_reserve_percent": float(
+                    allocation_policy
+                    .minimum_cash_reserve_percent
+                ),
+                "maximum_total_allocation_percent": float(
+                    allocation_policy
+                    .maximum_total_allocation_percent
+                ),
+            },
+            required={
+                "minimum_cash_reserve_percent": 40,
+                "maximum_total_allocation_percent": 60,
+                "ordered_evidence_caps": True,
+            },
+            rationale=(
+                "Shadow allocations must preserve "
+                "cash and evidence-based exposure caps."
             ),
         ),
         _check(
@@ -201,7 +281,7 @@ def get_capital_safety_audit() -> dict[str, Any]:
                 "autonomous_paper_trading"
             ],
             rationale=(
-                "All V1 experiments must execute only "
+                "All governed experiments must execute only "
                 "against paper portfolios."
             ),
         ),

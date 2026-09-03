@@ -25,6 +25,9 @@ from app.capital.safety_audit import (
 from app.capital.market_regime import (
     get_market_regime,
 )
+from app.capital.allocator import (
+    get_shadow_allocation,
+)
 
 
 def get_capital_status(
@@ -74,6 +77,9 @@ def get_capital_status(
         ),
         "market_regime": (
             get_market_regime()
+        ),
+        "shadow_allocation": (
+            get_shadow_allocation()
         ),
         "research": (
             get_research_summary()
