@@ -14,6 +14,13 @@ from app.ventures.opportunities import (
     update_opportunity_status,
 )
 from app.ventures.thesis import get_active_thesis
+from app.ventures.screening import (
+    screen_opportunity,
+)
+from app.ventures.screening_store import (
+    list_screenings,
+    save_screening,
+)
 
 
 router = APIRouter(
@@ -116,3 +123,58 @@ def ventures_update_status(
         )
 
     return opportunity.to_dict()
+
+
+@router.post(
+    "/opportunities/{opportunity_id}/screen"
+)
+def ventures_screen_opportunity(
+    opportunity_id: str,
+):
+    opportunity = get_opportunity(
+        opportunity_id
+    )
+
+    if opportunity is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Ventures opportunity not found.",
+        )
+
+    result = screen_opportunity(
+        opportunity
+    )
+
+    record = save_screening(
+        opportunity_id=opportunity_id,
+        result=result,
+    )
+
+    return record
+
+
+@router.get(
+    "/opportunities/{opportunity_id}/screenings"
+)
+def ventures_opportunity_screenings(
+    opportunity_id: str,
+):
+    opportunity = get_opportunity(
+        opportunity_id
+    )
+
+    if opportunity is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Ventures opportunity not found.",
+        )
+
+    records = list_screenings(
+        opportunity_id
+    )
+
+    return {
+        "opportunity_id": opportunity_id,
+        "count": len(records),
+        "screenings": records,
+    }
