@@ -34,6 +34,12 @@ from app.ventures.research_models import (
     EvidenceStatus,
 )
 from app.ventures.research_updates import update_claim_evidence
+from app.ventures.underwriting_models import UnderwritingAssumptions
+from app.ventures.underwriting_service import build_underwriting_report
+from app.ventures.underwriting_store import (
+    list_underwriting_reports,
+    save_underwriting_report,
+)
 
 
 router = APIRouter(
@@ -276,3 +282,76 @@ def ventures_update_claim_evidence(
         evidence_quality=request.evidence_quality,
         evidence_notes=request.evidence_notes,
     )
+
+
+class UnderwritingRequest(BaseModel):
+    acquisition_costs_usd: float
+    working_capital_usd: float
+    annual_added_operating_costs_usd: float
+    owner_hourly_cost_usd: float
+    automation_hours_saved_per_week: float
+    downside_revenue_decline_percent: float
+    notes: str
+
+    class Config:
+        extra = "forbid"
+
+
+@router.post("/opportunities/{opportunity_id}/underwriting")
+def ventures_create_underwriting(
+    opportunity_id: str,
+    request: UnderwritingRequest,
+):
+    opportunity = get_opportunity(opportunity_id)
+    if opportunity is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Ventures opportunity not found.",
+        )
+
+    research = get_latest_research_report(opportunity_id)
+
+    try:
+        assumptions = UnderwritingAssumptions(
+            acquisition_costs_usd=request.acquisition_costs_usd,
+            working_capital_usd=request.working_capital_usd,
+            annual_added_operating_costs_usd=(
+                request.annual_added_operating_costs_usd
+            ),
+            owner_hourly_cost_usd=request.owner_hourly_cost_usd,
+            automation_hours_saved_per_week=(
+                request.automation_hours_saved_per_week
+            ),
+            downside_revenue_decline_percent=(
+                request.downside_revenue_decline_percent
+            ),
+            notes=request.notes,
+        )
+        report = build_underwriting_report(
+            opportunity,
+            assumptions,
+            research_record=research,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=str(exc),
+        ) from exc
+
+    return save_underwriting_report(report)
+
+
+@router.get("/opportunities/{opportunity_id}/underwriting")
+def ventures_underwriting_history(opportunity_id: str):
+    if get_opportunity(opportunity_id) is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Ventures opportunity not found.",
+        )
+
+    records = list_underwriting_reports(opportunity_id)
+    return {
+        "opportunity_id": opportunity_id,
+        "count": len(records),
+        "reports": records,
+    }
