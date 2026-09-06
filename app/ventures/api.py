@@ -21,6 +21,19 @@ from app.ventures.screening_store import (
     list_screenings,
     save_screening,
 )
+from app.ventures.research_service import (
+    build_initial_research_report,
+)
+from app.ventures.research_store import (
+    get_latest_research_report,
+    list_research_reports,
+    save_research_report,
+)
+from app.ventures.research_models import (
+    EvidenceQuality,
+    EvidenceStatus,
+)
+from app.ventures.research_updates import update_claim_evidence
 
 
 router = APIRouter(
@@ -178,3 +191,88 @@ def ventures_opportunity_screenings(
         "count": len(records),
         "screenings": records,
     }
+
+
+@router.post("/opportunities/{opportunity_id}/research")
+def ventures_create_research(opportunity_id: str):
+    opportunity = get_opportunity(opportunity_id)
+
+    if opportunity is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Ventures opportunity not found.",
+        )
+
+    existing = get_latest_research_report(opportunity_id)
+    if existing is not None:
+        return existing
+
+    report = build_initial_research_report(opportunity)
+    return save_research_report(report)
+
+
+@router.get("/opportunities/{opportunity_id}/research")
+def ventures_research_history(opportunity_id: str):
+    if get_opportunity(opportunity_id) is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Ventures opportunity not found.",
+        )
+
+    records = list_research_reports(opportunity_id)
+    return {
+        "opportunity_id": opportunity_id,
+        "count": len(records),
+        "reports": records,
+    }
+
+
+class ClaimEvidenceRequest(BaseModel):
+    evidence_status: EvidenceStatus
+    evidence_quality: EvidenceQuality
+    evidence_notes: str
+
+
+@router.post(
+    "/opportunities/{opportunity_id}/research/claims/{claim_id}/evidence"
+)
+def ventures_update_claim_evidence(
+    opportunity_id: str,
+    claim_id: str,
+    request: ClaimEvidenceRequest,
+):
+    if get_opportunity(opportunity_id) is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Ventures opportunity not found.",
+        )
+
+    latest = get_latest_research_report(opportunity_id)
+    if latest is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Research report not found.",
+        )
+
+    if not any(
+        claim["claim_id"] == claim_id
+        for claim in latest["report"]["claims"]
+    ):
+        raise HTTPException(
+            status_code=404,
+            detail="Research claim not found.",
+        )
+
+    if not request.evidence_notes.strip():
+        raise HTTPException(
+            status_code=422,
+            detail="Evidence notes must not be blank.",
+        )
+
+    return update_claim_evidence(
+        opportunity_id=opportunity_id,
+        claim_id=claim_id,
+        evidence_status=request.evidence_status,
+        evidence_quality=request.evidence_quality,
+        evidence_notes=request.evidence_notes,
+    )
