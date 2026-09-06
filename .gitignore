@@ -30,3 +30,6 @@ backups/
 
 # Runtime state
 runtime/
+
+# Jarvis Ventures runtime state
+state/ventures/

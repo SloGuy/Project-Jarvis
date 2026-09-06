@@ -67,6 +67,9 @@ from app.agents.api import (
 from app.capital.api import (
     router as capital_router,
 )
+from app.ventures.api import (
+    router as ventures_router,
+)
 
 
 @asynccontextmanager
@@ -104,6 +107,7 @@ app = FastAPI(
 app.include_router(lightweight_router)
 app.include_router(agent_router)
 app.include_router(capital_router)
+app.include_router(ventures_router)
 
 
 from pydantic import BaseModel
