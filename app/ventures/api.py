@@ -40,6 +40,12 @@ from app.ventures.underwriting_store import (
     list_underwriting_reports,
     save_underwriting_report,
 )
+from app.ventures.decision_models import ReviewDecision
+from app.ventures.decision_service import (
+    DecisionConflict,
+    record_review_decision,
+)
+from app.ventures.decision_store import list_decisions
 
 
 router = APIRouter(
@@ -354,4 +360,58 @@ def ventures_underwriting_history(opportunity_id: str):
         "opportunity_id": opportunity_id,
         "count": len(records),
         "reports": records,
+    }
+
+
+class ReviewDecisionRequest(BaseModel):
+    decision: ReviewDecision
+    recorded_by: str
+    rationale: str
+
+    class Config:
+        extra = "forbid"
+
+
+@router.post("/opportunities/{opportunity_id}/decisions")
+def ventures_record_decision(
+    opportunity_id: str,
+    request: ReviewDecisionRequest,
+):
+    try:
+        return record_review_decision(
+            opportunity_id=opportunity_id,
+            decision=request.decision,
+            recorded_by=request.recorded_by,
+            rationale=request.rationale,
+        )
+    except KeyError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail="Ventures opportunity not found.",
+        ) from exc
+    except DecisionConflict as exc:
+        raise HTTPException(
+            status_code=409,
+            detail=str(exc),
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=str(exc),
+        ) from exc
+
+
+@router.get("/opportunities/{opportunity_id}/decisions")
+def ventures_decision_history(opportunity_id: str):
+    if get_opportunity(opportunity_id) is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Ventures opportunity not found.",
+        )
+
+    records = list_decisions(opportunity_id)
+    return {
+        "opportunity_id": opportunity_id,
+        "count": len(records),
+        "decisions": records,
     }
