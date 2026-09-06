@@ -1,0 +1,11 @@
+[Unit]
+Description=Scan Ventures Acquisition Listings Every Six Hours
+
+[Timer]
+OnCalendar=*-*-* 00,06,12,18:00:00 UTC
+RandomizedDelaySec=5min
+Persistent=true
+Unit=jarvis-ventures-discovery.service
+
+[Install]
+WantedBy=timers.target

@@ -5,6 +5,8 @@ import uuid
 from dataclasses import replace
 from pathlib import Path
 from typing import Iterable
+import fcntl
+from functools import wraps
 
 from app.ventures.models import (
     BusinessType,
@@ -105,6 +107,23 @@ def get_opportunity(
     return None
 
 
+def _locked_opportunity_write(function):
+    @wraps(function)
+    def wrapped(*args, **kwargs):
+        _ensure_state_directory()
+        lock_file = OPPORTUNITIES_FILE.with_suffix(".lock")
+
+        with lock_file.open("a", encoding="utf-8") as lock:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+            try:
+                return function(*args, **kwargs)
+            finally:
+                fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+
+    return wrapped
+
+
+@_locked_opportunity_write
 def create_opportunity(
     *,
     name: str,
@@ -116,18 +135,29 @@ def create_opportunity(
     source: str | None = None,
     source_url: str | None = None,
     notes: str | None = None,
+    deduplicate_source: bool = False,
 ) -> VenturesOpportunity:
-    now = utc_now()
+    opportunities = list_opportunities()
 
+    if deduplicate_source:
+        if not source or not source_url:
+            raise ValueError(
+                "Source and source URL are required for deduplication."
+            )
+
+        for existing in opportunities:
+            if (
+                existing.source == source
+                and existing.source_url == source_url
+            ):
+                return existing
+
+    now = utc_now()
     opportunity = VenturesOpportunity(
-        opportunity_id=(
-            f"venture_{uuid.uuid4().hex[:12]}"
-        ),
+        opportunity_id=f"venture_{uuid.uuid4().hex[:12]}",
         name=name.strip(),
         business_type=business_type,
-        asking_price_usd=float(
-            asking_price_usd
-        ),
+        asking_price_usd=float(asking_price_usd),
         annual_revenue_usd=annual_revenue_usd,
         annual_sde_usd=annual_sde_usd,
         owner_hours_per_week=owner_hours_per_week,
@@ -139,14 +169,12 @@ def create_opportunity(
         updated_at=now,
     )
 
-    opportunities = list_opportunities()
     opportunities.append(opportunity)
-
     _save_opportunities(opportunities)
-
     return opportunity
 
 
+@_locked_opportunity_write
 def update_opportunity_status(
     opportunity_id: str,
     status: OpportunityStatus,

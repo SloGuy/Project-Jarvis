@@ -1,0 +1,16 @@
+[Unit]
+Description=Jarvis Ventures Business Discovery
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=sloguy
+Group=sloguy
+WorkingDirectory=/home/sloguy/jarvis-core
+Environment="PATH=/home/sloguy/jarvis-core/.venv/bin"
+ExecStart=/home/sloguy/jarvis-core/.venv/bin/python -m app.ventures.discovery_collector
+TimeoutStartSec=35min
+Nice=10
+NoNewPrivileges=true
+PrivateTmp=true
