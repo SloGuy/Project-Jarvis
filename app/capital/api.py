@@ -88,3 +88,10 @@ def capital_committee() -> dict:
 @router.get("/audit")
 def capital_audit() -> dict:
     return get_capital_safety_audit()
+
+
+@router.get("/portfolio-catalog")
+def capital_portfolio_catalog() -> dict:
+    from app.capital.portfolio_catalog import get_portfolio_catalog
+
+    return get_portfolio_catalog()

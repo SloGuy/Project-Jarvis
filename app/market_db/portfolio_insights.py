@@ -173,9 +173,11 @@ def _calculate_confidence(
 
 def get_portfolio_insight(
     portfolio_id: int | None = None,
+    include_inactive: bool = False,
 ) -> dict[str, Any]:
     portfolio_data = get_portfolio_summary(
         portfolio_id=portfolio_id,
+        include_inactive=include_inactive,
         transaction_limit=10,
     )
 

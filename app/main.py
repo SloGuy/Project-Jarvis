@@ -636,10 +636,12 @@ def market_autonomous_journal_analytics(
 @app.get("/market/portfolio")
 def market_portfolio(
     portfolio_id: int | None = Query(default=None),
+    include_inactive: bool = Query(default=False),
     transaction_limit: int = Query(default=20, ge=1, le=100),
 ):
     return get_portfolio_summary(
         portfolio_id=portfolio_id,
+        include_inactive=include_inactive,
         transaction_limit=transaction_limit,
     )
 
@@ -647,19 +649,23 @@ def market_portfolio(
 @app.get("/market/portfolio/insight")
 def market_portfolio_insight(
     portfolio_id: int | None = Query(default=None),
+    include_inactive: bool = Query(default=False),
 ):
     return get_portfolio_insight(
         portfolio_id=portfolio_id,
+        include_inactive=include_inactive,
     )
 
 
 @app.get("/market/portfolio/explain")
 def market_portfolio_explain(
     portfolio_id: int | None = Query(default=None),
+    include_inactive: bool = Query(default=False),
     use_llm: bool = Query(default=False),
 ):
     return explain_portfolio(
         portfolio_id=portfolio_id,
+        include_inactive=include_inactive,
         use_llm=use_llm,
     )
 

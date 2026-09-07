@@ -3687,6 +3687,15 @@ function showPortfolioExplanationError(message) {
 async function loadPortfolioExplanation(
     useLlm = false,
 ) {
+        const requestedPortfolioId = selectedPortfolioId;
+        if (requestedPortfolioId === null) return;
+        const requestVersion =
+            (portfolioRequestVersions.loadPortfolioExplanation || 0) + 1;
+        portfolioRequestVersions.loadPortfolioExplanation = requestVersion;
+        const isCurrent = () =>
+            selectedPortfolioId === requestedPortfolioId
+            && portfolioRequestVersions.loadPortfolioExplanation === requestVersion;
+
     setPortfolioExplanationLoading(
         useLlm
             ? (
@@ -3703,8 +3712,8 @@ async function loadPortfolioExplanation(
 
     try {
         const endpoint = useLlm
-            ? "/market/portfolio/explain?use_llm=true"
-            : "/market/portfolio/explain";
+            ? `/market/portfolio/explain?use_llm=true&portfolio_id=${requestedPortfolioId}&include_inactive=true`
+            : `/market/portfolio/explain?portfolio_id=${requestedPortfolioId}&include_inactive=true`;
 
         const response = await fetch(endpoint);
 
@@ -3715,6 +3724,7 @@ async function loadPortfolioExplanation(
         }
 
         const data = await response.json();
+        if (!isCurrent()) return;
 
         if (data.status !== "success") {
             throw new Error(
@@ -3725,6 +3735,7 @@ async function loadPortfolioExplanation(
 
         renderPortfolioExplanation(data);
     } catch (error) {
+        if (!isCurrent()) return;
         console.error(
             "Portfolio explanation failed:",
             error,
@@ -3735,6 +3746,7 @@ async function loadPortfolioExplanation(
             + "Please try again."
         );
     } finally {
+        if (!isCurrent()) return;
         portfolioDeeperAnalysisButton.disabled = false;
     }
 }
@@ -4800,6 +4812,15 @@ async function loadWatchlist() {
     }
 
     async function loadPortfolioInsight() {
+        const requestedPortfolioId = selectedPortfolioId;
+        if (requestedPortfolioId === null) return;
+        const requestVersion =
+            (portfolioRequestVersions.loadPortfolioInsight || 0) + 1;
+        portfolioRequestVersions.loadPortfolioInsight = requestVersion;
+        const isCurrent = () =>
+            selectedPortfolioId === requestedPortfolioId
+            && portfolioRequestVersions.loadPortfolioInsight === requestVersion;
+
         const summary =
             document.getElementById(
                 "portfolio-insight-summary"
@@ -4817,7 +4838,7 @@ async function loadWatchlist() {
 
         try {
             const response = await fetch(
-                "/market/portfolio/insight"
+                `/market/portfolio/insight?portfolio_id=${requestedPortfolioId}&include_inactive=true`
             );
 
             if (!response.ok) {
@@ -4827,6 +4848,7 @@ async function loadWatchlist() {
             }
 
             const data = await response.json();
+        if (!isCurrent()) return;
 
             if (data.status !== "success") {
                 throw new Error(
@@ -5067,6 +5089,7 @@ async function loadWatchlist() {
                 </div>
             `;
         } catch (error) {
+        if (!isCurrent()) return;
             summary.textContent = error.message;
 
             riskLevel.textContent = "Error";
@@ -5081,8 +5104,10 @@ async function loadWatchlist() {
     }
 
     let currentPortfolioData = null;
+    const portfolioRequestVersions = Object.create(null);
 
-    let selectedCapitalPortfolioId = 1;
+    let selectedCapitalPortfolioId = null;
+    let selectedPortfolioId = null;
 
     function syncExperimentPortfolio(data) {
         if (!data) {
@@ -5148,6 +5173,15 @@ async function loadWatchlist() {
     }
 
     async function loadExperimentStatus() {
+        const requestedPortfolioId = selectedCapitalPortfolioId;
+        if (requestedPortfolioId === null) return;
+        const requestVersion =
+            (portfolioRequestVersions.loadExperimentStatus || 0) + 1;
+        portfolioRequestVersions.loadExperimentStatus = requestVersion;
+        const isCurrent = () =>
+            selectedCapitalPortfolioId === requestedPortfolioId
+            && portfolioRequestVersions.loadExperimentStatus === requestVersion;
+
         const executionStatus =
             document.getElementById(
                 "experiment-execution-status"
@@ -5156,7 +5190,7 @@ async function loadWatchlist() {
         try {
             const response = await fetch(
                 "/market/autonomous/experiment"
-                + `?portfolio_id=${selectedCapitalPortfolioId}`
+                + `?portfolio_id=${requestedPortfolioId}`
             );
 
             if (!response.ok) {
@@ -5166,6 +5200,7 @@ async function loadWatchlist() {
             }
 
             const data = await response.json();
+        if (!isCurrent()) return;
 
             document.getElementById(
                 "sidebar-autonomous-status"
@@ -5542,6 +5577,7 @@ async function loadWatchlist() {
                     "status negative";
             }
         } catch (error) {
+        if (!isCurrent()) return;
             executionStatus.textContent =
                 "Error";
 
@@ -6382,6 +6418,15 @@ async function loadWatchlist() {
     }
 
     async function loadJournalAnalytics() {
+        const requestedPortfolioId = selectedCapitalPortfolioId;
+        if (requestedPortfolioId === null) return;
+        const requestVersion =
+            (portfolioRequestVersions.loadJournalAnalytics || 0) + 1;
+        portfolioRequestVersions.loadJournalAnalytics = requestVersion;
+        const isCurrent = () =>
+            selectedCapitalPortfolioId === requestedPortfolioId
+            && portfolioRequestVersions.loadJournalAnalytics === requestVersion;
+
         const statusElement =
             document.getElementById(
                 "journal-analytics-status"
@@ -6395,7 +6440,7 @@ async function loadWatchlist() {
         try {
             const response = await fetch(
                 "/market/autonomous/journal-analytics"
-                + `?portfolio_id=${selectedCapitalPortfolioId}`
+                + `?portfolio_id=${requestedPortfolioId}`
             );
 
             if (!response.ok) {
@@ -6405,6 +6450,7 @@ async function loadWatchlist() {
             }
 
             const data = await response.json();
+        if (!isCurrent()) return;
 
             const closedTrades = Number(
                 data.closed_trade_count || 0
@@ -6494,6 +6540,7 @@ async function loadWatchlist() {
                 "status positive";
 
         } catch (error) {
+        if (!isCurrent()) return;
             statusElement.textContent =
                 "Error";
 
@@ -6506,6 +6553,15 @@ async function loadWatchlist() {
     }
 
     async function loadPortfolio() {
+        const requestedPortfolioId = selectedPortfolioId;
+        if (requestedPortfolioId === null) return;
+        const requestVersion =
+            (portfolioRequestVersions.loadPortfolio || 0) + 1;
+        portfolioRequestVersions.loadPortfolio = requestVersion;
+        const isCurrent = () =>
+            selectedPortfolioId === requestedPortfolioId
+            && portfolioRequestVersions.loadPortfolio === requestVersion;
+
         const portfolioStatus =
             document.getElementById("portfolio-status");
 
@@ -6514,7 +6570,7 @@ async function loadWatchlist() {
 
         try {
             const response = await fetch(
-                "/market/portfolio?transaction_limit=10"
+                `/market/portfolio?transaction_limit=10&portfolio_id=${requestedPortfolioId}&include_inactive=true`
             );
 
             if (!response.ok) {
@@ -6524,12 +6580,10 @@ async function loadWatchlist() {
             }
 
             const data = await response.json();
+        if (!isCurrent()) return;
 
             currentPortfolioData = data;
 
-            if (selectedCapitalPortfolioId === 1) {
-                syncExperimentPortfolio(data);
-            }
 
             document.getElementById(
                 "dashboard-portfolio-value"
@@ -6767,6 +6821,7 @@ async function loadWatchlist() {
                     ).join("");
             }
         } catch (error) {
+        if (!isCurrent()) return;
             portfolioStatus.textContent = "Error";
             portfolioStatus.className = "status negative";
 
@@ -8285,15 +8340,110 @@ async function loadWatchlist() {
         }
     );
 
-    loadExperimentStatus();
+    async function initializePortfolioSelectors() {
+        const capital = document.getElementById("capital-portfolio-selector");
+        const actions = document.getElementById("jarvis-actions-button");
+        const portfolio = capital.cloneNode(false);
+        portfolio.id = "portfolio-page-selector";
+
+        const label = document.createElement("label");
+        label.htmlFor = portfolio.id;
+        label.className = "muted";
+        label.textContent = "Experiment";
+        actions.before(label, portfolio);
+
+        for (const selector of [capital, portfolio]) {
+            selector.replaceChildren(new Option("Loading experiments…", ""));
+            selector.disabled = true;
+        }
+
+        portfolio.addEventListener("change", async () => {
+            selectedPortfolioId = Number(portfolio.value);
+            portfolioRequestVersions.loadPortfolioExplanation =
+                (portfolioRequestVersions.loadPortfolioExplanation || 0) + 1;
+            portfolioDeeperAnalysisButton.disabled = false;
+
+            currentPortfolioData = null;
+            closePortfolioExplanation();
+            document.getElementById("portfolio-status").textContent = "Loading";
+            document.getElementById("portfolio-summary").textContent =
+                "Loading selected portfolio…";
+            await Promise.all([
+                loadPortfolio(),
+                loadPortfolioInsight(),
+            ]);
+        });
+
+        try {
+            const response = await fetch("/capital/portfolio-catalog");
+            if (!response.ok) {
+                throw new Error(`Portfolio catalog failed: ${response.status}`);
+            }
+            const data = await response.json();
+            if (!Array.isArray(data.portfolios)) {
+                throw new Error("Portfolio catalog is unavailable.");
+            }
+
+            const populate = (selector, rows, preferredId) => {
+                selector.replaceChildren();
+                for (const row of rows) {
+                    const name = row.experiment_name || row.portfolio_name;
+                    const state = row.experiment_status || "unregistered";
+                    const archived = row.portfolio_active ? "" : " · archived";
+                    selector.add(new Option(
+                        `${name} · ${state}${archived} · #${row.portfolio_id}`,
+                        String(row.portfolio_id),
+                    ));
+                }
+                if (!rows.length) {
+                    selector.add(new Option("No portfolios available", ""));
+                    selector.disabled = true;
+                    return null;
+                }
+                const preferred = rows.find(
+                    row => row.portfolio_id === (preferredId ?? 1)
+                );
+                const id = preferred ? preferred.portfolio_id : rows[0].portfolio_id;
+                selector.value = String(id);
+                selector.disabled = false;
+                return id;
+            };
+
+            selectedPortfolioId = populate(
+                portfolio, data.portfolios, selectedPortfolioId
+            );
+            selectedCapitalPortfolioId = populate(
+                capital,
+                data.portfolios.filter(row => row.running_experiment),
+                selectedCapitalPortfolioId,
+            );
+
+            const loads = [];
+            if (selectedPortfolioId !== null) {
+                loads.push(loadPortfolio(), loadPortfolioInsight());
+            }
+            if (selectedCapitalPortfolioId !== null) {
+                loads.push(loadExperimentStatus(), loadJournalAnalytics());
+            }
+            await Promise.all(loads);
+        } catch (error) {
+            selectedPortfolioId = null;
+            selectedCapitalPortfolioId = null;
+            for (const selector of [capital, portfolio]) {
+                selector.replaceChildren(new Option("Catalog unavailable", ""));
+                selector.disabled = true;
+            }
+            document.getElementById("portfolio-summary").textContent = error.message;
+            document.getElementById("experiment-summary").textContent = error.message;
+        }
+    }
+
+    initializePortfolioSelectors();
     loadStrategyPortfolios();
     loadCapitalIntelligence();
     loadPerformanceLab();
     loadCapitalAttribution();
     loadCapitalGovernance();
-    loadJournalAnalytics();
-    loadPortfolio();
-    loadPortfolioInsight();
     loadAlertCenter();
     loadBroadMarketScanner();
     loadIntelligence();

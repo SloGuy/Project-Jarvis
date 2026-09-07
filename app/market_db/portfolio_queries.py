@@ -184,6 +184,7 @@ def _get_recent_transactions(
 def get_portfolio_summary(
     portfolio_id: int | None = None,
     transaction_limit: int = DEFAULT_TRANSACTION_LIMIT,
+    include_inactive: bool = False,
 ) -> dict[str, Any]:
     if portfolio_id is None:
         default_portfolio = get_or_create_default_portfolio()
@@ -193,7 +194,8 @@ def get_portfolio_summary(
         portfolio = session.scalar(
             select(Portfolio).where(
                 Portfolio.id == portfolio_id,
-                Portfolio.is_active.is_(True),
+                True if include_inactive
+                else Portfolio.is_active.is_(True),
             )
         )
 

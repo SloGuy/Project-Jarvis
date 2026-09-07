@@ -573,10 +573,12 @@ def _suggested_follow_ups() -> list[dict[str, str]]:
 
 def explain_portfolio(
     portfolio_id: int | None = None,
+    include_inactive: bool = False,
     use_llm: bool = True,
 ) -> dict[str, Any]:
     portfolio_data = get_portfolio_summary(
         portfolio_id=portfolio_id,
+        include_inactive=include_inactive,
         transaction_limit=10,
     )
 
@@ -603,6 +605,7 @@ def explain_portfolio(
 
     insight_data = get_portfolio_insight(
         portfolio_id=portfolio_id,
+        include_inactive=include_inactive,
     )
 
     supporting_facts = _build_supporting_facts(
