@@ -235,3 +235,60 @@ def reconcile_research_queue(
             return deactivated
         finally:
             fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+
+
+def record_research_collection(
+    *,
+    opportunity_id: str,
+    expected_discovery_run_id: str,
+    expected_evaluation_fingerprint: str,
+    source_fingerprint: str,
+    report_created_at: str | None = None,
+    error: str | None = None,
+) -> bool:
+    if not source_fingerprint:
+        raise ValueError("Source fingerprint is required.")
+    if error is None and not report_created_at:
+        raise ValueError("Successful collection requires a saved report.")
+
+    SCREENING_STATE_DIRECTORY.mkdir(parents=True, exist_ok=True)
+    lock_path = SCREENING_STATE_FILE.with_suffix(".lock")
+
+    with lock_path.open("a", encoding="utf-8") as lock:
+        fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        try:
+            state = _load_state()
+            entry = state["queue"].get(opportunity_id)
+
+            # A newer scan or lifecycle decision takes precedence.
+            if (
+                entry is None
+                or entry["status"] == "inactive"
+                or entry["discovery_run_id"] != expected_discovery_run_id
+                or entry["evaluation_fingerprint"]
+                != expected_evaluation_fingerprint
+            ):
+                return False
+
+            entry.update({
+                "status": "collection_failed" if error else "collected",
+                "collection_attempted_at": (
+                    datetime.now(timezone.utc).isoformat()
+                ),
+                "collection_error": error,
+                "attempted_source_fingerprint": source_fingerprint,
+            })
+
+            if error is None:
+                entry.update({
+                    "collected_source_fingerprint": source_fingerprint,
+                    "collected_evaluation_fingerprint": (
+                        expected_evaluation_fingerprint
+                    ),
+                    "research_report_created_at": report_created_at,
+                })
+
+            _save_state(state)
+            return True
+        finally:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)

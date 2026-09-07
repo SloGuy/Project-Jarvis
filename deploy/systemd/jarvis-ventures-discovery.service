@@ -10,6 +10,7 @@ Group=sloguy
 WorkingDirectory=/home/sloguy/jarvis-core
 Environment="PATH=/home/sloguy/jarvis-core/.venv/bin"
 ExecStart=/home/sloguy/jarvis-core/.venv/bin/python -m app.ventures.discovery_collector
+ExecStartPost=/home/sloguy/jarvis-core/.venv/bin/python -m app.ventures.research_worker
 TimeoutStartSec=35min
 Nice=10
 NoNewPrivileges=true

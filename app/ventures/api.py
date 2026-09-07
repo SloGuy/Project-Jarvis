@@ -46,6 +46,7 @@ from app.ventures.decision_service import (
     record_review_decision,
 )
 from app.ventures.decision_store import list_decisions
+from app.ventures.research_store import research_write_lock
 
 
 router = APIRouter(
@@ -215,12 +216,13 @@ def ventures_create_research(opportunity_id: str):
             detail="Ventures opportunity not found.",
         )
 
-    existing = get_latest_research_report(opportunity_id)
-    if existing is not None:
-        return existing
+    with research_write_lock():
+        existing = get_latest_research_report(opportunity_id)
+        if existing is not None:
+            return existing
 
-    report = build_initial_research_report(opportunity)
-    return save_research_report(report)
+        report = build_initial_research_report(opportunity)
+        return save_research_report(report)
 
 
 @router.get("/opportunities/{opportunity_id}/research")

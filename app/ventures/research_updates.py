@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+from functools import wraps
+from app.ventures.research_store import research_write_lock
+
 from app.ventures.research_gate import evaluate_research_gate
 
 from app.ventures.evidence import (
@@ -63,6 +66,16 @@ def _question_from_dict(
     )
 
 
+def _locked_research_update(function):
+    @wraps(function)
+    def wrapped(*args, **kwargs):
+        with research_write_lock():
+            return function(*args, **kwargs)
+
+    return wrapped
+
+
+@_locked_research_update
 def update_claim_evidence(
     *,
     opportunity_id: str,
