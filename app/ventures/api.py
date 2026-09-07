@@ -50,6 +50,7 @@ from app.ventures.research_store import research_write_lock
 from app.ventures.assessment_store import list_assessments
 from app.ventures.improvement_service import build_improvement_proposals
 from app.ventures.overview import build_ventures_overview
+from app.ventures.interview_collector import list_interviews
 
 
 router = APIRouter(
@@ -469,3 +470,18 @@ def ventures_improvement_proposals(opportunity_id: str):
 @router.get("/overview")
 def ventures_overview():
     return build_ventures_overview()
+
+
+@router.get("/opportunities/{opportunity_id}/interviews")
+def ventures_interviews(opportunity_id: str):
+    if get_opportunity(opportunity_id) is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Ventures opportunity not found.",
+        )
+    records = list_interviews(opportunity_id)
+    return {
+        "opportunity_id": opportunity_id,
+        "count": len(records),
+        "interviews": records,
+    }

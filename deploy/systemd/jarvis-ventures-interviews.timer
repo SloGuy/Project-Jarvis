@@ -1,0 +1,11 @@
+[Unit]
+Description=Collect One Ventures Seller Interview Every Six Hours
+
+[Timer]
+OnCalendar=*-*-* 00,06,12,18:15:00 UTC
+RandomizedDelaySec=2min
+Persistent=true
+Unit=jarvis-ventures-interviews.service
+
+[Install]
+WantedBy=timers.target

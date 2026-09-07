@@ -568,6 +568,50 @@ async function showDetail(item) {
             card.append(node("small", `References: ${proposal.source_claim_ids.join(", ")}`));
             proposals.append(card);
         }
+        const interviewsPanel = section("Seller interviews", panel);
+        interviewsPanel.append(node("p",
+            "Seller disclosures remain unverified. Automatically generated " +
+            "captions may contain errors.", "muted"));
+        const interviewMessage = node("p", "Loading interview availability…");
+        interviewsPanel.append(interviewMessage);
+
+        get(base + "/interviews").then(data => {
+            if (version !== selectionVersion) return;
+            interviewMessage.textContent = data.count ?
+                `${data.count} interview record(s)` :
+                "No interview has been collected. The listing may have no " +
+                "interview link, or collection may still be pending.";
+
+            for (const interview of data.interviews) {
+                const card = node("div", null, "card");
+                card.append(node("h3", label(interview.status)));
+                const link = sourceLink(interview.source_url);
+                if (link) card.append(link);
+                if (interview.error)
+                    card.append(node("p", interview.error, "error"));
+                if (interview.status === "collected") {
+                    card.append(node("p",
+                        interview.auto_generated ?
+                            "Automatically generated captions" :
+                            "Published captions",
+                        "muted"));
+                    const transcript = section("Timestamped transcript", card);
+                    for (const segment of interview.segments) {
+                        const seconds = Math.floor(segment.start);
+                        transcript.append(node("p",
+                            `${Math.floor(seconds / 60)}:` +
+                            `${seconds % 60}`.padStart(2, "0") +
+                            ` — ${segment.text}`));
+                    }
+                }
+                interviewsPanel.append(card);
+            }
+        }).catch(error => {
+            if (version !== selectionVersion) return;
+            interviewMessage.className = "error";
+            interviewMessage.textContent = error.message;
+        });
+
         renderReviewControls(item, base, underwriting, decisions, panel);
     } catch (error) {
         if (version === selectionVersion)

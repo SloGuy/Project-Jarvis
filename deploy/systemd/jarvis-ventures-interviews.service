@@ -1,0 +1,14 @@
+[Unit]
+Description=Jarvis Ventures Seller Interview Collection
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=sloguy
+Group=sloguy
+WorkingDirectory=/home/sloguy/jarvis-core
+ExecStart=/home/sloguy/jarvis-core/.venv/bin/python -m app.ventures.interview_collector
+TimeoutStartSec=90s
+NoNewPrivileges=true
+PrivateTmp=true
