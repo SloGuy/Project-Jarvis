@@ -1,0 +1,320 @@
+from datetime import datetime, timezone
+
+from app.autonomous_trading.mean_reversion_v2_exit import (
+    evaluate_fixed_exit,
+)
+from app.capital.mean_reversion_v2_context import (
+    load_entry_exit_context,
+)
+
+from decimal import Decimal
+from typing import Any
+
+from app.autonomous_trading.exit_rules import (
+    evaluate_exit_rules,
+)
+from app.autonomous_trading.mean_reversion_v2_strategy import (
+    STRATEGY_NAME,
+    evaluate_mean_reversion_v2_strategy,
+    get_mean_reversion_snapshot,
+)
+from app.autonomous_trading.strategy import (
+    StrategyAction,
+    create_strategy_candidate,
+)
+from app.autonomous_trading.trade_journal import (
+    close_trade_journal,
+    open_trade_journal,
+)
+from app.capital.candidate_pipeline import (
+    process_candidate,
+)
+from app.capital.mean_reversion_runner import (
+    _position_context,
+    get_mean_reversion_universe,
+)
+from app.capital.policies import (
+    MEAN_REVERSION_V2_1000_POLICY,
+)
+from app.capital.portfolio_service import (
+    get_or_create_mean_reversion_v2_portfolio,
+)
+from app.market_db.portfolio_queries import (
+    get_portfolio_summary,
+)
+
+
+def _snapshot_context(
+    snapshot,
+    portfolio: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "latest_price_usd": (
+            float(snapshot.latest_price_usd)
+            if snapshot.latest_price_usd is not None
+            else None
+        ),
+        "mean_price_usd": (
+            float(snapshot.mean_price_usd)
+            if snapshot.mean_price_usd is not None
+            else None
+        ),
+        "standard_deviation_usd": (
+            float(snapshot.standard_deviation_usd)
+            if snapshot.standard_deviation_usd is not None
+            else None
+        ),
+        "z_score": (
+            float(snapshot.z_score)
+            if snapshot.z_score is not None
+            else None
+        ),
+        "observation_count": snapshot.observation_count,
+        "portfolio_total_value_usd": float(
+            portfolio["total_value_usd"]
+        ),
+        "cash_balance_usd": float(
+            portfolio["cash_balance_usd"]
+        ),
+    }
+
+
+def run_mean_reversion_v2_paper_cycle(
+    *,
+    risk_only: bool = False,
+) -> dict[str, Any]:
+    portfolio_record = (
+        get_or_create_mean_reversion_v2_portfolio()
+    )
+
+    portfolio = get_portfolio_summary(
+        portfolio_id=portfolio_record.id,
+    )
+
+    if portfolio.get("status") != "success":
+        raise RuntimeError(
+            "Mean-reversion portfolio is unavailable."
+        )
+
+    positions_by_symbol = {
+        str(position["symbol"]).upper(): position
+        for position in portfolio.get("positions", [])
+    }
+
+    symbols = sorted(
+        set(get_mean_reversion_universe())
+        | set(positions_by_symbol)
+    )
+    results: list[dict[str, Any]] = []
+
+    for symbol in symbols:
+        normalized_symbol = symbol.upper()
+
+        position_context = _position_context(
+            symbol=normalized_symbol,
+            position=positions_by_symbol.get(
+                normalized_symbol
+            ),
+        )
+
+        if risk_only and not position_context.has_position:
+            continue
+
+        risk_exit = evaluate_exit_rules(
+            position_context=position_context,
+            policy=MEAN_REVERSION_V2_1000_POLICY,
+        )
+
+        if risk_only and not risk_exit.should_exit:
+            continue
+
+        snapshot = get_mean_reversion_snapshot(
+            symbol=normalized_symbol,
+        )
+
+        if risk_exit.should_exit:
+            candidate = create_strategy_candidate(
+                symbol=normalized_symbol,
+                action=StrategyAction.SELL,
+                confidence_percent=Decimal("100.00"),
+                rationale=risk_exit.rationale,
+                suggested_position_percent=Decimal("0"),
+                strategy_name="exit_risk_management_v1",
+            )
+        else:
+            candidate = evaluate_mean_reversion_v2_strategy(
+                symbol=normalized_symbol,
+                position_context=position_context,
+                snapshot=snapshot,
+            )
+
+        strategy_exit_rule = None
+
+        if (
+            position_context.has_position
+            and not risk_exit.should_exit
+            and not risk_only
+        ):
+            position = positions_by_symbol[normalized_symbol]
+            price = position.get("latest_price_usd")
+
+            if price is None:
+                raise ValueError(
+                    f"Missing position price for {normalized_symbol}."
+                )
+
+            target, opened_at = load_entry_exit_context(
+                portfolio_id=portfolio_record.id,
+                asset_id=int(position["asset_id"]),
+            )
+
+            strategy_exit_rule = evaluate_fixed_exit(
+                current_price=Decimal(str(price)),
+                recovery_target=target,
+                opened_at=opened_at,
+                now=datetime.now(timezone.utc),
+            )
+
+            if strategy_exit_rule is not None:
+                candidate = create_strategy_candidate(
+                    symbol=normalized_symbol,
+                    action=StrategyAction.SELL,
+                    confidence_percent=Decimal("100.00"),
+                    rationale=(
+                        f"V2 exit: {strategy_exit_rule}; "
+                        f"price=${Decimal(str(price)):.4f}; "
+                        f"fixed target=${target:.4f}; "
+                        f"entry time={opened_at.isoformat()}."
+                    ),
+                    suggested_position_percent=Decimal("0"),
+                    strategy_name=STRATEGY_NAME,
+                )
+
+        current_portfolio = get_portfolio_summary(
+            portfolio_id=portfolio_record.id,
+        )
+
+        pipeline = process_candidate(
+            candidate=candidate,
+            portfolio_id=portfolio_record.id,
+            portfolio_summary=current_portfolio,
+            policy=MEAN_REVERSION_V2_1000_POLICY,
+        )
+
+        exit_rule = None
+
+        if risk_exit.should_exit:
+            exit_rule = risk_exit.rule.value
+        elif candidate.action == StrategyAction.SELL:
+            if strategy_exit_rule is None:
+                raise RuntimeError("V2 sell has no exit rule.")
+            exit_rule = strategy_exit_rule
+
+        if pipeline.execution_status == "executed":
+            if (
+                pipeline.decision_id is None
+                or pipeline.transaction_id is None
+            ):
+                raise RuntimeError(
+                    "Executed candidate is missing identifiers."
+                )
+
+            market_context = _snapshot_context(
+                snapshot,
+                current_portfolio,
+            )
+
+            if candidate.action == StrategyAction.BUY:
+                open_trade_journal(
+                    decision_id=pipeline.decision_id,
+                    transaction_id=pipeline.transaction_id,
+                    entry_market_context=market_context,
+                    expected_outcome=(
+                        "Price reaches its frozen entry recovery "
+                        "target within 24 hours; otherwise exit "
+                        "on timeout or an earlier risk trigger."
+                    ),
+                )
+
+            if candidate.action == StrategyAction.SELL:
+                close_trade_journal(
+                    decision_id=pipeline.decision_id,
+                    transaction_id=pipeline.transaction_id,
+                    exit_rule=exit_rule,
+                    exit_market_context=market_context,
+                )
+
+        results.append(
+            {
+                "symbol": normalized_symbol,
+                "action": candidate.action.value,
+                "confidence_percent": float(
+                    candidate.confidence_percent
+                ),
+                "rationale": candidate.rationale,
+                "z_score": (
+                    float(snapshot.z_score)
+                    if snapshot.z_score is not None
+                    else None
+                ),
+                "exit_rule": exit_rule,
+                "proposal_created": (
+                    pipeline.proposal_created
+                ),
+                "decision_logged": (
+                    pipeline.decision_logged
+                ),
+                "risk_approved": (
+                    pipeline.risk_approved
+                ),
+                "risk_reasons": list(
+                    pipeline.risk_reasons
+                ),
+                "decision_id": pipeline.decision_id,
+                "execution_attempted": (
+                    pipeline.execution_attempted
+                ),
+                "execution_status": (
+                    pipeline.execution_status
+                ),
+                "execution_reason": (
+                    pipeline.execution_reason
+                ),
+                "transaction_id": (
+                    pipeline.transaction_id
+                ),
+            }
+        )
+
+    return {
+        "status": "success",
+        "strategy": STRATEGY_NAME,
+        "policy": MEAN_REVERSION_V2_1000_POLICY.name,
+        "portfolio_id": portfolio_record.id,
+        "autonomous_execution_enabled": (
+            MEAN_REVERSION_V2_1000_POLICY
+            .autonomous_execution_enabled
+        ),
+        "asset_count": len(symbols),
+        "actionable_count": sum(
+            1
+            for result in results
+            if result["proposal_created"]
+        ),
+        "approved_count": sum(
+            1
+            for result in results
+            if result["risk_approved"] is True
+        ),
+        "executed_count": sum(
+            1
+            for result in results
+            if result["execution_status"] == "executed"
+        ),
+        "execution_failed_count": sum(
+            1
+            for result in results
+            if result["execution_status"] == "failed"
+        ),
+        "results": results,
+    }

@@ -42,6 +42,22 @@ class StrategyDefinition:
 
 
 _STRATEGIES: dict[str, StrategyDefinition] = {
+    "mean_reversion_v2": StrategyDefinition(
+        name="mean_reversion_v2",
+        display_name="Mean Reversion V2",
+        description=(
+            "Long-only mean reversion with a frozen entry "
+            "recovery target, a 24-hour timeout, and risk exits."
+        ),
+        version="2.0",
+        stage=StrategyStage.PAPER,
+        implementation_module=(
+            "app.autonomous_trading.mean_reversion_v2_strategy"
+        ),
+        evaluator_name="evaluate_mean_reversion_v2_strategy",
+        active_experiment=True,
+        enabled=True,
+    ),
     MOMENTUM_ALIGNMENT_V1: StrategyDefinition(
         name=MOMENTUM_ALIGNMENT_V1,
         display_name="Momentum Alignment V1",

@@ -1,0 +1,17 @@
+[Unit]
+Description=Jarvis Mean Reversion V2 Risk Check
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=sloguy
+Group=sloguy
+WorkingDirectory=/home/sloguy/jarvis-core
+EnvironmentFile=/etc/jarvis-core.env
+Environment="PATH=/home/sloguy/jarvis-core/.venv/bin"
+ExecStart=/home/sloguy/jarvis-core/.venv/bin/python -m app.capital.run_mean_reversion_v2_cycle --risk-only
+Nice=10
+NoNewPrivileges=true
+PrivateTmp=true

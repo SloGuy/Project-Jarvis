@@ -17,3 +17,10 @@ VOLATILITY_BREAKOUT_1000_POLICY = replace(
     name="volatility_breakout_1000",
     autonomous_execution_enabled=True,
 )
+
+
+MEAN_REVERSION_V2_1000_POLICY = replace(
+    INITIAL_1000_POLICY,
+    name="mean_reversion_v2_1000",
+    autonomous_execution_enabled=True,
+)

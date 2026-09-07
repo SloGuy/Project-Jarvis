@@ -108,6 +108,20 @@ VOLATILITY_BREAKOUT_EXPERIMENT_STARTED_AT = datetime(
 
 
 _EXPERIMENTS: dict[str, ExperimentDefinition] = {
+    "mean_reversion_v2_paper_2026": ExperimentDefinition(
+        experiment_id="mean_reversion_v2_paper_2026",
+        name="Mean Reversion V2 Paper Experiment",
+        strategy_name="mean_reversion_v2",
+        portfolio_name="Jarvis Capital - Mean Reversion V2 Paper",
+        status=ExperimentStatus.RUNNING,
+        execution_mode="autonomous_paper_trading",
+        started_at=datetime.fromisoformat(
+            "2026-09-07T16:26:49+00:00"
+        ),
+        duration_days=180,
+        starting_capital_usd=Decimal("1000.00"),
+        risk_policy_name="mean_reversion_v2_1000",
+    ),
     MOMENTUM_PAPER_EXPERIMENT_ID: ExperimentDefinition(
         experiment_id=MOMENTUM_PAPER_EXPERIMENT_ID,
         name="Momentum Alignment V1 Paper Experiment",
