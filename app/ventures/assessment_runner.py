@@ -67,7 +67,11 @@ def _eligible_opportunity(opportunity_id: str):
     return opportunity
 
 
-def assess_opportunity(opportunity_id: str) -> dict:
+def assess_opportunity(
+    opportunity_id: str,
+    *,
+    expected_assessment_key: str | None = None,
+) -> dict:
     with _runner_lock():
         opportunity = _eligible_opportunity(opportunity_id)
         original_opportunity = opportunity.to_dict()
@@ -82,6 +86,15 @@ def assess_opportunity(opportunity_id: str) -> dict:
                 research_record=research,
                 configuration=configuration,
             )
+
+            if (
+                expected_assessment_key is not None
+                and key != expected_assessment_key
+            ):
+                raise ValueError(
+                    "Research or configuration changed after selection."
+                )
+
             existing = store.get_assessment(key)
             if existing is not None:
                 return {

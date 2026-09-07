@@ -1,0 +1,17 @@
+[Unit]
+Description=Jarvis Ventures Automatic Assessment
+After=network-online.target ollama.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=sloguy
+Group=sloguy
+WorkingDirectory=/home/sloguy/jarvis-core
+Environment="PATH=/home/sloguy/jarvis-core/.venv/bin"
+Environment="JARVIS_VENTURES_ASSESSMENT_MODEL=qwen3:8b"
+ExecStart=/home/sloguy/jarvis-core/.venv/bin/python -m app.ventures.assessment_worker
+TimeoutStartSec=20min
+Nice=10
+NoNewPrivileges=true
+PrivateTmp=true
