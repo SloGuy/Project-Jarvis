@@ -48,6 +48,7 @@ from app.ventures.decision_service import (
 from app.ventures.decision_store import list_decisions
 from app.ventures.research_store import research_write_lock
 
+from app.ventures.assessment_store import list_assessments
 
 router = APIRouter(
     prefix="/ventures",
@@ -416,4 +417,20 @@ def ventures_decision_history(opportunity_id: str):
         "opportunity_id": opportunity_id,
         "count": len(records),
         "decisions": records,
+    }
+
+
+@router.get("/opportunities/{opportunity_id}/assessments")
+def ventures_assessment_history(opportunity_id: str):
+    if get_opportunity(opportunity_id) is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Ventures opportunity not found.",
+        )
+
+    records = list_assessments(opportunity_id)
+    return {
+        "opportunity_id": opportunity_id,
+        "count": len(records),
+        "assessments": records,
     }
