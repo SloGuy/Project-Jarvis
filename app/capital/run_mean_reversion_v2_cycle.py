@@ -3,6 +3,7 @@ import fcntl
 import json
 from pathlib import Path
 
+from app.capital.cycle_recorder import record_cycle
 from app.capital.mean_reversion_v2_paper_runner import (
     run_mean_reversion_v2_paper_cycle,
 )
@@ -30,9 +31,14 @@ def main() -> None:
             }))
             return
 
-        result = run_mean_reversion_v2_paper_cycle(
-            risk_only=args.risk_only,
-        )
+        with record_cycle(
+            experiment_id="mean_reversion_v2_paper_2026",
+            mode="risk_only" if args.risk_only else "regular",
+        ) as cycle:
+            result = run_mean_reversion_v2_paper_cycle(
+                risk_only=args.risk_only,
+            )
+            cycle.update(result)
 
         print(json.dumps(result, indent=2, default=str))
 

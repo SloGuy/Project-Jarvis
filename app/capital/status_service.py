@@ -1,3 +1,5 @@
+from app.capital.experiment_oversight import get_experiment_oversight
+
 from typing import Any
 
 from app.autonomous_trading.experiment_status import (
@@ -91,4 +93,5 @@ def get_capital_status(
             get_capital_safety_audit()
         ),
         "active_experiment": active_experiment,
+        "experiment_oversight": get_experiment_oversight(),
     }

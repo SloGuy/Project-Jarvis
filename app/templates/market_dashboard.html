@@ -5576,93 +5576,145 @@ async function loadWatchlist() {
     }
 
     async function loadStrategyPortfolios() {
-        const status = document.getElementById(
-            "strategy-portfolios-status"
+        const status = document.getElementById("strategy-portfolios-status");
+        const summary = document.getElementById("strategy-portfolios-summary");
+        const grid = document.getElementById("strategy-portfolios-grid");
+
+        const escape = value => {
+            const span = document.createElement("span");
+            span.textContent = String(value ?? "Unavailable");
+            return span.innerHTML;
+        };
+        const label = value => escape(
+            String(value ?? "unavailable").replaceAll("_", " ")
         );
-        const summary = document.getElementById(
-            "strategy-portfolios-summary"
-        );
-        const grid = document.getElementById(
-            "strategy-portfolios-grid"
-        );
+        const time = value => value
+            ? escape(new Date(value).toLocaleString())
+            : "Not recorded";
+        const money = value => value == null ? "Unavailable"
+            : escape(Number(value).toLocaleString("en-US", {
+                style: "currency", currency: "USD"
+            }));
 
         try {
             const response = await fetch("/capital/status");
-
             if (!response.ok) {
-                throw new Error(
-                    `Capital request failed: ${response.status}`
-                );
+                throw new Error(`Capital request failed: ${response.status}`);
+            }
+            const data = await response.json();
+            const experiments = data.experiment_oversight?.experiments;
+            if (!Array.isArray(experiments) || !experiments.length) {
+                throw new Error("Experiment oversight is unavailable.");
             }
 
-            const data = await response.json();
-            const portfolios = data.strategy_portfolios || [];
-            const strategies = new Map(
-                (data.strategies || []).map(
-                    strategy => [strategy.name, strategy]
-                )
+            const portfolios = new Map(
+                (data.strategy_portfolios || []).map(p => [p.experiment_id, p])
             );
+            const strategies = new Map(
+                (data.strategies || []).map(s => [s.name, s])
+            );
+            let attention = 0;
 
-            const money = value =>
-                Number(value || 0).toLocaleString(
-                    "en-US",
-                    {
-                        style: "currency",
-                        currency: "USD",
-                    }
-                );
+            grid.innerHTML = experiments.map(experiment => {
+                const portfolio = portfolios.get(experiment.experiment_id) || {};
+                const journal = experiment.journal_health || {};
+                const cycles = experiment.cycles || [];
+                const needsReview =
+                    experiment.policy_status !== "available"
+                    || portfolio.portfolio_status !== "success"
+                    || journal.state !== "consistent"
+                    || !cycles.length
+                    || cycles.some(c => !["completed", "running"].includes(c.state));
+                if (needsReview) attention++;
 
-            grid.innerHTML = portfolios.map(portfolio => {
-                const strategy =
-                    strategies.get(portfolio.strategy_name) || {};
+                const cycleHtml = cycles.map(cycle => {
+                    const latest = cycle.latest || {};
+                    const result = latest.summary || {};
+                    const problems = (result.results || []).filter(row =>
+                        row.execution_status === "failed"
+                        || (String(row.action).toLowerCase() === "sell"
+                            && row.execution_status !== "executed")
+                    );
+                    return `
+                        <div style="margin-top:12px;">
+                            <strong>${label(cycle.mode)}: ${label(cycle.state)}</strong>
+                            <br>Last start: ${time(latest.started_at)}
+                            <br>Last completed: ${time(cycle.last_completed?.finished_at)}
+                            <br>Failed executions: ${escape(cycle.failed_execution_count)}
+                            · Unexecuted exits: ${escape(cycle.unexecuted_exit_count)}
+                            ${cycle.error ? `<br>${escape(cycle.error)}` : ""}
+                            ${latest.error ? `<br>${escape(latest.error)}` : ""}
+                            ${cycle.last_failed ? `
+                                <br>Last cycle error:
+                                ${time(cycle.last_failed.started_at)}
+                                — ${escape(cycle.last_failed.error || cycle.last_failed.status)}
+                            ` : ""}
+                            ${problems.slice(0, 5).map(row => `
+                                <br>${escape(row.symbol)}:
+                                ${escape(row.execution_reason
+                                    || row.risk_reasons?.join("; ")
+                                    || row.execution_status)}
+                            `).join("")}
+                        </div>
+                    `;
+                }).join("");
 
-                const name =
-                    strategy.display_name
-                    || portfolio.strategy_name;
-
-                const returnPercent = Number(
-                    portfolio.total_return_percent || 0
-                );
+                const policy = experiment.policy_settings || {};
+                const lifecycle = journal.state !== "consistent"
+                    ? "Needs verification"
+                    : journal.linked_closed_count > 0
+                        ? `${journal.linked_closed_count} linked closed trades`
+                        : "Pending — no completed lifecycle";
+                const name = strategies.get(experiment.strategy_name)?.display_name
+                    || experiment.strategy_name;
 
                 return `
                     <div class="chart-stat">
-                        <div class="muted">
-                            ${name} · Portfolio ${portfolio.portfolio_id}
-                        </div>
-                        <div class="metric" style="margin-top: 8px;">
+                        <strong>${escape(name)}</strong>
+                        <div class="metric" style="margin-top:8px;">
                             ${money(portfolio.current_value_usd)}
                         </div>
-                        <div class="${changeClass(returnPercent)}"
-                            style="font-weight: 800; margin-top: 6px;">
-                            ${returnPercent >= 0 ? "+" : ""}
-                            ${returnPercent.toFixed(2)}%
-                        </div>
-                        <div class="muted"
-                            style="line-height: 1.7; margin-top: 12px;">
-                            ${portfolio.experiment_status}
-                            · ${portfolio.execution_mode}
+                        <div class="muted" style="line-height:1.7;margin-top:12px;">
+                            Configured: ${label(experiment.status)}
+                            · ${label(experiment.execution_mode)}
+                            <br>Portfolio: ${escape(portfolio.portfolio_id)}
+                            · Open positions: ${escape(portfolio.open_position_count)}
                             <br>Cash: ${money(portfolio.cash_balance_usd)}
-                            <br>Open positions:
-                            ${portfolio.open_position_count}
-                            <br>Transactions:
-                            ${portfolio.transaction_count}
+                            ${cycleHtml}
+                            <hr>
+                            <strong>Journal: ${label(journal.state)}</strong>
+                            <br>Open: ${escape(journal.open_count)}
+                            · Closed: ${escape(journal.closed_count)}
+                            <br>Lifecycle: ${escape(lifecycle)}
+                            ${journal.error ? `<br>${escape(journal.error)}` : ""}
+                            ${(journal.issues || []).map(issue =>
+                                `<br>${escape(issue)}`
+                            ).join("")}
+                            ${journal.issues_truncated
+                                ? `<br>Showing 20 of ${escape(journal.issue_count)} findings.`
+                                : ""}
+                            <details style="margin-top:12px;">
+                                <summary>Policy: ${escape(experiment.risk_policy_name)}</summary>
+                                ${Object.entries(policy).map(([key, value]) =>
+                                    `<div>${label(key)}: ${escape(value)}</div>`
+                                ).join("")}
+                            </details>
                         </div>
                     </div>
                 `;
             }).join("");
 
             summary.textContent =
-                `${portfolios.length} isolated strategy portfolios`;
-
-            status.textContent = "Live";
-            status.className = "status positive";
+                `${experiments.length} experiments · ${attention} need review`
+                + " · Regular overdue: 15 min; risk-only: 3 min."
+                + " Completed means the cycle returned.";
+            status.textContent = attention ? "Review" : "Reporting";
+            status.className = attention ? "status" : "status positive";
         } catch (error) {
-            summary.textContent =
-                "Unable to load strategy portfolios.";
+            summary.textContent = "Unable to load experiment oversight.";
             status.textContent = "Error";
             status.className = "status negative";
-            grid.innerHTML =
-                `<div class="empty">${error.message}</div>`;
+            grid.textContent = error.message;
         }
     }
 
