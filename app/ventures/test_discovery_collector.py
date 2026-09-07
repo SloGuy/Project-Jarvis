@@ -7,6 +7,7 @@ from app.ventures import discovery_collector as collector
 from app.ventures import discovery_store as store
 from app.ventures import opportunities
 from app.ventures.models import OpportunityStatus
+from app.ventures import discovery_screening_store as screening_store
 
 
 def snapshot():
@@ -48,6 +49,23 @@ def main():
             patch.object(
                 store, "DISCOVERY_DIRECTORY", root / "discovery"
             ),
+            patch.object(
+                store, "DISCOVERY_DIRECTORY", root / "discovery"
+            ),
+            patch.object(
+                screening_store,
+                "SCREENING_STATE_DIRECTORY",
+                root,
+            ),
+            patch.object(
+                screening_store,
+                "SCREENING_STATE_FILE",
+                root / "discovery_screening.json",
+            ),
+            patch.object(
+                collector, "fetch_all_listings",
+                return_value=snapshot(),
+            ) as fetch,
             patch.object(
                 collector, "fetch_all_listings",
                 return_value=snapshot(),

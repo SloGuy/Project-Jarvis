@@ -9,6 +9,7 @@ from app.ventures.discovery_store import (
     discovery_run_lock,
     save_discovery_run,
 )
+from app.ventures.discovery_screening_service import screen_discovery_run
 
 
 SOURCE = "empire_flippers"
@@ -42,6 +43,33 @@ def collect_discovery() -> dict:
             error=error,
         )
 
+        screening = {
+            "status": "not_run",
+            "reason": "Discovery failed.",
+        }
+
+        if status == "success":
+            try:
+                screening = screen_discovery_run(record)
+            except Exception as exc:
+                error = f"{type(exc).__name__}: {exc}"
+                status = "failed"
+                screening = {
+                    "status": "failed",
+                    "error": error,
+                }
+
+                # Keep the successful source snapshot and separately
+                # record failure of the screening stage.
+                save_discovery_run(
+                    status="failed",
+                    started_at=started_at,
+                    source=SOURCE,
+                    snapshot=snapshot,
+                    intake_results=intake_results,
+                    error=f"Screening stage failed: {error}",
+                )
+
         linked = sum(
             item["outcome"] == "linked"
             for item in intake_results
@@ -69,6 +97,7 @@ def collect_discovery() -> dict:
             "linked_count": linked,
             "skipped_count": skipped,
             "error": error,
+            "screening": screening,
             "automatic_offer_authority": False,
             "automatic_purchase_authority": False,
             "capital_transfer_authority": False,
