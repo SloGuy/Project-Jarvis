@@ -1,4 +1,7 @@
+import argparse
+import fcntl
 import json
+from pathlib import Path
 
 from app.capital.mean_reversion_paper_runner import (
     run_mean_reversion_paper_cycle,
@@ -6,15 +9,32 @@ from app.capital.mean_reversion_paper_runner import (
 
 
 def main() -> None:
-    result = run_mean_reversion_paper_cycle()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--risk-only", action="store_true")
+    args = parser.parse_args()
 
-    print(
-        json.dumps(
-            result,
-            indent=2,
-            default=str,
-        )
+    lock_path = (
+        Path.home() / ".jarvis-mean-reversion-cycle.lock"
     )
+
+    with lock_path.open("a") as lock:
+        try:
+            fcntl.flock(
+                lock,
+                fcntl.LOCK_EX | fcntl.LOCK_NB,
+            )
+        except BlockingIOError:
+            print(json.dumps({
+                "status": "skipped",
+                "reason": "Mean-reversion cycle already running.",
+            }))
+            return
+
+        result = run_mean_reversion_paper_cycle(
+            risk_only=args.risk_only,
+        )
+
+        print(json.dumps(result, indent=2, default=str))
 
 
 if __name__ == "__main__":

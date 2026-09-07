@@ -1,0 +1,12 @@
+[Unit]
+Description=Run Jarvis Capital Mean Reversion Every 5 Minutes
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=5min
+AccuracySec=10s
+Persistent=true
+Unit=jarvis-mean-reversion.service
+
+[Install]
+WantedBy=timers.target

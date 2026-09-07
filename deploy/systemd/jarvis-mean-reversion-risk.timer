@@ -1,0 +1,11 @@
+[Unit]
+Description=Check Jarvis Mean Reversion Risk Every Minute
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+AccuracySec=1s
+Unit=jarvis-mean-reversion-risk.service
+
+[Install]
+WantedBy=timers.target

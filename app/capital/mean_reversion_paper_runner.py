@@ -70,7 +70,10 @@ def _snapshot_context(
     }
 
 
-def run_mean_reversion_paper_cycle() -> dict[str, Any]:
+def run_mean_reversion_paper_cycle(
+    *,
+    risk_only: bool = False,
+) -> dict[str, Any]:
     portfolio_record = (
         get_or_create_mean_reversion_portfolio()
     )
@@ -102,13 +105,19 @@ def run_mean_reversion_paper_cycle() -> dict[str, Any]:
             ),
         )
 
-        snapshot = get_mean_reversion_snapshot(
-            symbol=normalized_symbol,
-        )
+        if risk_only and not position_context.has_position:
+            continue
 
         risk_exit = evaluate_exit_rules(
             position_context=position_context,
             policy=MEAN_REVERSION_1000_POLICY,
+        )
+
+        if risk_only and not risk_exit.should_exit:
+            continue
+
+        snapshot = get_mean_reversion_snapshot(
+            symbol=normalized_symbol,
         )
 
         if risk_exit.should_exit:
