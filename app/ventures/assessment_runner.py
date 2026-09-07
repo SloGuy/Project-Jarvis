@@ -7,6 +7,7 @@ from contextlib import contextmanager
 from app.ventures import assessment_llm as llm
 from app.ventures import assessment_store as store
 from app.ventures.assessment_models import ASSESSMENT_VERSION
+from app.ventures.assessment_interviews import current_interview_inputs
 from app.ventures.opportunities import get_opportunity
 from app.ventures.research_store import (
     get_latest_research_report,
@@ -15,7 +16,7 @@ from app.ventures.research_store import (
 
 
 # Bump when input preparation or financial-summary logic changes.
-INPUT_VERSION = "compact_financial_summary_v1"
+INPUT_VERSION = "compact_financial_summary_interviews_v2"
 
 
 def assessment_configuration() -> dict:
@@ -82,9 +83,11 @@ def assess_opportunity(
             if research is None:
                 raise ValueError("Research report is required.")
 
+            interview_inputs = current_interview_inputs(opportunity_id)
             key = store.assessment_key(
                 research_record=research,
                 configuration=configuration,
+                interview_inputs=interview_inputs,
             )
 
             if (
@@ -103,7 +106,13 @@ def assess_opportunity(
                 }
 
         # Do not hold the research lock during a slow model request.
-        result = llm.assess_research_report(research)
+        if interview_inputs:
+            result = llm.assess_research_report(
+                research,
+                interview_inputs=interview_inputs,
+            )
+        else:
+            result = llm.assess_research_report(research)
 
         with research_write_lock():
             current = get_latest_research_report(opportunity_id)
@@ -125,10 +134,17 @@ def assess_opportunity(
                     "Assessment configuration changed during generation."
                 )
 
+            if current_interview_inputs(opportunity_id) != interview_inputs:
+                raise ValueError(
+                    "Interview inputs changed during generation; "
+                    "assessment was not saved."
+                )
+
             record = store.save_assessment(
                 research_record=research,
                 configuration=configuration,
                 result=result,
+                interview_inputs=interview_inputs,
             )
 
         return {

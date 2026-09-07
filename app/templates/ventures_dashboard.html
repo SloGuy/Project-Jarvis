@@ -134,6 +134,116 @@ async function get(path) {
     if (!response.ok) throw new Error(`Request failed (${response.status}): ${path}`);
     return response.json();
 }
+function renderClaimContent(parent, claim) {
+    const raw = claim.claim;
+    const text = typeof raw === "string" ? raw : JSON.stringify(raw);
+    const arrayStart = text.indexOf("[");
+    let rows = null;
+
+    if (arrayStart >= 0) {
+        try {
+            const parsed = JSON.parse(text.slice(arrayStart));
+            if (Array.isArray(parsed)) rows = parsed;
+        } catch (_) {
+            // Preserve ordinary text when it is not structured JSON.
+        }
+    }
+
+    const active = rows ? rows.filter(row =>
+        row !== null &&
+        (typeof row !== "object" || !row.discarded_at)
+    ) : null;
+
+    let formatted = false;
+
+    if (active && active.length &&
+        active.every(row => typeof row === "object" &&
+            typeof row.monetization === "string")) {
+        parent.append(node("p",
+            "Monetization: " +
+            [...new Set(active.map(row => row.monetization))].join(", ")));
+        formatted = true;
+    } else if (active && active.length &&
+        active.every(row => typeof row === "object" &&
+            typeof row.niche === "string")) {
+        parent.append(node("p",
+            "Business niches: " +
+            [...new Set(active.map(row => row.niche))].join(", ")));
+        formatted = true;
+    } else if (active && active.length &&
+        active.every(row => typeof row === "string")) {
+        const ul = node("ul");
+        for (const value of active) ul.append(node("li", value));
+        parent.append(ul);
+        formatted = true;
+    } else if (claim.category === "source_metrics" && active &&
+        active.every(row => typeof row === "object" &&
+            typeof row.month === "string")) {
+        parent.append(node("p",
+            "Reported monthly financials · USD", "muted"));
+        parent.append(node("small",
+            "Source disclosures, not independently verified. Net profit is not assumed to be SDE."));
+
+        function reportedMoney(value) {
+            if (value === null || value === undefined ||
+                (typeof value === "string" && !value.trim())) {
+                return "Not reported";
+            }
+            if (typeof value !== "number" && typeof value !== "string") {
+                return "Invalid source value";
+            }
+            const number = Number(value);
+            if (!Number.isFinite(number)) return "Invalid source value";
+            return number.toLocaleString("en-US", {
+                style: "currency",
+                currency: "USD",
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+
+        const wrap = node("div");
+        wrap.style.overflowX = "auto";
+        const table = node("table");
+        const head = node("thead");
+        const header = node("tr");
+        for (const title of ["Month", "Revenue", "Expenses", "Net profit"]) {
+            header.append(node("th", title));
+        }
+        head.append(header);
+        table.append(head);
+
+        const body = node("tbody");
+        const ordered = [...active].sort(
+            (a, b) => a.month.localeCompare(b.month));
+
+        for (const row of ordered) {
+            const tr = node("tr");
+            tr.append(node("td", row.month));
+            for (const field of ["gross_revenue", "expenses", "net_profit"]) {
+                tr.append(node("td", reportedMoney(row[field])));
+            }
+            body.append(tr);
+        }
+        table.append(body);
+        wrap.append(table);
+        parent.append(wrap);
+        formatted = true;
+    }
+
+    if (!formatted) {
+        parent.append(node("p", text));
+        return;
+    }
+
+    const details = document.createElement("details");
+    details.append(node("summary", "Original source claim"));
+    const original = node("pre", text);
+    original.style.whiteSpace = "pre-wrap";
+    original.style.overflowWrap = "anywhere";
+    details.append(original);
+    parent.append(details);
+}
 function sourceLink(url) {
     try {
         const parsed = new URL(url);
@@ -514,7 +624,7 @@ async function showDetail(item) {
             for (const claim of report.claims) {
                 const card = node("div", null, "card");
                 card.append(node("span", label(claim.evidence_status), "badge"));
-                card.append(node("p", claim.claim));
+                renderClaimContent(card, claim);
                 card.append(node("small", `Claim: ${claim.claim_id}`));
                 if (claim.evidence_notes) card.append(node("p", claim.evidence_notes, "muted"));
                 const source = sourceLink(claim.source);
@@ -529,28 +639,136 @@ async function showDetail(item) {
 
         const drafts = section(`Assessment drafts · ${assessments.count}`, panel);
         drafts.append(node("p",
-            "Model drafts require review. Valid claim IDs do not prove that an inference is supported.",
+            "Model drafts require review. A citation identifies a source; it does not establish that the finding is supported.",
             "muted"));
+
         for (const saved of [...assessments.assessments].reverse()) {
             const card = node("div", null, "card");
             const matches = saved.assessment_key === item.assessment_key &&
                 saved.research_created_at === latest?.created_at;
+
             card.append(node("span", matches ?
-                "Matches overview research/configuration" : "Historical or refresh required", "badge"));
-            card.append(node("small", `${saved.created_at} · ${saved.result.model}`));
-            const assessment = saved.result.assessment;
-            card.append(node("h3", `Thesis fit: ${label(assessment.thesis_fit)}`));
-            card.append(node("p", assessment.classification_rationale));
-            for (const finding of assessment.findings) {
-                card.append(node("p", `${label(finding.category)}: ${finding.text}`));
-                card.append(node("small", `References: ${finding.claim_ids.join(", ")}`));
+                "Matches overview inputs" :
+                "Historical or refresh required", "badge"));
+            card.append(node("small",
+                `${saved.created_at} · ${saved.result.model}`));
+
+            const researchClaims =
+                saved.research_snapshot?.report?.claims || [];
+            const interviewClaims = (saved.interview_inputs || [])
+                .flatMap(input => input.claims || []);
+            const claimMap = new Map(
+                [...researchClaims, ...interviewClaims]
+                    .map(claim => [claim.claim_id, claim])
+            );
+            const interviewIds = new Set(
+                interviewClaims.map(claim => claim.claim_id)
+            );
+
+            function appendClaim(parent, id) {
+                const claim = claimMap.get(id);
+                const sourceCard = node("div", null, "card");
+                sourceCard.append(node("small", `Claim: ${id}`));
+
+                if (!claim) {
+                    sourceCard.append(node("p",
+                        "This reference could not be found in the saved assessment inputs.",
+                        "muted"));
+                    parent.append(sourceCard);
+                    return;
+                }
+
+                sourceCard.append(node("p",
+                    interviewIds.has(id) ?
+                        "Seller-interview excerpt · unverified captions" :
+                        `Research claim · ${label(claim.evidence_status)}`,
+                    "muted"));
+                renderClaimContent(sourceCard, claim);
+
+                if (claim.evidence_notes) {
+                    sourceCard.append(node("p",
+                        claim.evidence_notes, "muted"));
+                }
+
+                const link = sourceLink(claim.source);
+                if (link) sourceCard.append(link);
+                else if (claim.source) {
+                    sourceCard.append(node("small", claim.source));
+                }
+                parent.append(sourceCard);
             }
+
+            function appendReferences(parent, references) {
+                const ids = [...new Set(references || [])];
+                if (!ids.length) {
+                    parent.append(node("small", "No source references."));
+                    return;
+                }
+
+                const details = section(
+                    `Inspect cited sources · ${ids.length}`, parent);
+                details.open = false;
+                for (const id of ids) appendClaim(details, id);
+            }
+
+            const assessment = saved.result.assessment;
+            card.append(node("h3",
+                `Thesis fit: ${label(assessment.thesis_fit)}`));
+            card.append(node("p", assessment.classification_rationale));
+            appendReferences(card, assessment.classification_claim_ids);
+
+            for (const finding of assessment.findings) {
+                const findingCard = node("div", null, "card");
+                findingCard.append(node("p",
+                    `${label(finding.category)}: ${finding.text}`));
+                appendReferences(findingCard, finding.claim_ids);
+                card.append(findingCard);
+            }
+
+            if (interviewClaims.length) {
+                const citedIds = new Set([
+                    ...(assessment.classification_claim_ids || []),
+                    ...assessment.findings.flatMap(
+                        finding => finding.claim_ids || [])
+                ]);
+                const citedCount = [...interviewIds].filter(
+                    id => citedIds.has(id)).length;
+
+                card.append(node("p",
+                    `Interview excerpts supplied: ${interviewClaims.length}. ` +
+                    `Distinct interview excerpts cited: ${citedCount}.`,
+                    "muted"));
+
+                if (citedCount === 0) {
+                    card.append(node("p",
+                        "This draft received interview excerpts but did not cite them. Interview-based analysis has not been demonstrated.",
+                        "muted"));
+                }
+
+                const excerpts = section(
+                    "Inspect all supplied interview excerpts", card);
+                excerpts.open = false;
+                excerpts.append(node("p",
+                    "These are bounded samples, not the full interview. Captions may contain errors or interviewer questions.",
+                    "muted"));
+
+                for (const claim of interviewClaims) {
+                    appendClaim(excerpts, claim.claim_id);
+                }
+            } else {
+                card.append(node("p",
+                    "No interview excerpts were supplied to this draft.",
+                    "muted"));
+            }
+
             for (const summary of saved.result.financial_summaries || []) {
                 const financial = section("Calculated source financials", card);
-                financial.append(node("pre", JSON.stringify(summary, null, 2)));
+                financial.append(node("pre",
+                    JSON.stringify(summary, null, 2)));
             }
             drafts.append(card);
         }
+
 
         const proposals = section(`Improvement proposals · ${improvements.count}`, panel);
         proposals.open = true;

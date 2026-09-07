@@ -78,6 +78,14 @@ For automation hypotheses, propose a concrete workflow tied to disclosed
 work, such as drafting support responses with human escalation. Explicitly
 state what must be validated. Naming a tool alone is not a workflow.
 
+Seller-interview excerpts are sampled captions, not a complete interview.
+They may include interviewer questions, transcription errors, and truncated
+sentences. Do not attribute a statement to the owner unless the supplied
+text establishes that attribution. Cite interview claim IDs when using
+these excerpts. Do not treat absence from the samples as absence from the
+full interview. Conflicts with listing disclosures require investigation;
+interview captions do not independently verify a listing.
+
 Return JSON only, with exactly these fields:
 {
   "business_type": "saas",
@@ -108,7 +116,11 @@ at most 1200 characters. Each reference list must contain 1 to 8 unique IDs.
 """.strip()
 
 
-def assess_research_report(record: dict) -> dict:
+def assess_research_report(
+    record: dict,
+    *,
+    interview_inputs: list[dict] | None = None,
+) -> dict:
     report = record["report"]
     if record["opportunity_id"] != report["opportunity_id"]:
         raise ValueError("Research record opportunity mismatch.")
@@ -116,6 +128,13 @@ def assess_research_report(record: dict) -> dict:
     claims = report["claims"]
     if not isinstance(claims, list) or not claims:
         raise ValueError("Research claims are required.")
+
+    interview_claims = [
+        claim
+        for interview in (interview_inputs or [])
+        for claim in interview["claims"]
+    ]
+    claims = claims + interview_claims
 
     ids = [claim["claim_id"] for claim in claims]
     if any(not isinstance(value, str) or not value for value in ids):
@@ -232,6 +251,7 @@ def assess_research_report(record: dict) -> dict:
         "assessment": assessment,
         "review_status": "unreviewed_model_draft",
         "citation_validation": "claim_ids_exist_only",
+        "interview_claims": interview_claims,
         "limitations": [
             "Model findings require review for factual support.",
             "Financial summaries are calculated from source disclosures, "

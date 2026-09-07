@@ -145,6 +145,98 @@ def main():
             model.side_effect = model_result
             print("model_failure_no_saved_draft: PASS")
 
+            interview = {
+                "input_version": "synthetic_interview_v1",
+                "transcript_sha256": "original",
+                "claims": [{
+                    "claim_id": "interview_claim_test",
+                    "claim": "Synthetic support workload.",
+                    "evidence_status": "unverified",
+                }],
+            }
+            updated_interview = deepcopy(interview)
+            updated_interview["transcript_sha256"] = "changed"
+            updated_interview["claims"][0]["claim"] = (
+                "Changed synthetic support workload."
+            )
+
+            def interview_model(record, *, interview_inputs):
+                result = model_result(record)
+                result["interview_claims"] = deepcopy([
+                    claim
+                    for item in interview_inputs
+                    for claim in item["claims"]
+                ])
+                return result
+
+            model.side_effect = interview_model
+            before_history = store.list_assessments()
+
+            with patch.object(
+                runner,
+                "current_interview_inputs",
+                side_effect=[
+                    deepcopy([interview]),
+                    deepcopy([updated_interview]),
+                ],
+            ):
+                try:
+                    runner.assess_opportunity(opportunity.opportunity_id)
+                except ValueError as exc:
+                    assert "Interview inputs changed" in str(exc), str(exc)
+                else:
+                    raise AssertionError(
+                        "Changed interview should prevent saving."
+                    )
+
+            assert store.list_assessments() == before_history
+            print("interview_change_during_generation_rejected: PASS")
+
+            with patch.object(
+                runner,
+                "current_interview_inputs",
+                return_value=deepcopy([interview]),
+            ):
+                created = runner.assess_opportunity(
+                    opportunity.opportunity_id
+                )
+                assert created["status"] == "created"
+                assert created["record"]["interview_inputs"] == [interview]
+                assert created["record"]["result"]["interview_claims"] == (
+                    interview["claims"]
+                )
+
+                calls_before = model.call_count
+                cached = runner.assess_opportunity(
+                    opportunity.opportunity_id
+                )
+                assert cached["status"] == "cached"
+                assert cached["record"] == created["record"]
+                assert model.call_count == calls_before
+
+            print("interview_snapshot_and_cache: PASS")
+
+            with patch.object(
+                runner,
+                "current_interview_inputs",
+                return_value=deepcopy([updated_interview]),
+            ):
+                updated = runner.assess_opportunity(
+                    opportunity.opportunity_id
+                )
+                assert updated["status"] == "created"
+                assert updated["record"]["assessment_key"] != (
+                    created["record"]["assessment_key"]
+                )
+
+            assert store.get_assessment(
+                created["record"]["assessment_key"]
+            ) == created["record"]
+            assert len(store.list_assessments()) == len(before_history) + 2
+            assert research == original
+            print("interview_version_history_preserved: PASS")
+            model.side_effect = model_result
+
             model.reset_mock()
             with runner._runner_lock():
                 expect_error(

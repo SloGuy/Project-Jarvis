@@ -8,6 +8,7 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
+from app.ventures.assessment_interviews import current_interview_inputs
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 ASSESSMENT_DIRECTORY = PROJECT_ROOT / "state" / "ventures" / "assessments"
@@ -17,11 +18,18 @@ def assessment_key(
     *,
     research_record: dict,
     configuration: dict,
+    interview_inputs: list[dict] | None = None,
 ) -> str:
+    if interview_inputs is None:
+        interview_inputs = current_interview_inputs(
+            research_record["opportunity_id"]
+        )
+
     payload = json.dumps(
         {
             "research_record": research_record,
             "configuration": configuration,
+            "interview_inputs": interview_inputs,
         },
         sort_keys=True,
         ensure_ascii=False,
@@ -58,7 +66,12 @@ def save_assessment(
     research_record: dict,
     configuration: dict,
     result: dict,
+    interview_inputs: list[dict] | None = None,
 ) -> dict:
+    if interview_inputs is None:
+        interview_inputs = current_interview_inputs(
+            research_record["opportunity_id"]
+        )
     opportunity_id = research_record["opportunity_id"]
     if (
         research_record["report"]["opportunity_id"] != opportunity_id
@@ -74,6 +87,7 @@ def save_assessment(
     key = assessment_key(
         research_record=research_record,
         configuration=configuration,
+        interview_inputs=interview_inputs,
     )
     destination = _record_path(key)
     record = {
@@ -82,6 +96,7 @@ def save_assessment(
         "created_at": datetime.now(timezone.utc).isoformat(),
         "research_created_at": research_record["created_at"],
         "research_snapshot": research_record,
+        "interview_inputs": interview_inputs,
         "configuration": configuration,
         "result": result,
     }
