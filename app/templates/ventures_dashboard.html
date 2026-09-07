@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jarvis Ventures</title>
+<style>
+:root {
+    color-scheme: dark;
+    --background:#0b1020; --panel:#141b2d; --light:#1c263d;
+    --text:#f5f7ff; --muted:#9ba8c7; --border:#2a3652;
+    --green:#45d483; --yellow:#f4c95d; --red:#ff6b7a;
+}
+* { box-sizing:border-box }
+body { margin:0; background:var(--background); color:var(--text);
+    font-family:Inter,system-ui,sans-serif }
+main { max-width:1500px; margin:auto; padding:28px 22px 60px }
+header,.controls { display:flex; flex-wrap:wrap; gap:14px;
+    align-items:center; justify-content:space-between }
+h1,h2,h3,p { margin-top:0 }
+h1 { margin-bottom:6px }
+a { color:#a9c7ff }
+.subtitle,.muted { color:var(--muted) }
+.metrics { display:grid; grid-template-columns:repeat(3,1fr);
+    gap:16px; margin:24px 0 }
+.panel,.metric { background:var(--panel); border:1px solid var(--border);
+    border-radius:16px; padding:20px }
+.metric strong { display:block; font-size:2rem; margin-top:8px }
+.layout { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);
+    gap:20px; align-items:start }
+button,input,select { font:inherit; color:var(--text);
+    background:var(--light); border:1px solid var(--border);
+    border-radius:8px; padding:10px }
+button { cursor:pointer }
+button:hover { border-color:#88a9e9 }
+button:focus-visible,input:focus-visible,select:focus-visible {
+    outline:2px solid #a9c7ff; outline-offset:3px }
+input { min-width:180px; flex:1 }
+.controls { margin-bottom:16px }
+.table-wrap { overflow:auto; max-height:70vh }
+table { width:100%; border-collapse:collapse }
+th,td { text-align:left; padding:12px 8px;
+    border-bottom:1px solid var(--border); vertical-align:top }
+th { color:var(--muted); font-size:.8rem }
+td button { text-align:left; background:transparent; padding:0;
+    border:0; color:#bdd3ff }
+small { display:block; color:var(--muted); margin-top:5px }
+.badge { display:inline-block; padding:4px 8px; border-radius:6px;
+    background:var(--light); margin:0 5px 6px 0; font-size:.8rem }
+.error { color:var(--red); white-space:pre-wrap }
+.card { border:1px solid var(--border); border-radius:10px;
+    padding:14px; margin:12px 0; overflow-wrap:anywhere }
+.card p { white-space:pre-wrap; line-height:1.5 }
+details { margin:16px 0 }
+summary { cursor:pointer; font-weight:650; padding:8px 0 }
+pre { white-space:pre-wrap; overflow-wrap:anywhere; font-size:.85rem;
+    background:var(--background); padding:12px; border-radius:8px }
+li { margin:7px 0; line-height:1.4 }
+#scan { margin:12px 0; line-height:1.5 }
+@media(max-width:950px) { .layout { grid-template-columns:1fr } }
+@media(max-width:550px) {
+    main { padding:18px 12px } .metrics { grid-template-columns:1fr }
+}
+</style>
+</head>
+<body>
+<main>
+<header>
+<div><h1>Jarvis Ventures</h1>
+<p class="subtitle">Acquisition discovery, research, and review</p></div>
+<nav><a href="/market/dashboard">Market</a> ·
+<a href="/agents/dashboard">Agents</a></nav>
+<button id="refresh">Refresh</button>
+</header>
+
+<div id="scan" class="muted" role="status">Loading discovery status…</div>
+<div id="error" class="error" role="alert"></div>
+
+<section class="metrics" aria-label="Pipeline totals">
+<div class="metric">Opportunities<strong id="total">—</strong></div>
+<div class="metric">Current research candidates<strong id="candidates">—</strong></div>
+<div class="metric">Drafts matching current research<strong id="drafts">—</strong></div>
+</section>
+
+<div class="layout">
+<section class="panel">
+<h2>Review queue</h2>
+<p class="muted">Review priorities highlight financial warnings, missing
+evidence, and available drafts. They do not predict acquisition profitability.</p>
+<div class="controls">
+<input id="search" aria-label="Search opportunities" placeholder="Search businesses">
+<select id="filter" aria-label="Filter opportunities">
+<option value="candidates">Current candidates</option>
+<option value="all">All opportunities</option>
+<option value="classification">Needs classification review</option>
+</select>
+</div>
+<p id="shown" class="muted"></p>
+<div class="table-wrap">
+<table>
+<thead><tr><th>Business</th><th>Asking price</th><th>Review state</th></tr></thead>
+<tbody id="rows"></tbody>
+</table>
+</div>
+</section>
+
+<section class="panel" id="detail" aria-live="polite">
+<h2>Select a business</h2>
+<p class="muted">Inspect its research, model draft, and proposed workflows.
+Source disclosures are not independently verified.</p>
+</section>
+</div>
+</main>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+let opportunities = [];
+let selectionVersion = 0;
+const money = value => value == null ? "Unknown" :
+    new Intl.NumberFormat("en-US", {
+        style:"currency", currency:"USD", maximumFractionDigits:0
+    }).format(value);
+const label = value => (value || "not available").replaceAll("_", " ");
+
+function node(tag, text, className) {
+    const element = document.createElement(tag);
+    if (text != null) element.textContent = text;
+    if (className) element.className = className;
+    return element;
+}
+async function get(path) {
+    const response = await fetch(path, {signal:AbortSignal.timeout(15000)});
+    if (!response.ok) throw new Error(`Request failed (${response.status}): ${path}`);
+    return response.json();
+}
+function sourceLink(url) {
+    try {
+        const parsed = new URL(url);
+        if (!["https:", "http:"].includes(parsed.protocol)) return null;
+        const link = node("a", "Open source");
+        link.href = parsed.href;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        return link;
+    } catch { return null; }
+}
+function section(title, parent) {
+    const element = node("details");
+    element.append(node("summary", title));
+    parent.append(element);
+    return element;
+}
+function list(title, items, parent) {
+    parent.append(node("h3", title));
+    const ul = node("ul");
+    for (const item of items || []) ul.append(node("li", item));
+    parent.append(ul);
+}
+function renderRows() {
+    const search = $("search").value.toLowerCase();
+    const filter = $("filter").value;
+    const selected = opportunities.filter(item =>
+        item.name.toLowerCase().includes(search) &&
+        (filter === "all" ||
+         (filter === "candidates" && item.research_candidate) ||
+         (filter === "classification" &&
+          item.disposition === "needs_classification_review")));
+    $("rows").replaceChildren();
+    $("shown").textContent = `${selected.length} businesses shown`;
+    for (const item of selected) {
+        const row = node("tr");
+        const nameCell = node("td");
+        const button = node("button", item.name);
+        button.addEventListener("click", () => showDetail(item));
+        nameCell.append(button, node("small", label(item.business_type)));
+        const priority = item.review_priority;
+        const state = node("td",
+            priority ? label(priority.group) : label(item.assessment_status));
+        state.append(node("small", label(item.assessment_status)));
+        state.append(node("small", label(item.queue_status || item.disposition)));
+        if (priority) state.title = priority.reasons.join("\n");
+        row.append(nameCell, node("td", money(item.asking_price_usd)), state);
+        $("rows").append(row);
+    }
+}
+async function postData(path, payload) {
+    const response = await fetch(path, {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify(payload)
+    });
+    const data = await response.json();
+    if (!response.ok) {
+        const detail = typeof data.detail === "string" ?
+            data.detail : JSON.stringify(data.detail || data);
+        const error = new Error(detail);
+        error.outcomeUncertain = response.status >= 500;
+        throw error;
+    }
+    return data;
+}
+
+function addField(form, title, name, type = "text") {
+    const wrapper = node("label");
+    wrapper.style.display = "block";
+    wrapper.style.margin = "12px 0";
+    wrapper.append(node("span", title));
+    const input = node("input");
+    input.name = name;
+    input.type = type;
+    input.required = true;
+    input.style.display = "block";
+    input.style.width = "100%";
+    input.style.marginTop = "6px";
+    if (type === "number") {
+        input.min = "0";
+        input.step = "any";
+    }
+    wrapper.append(input);
+    form.append(wrapper);
+    return input;
+}
+
+function renderReviewControls(item, base, underwriting, decisions, panel) {
+    const uw = section("Underwriting scenarios", panel);
+    uw.append(node("p",
+        "Enter explicit assumptions. Added operating costs should include " +
+        "automation expenses, without double-counting owner labor or existing costs.",
+        "muted"));
+
+    const missingFinancials = (item.missing_inputs || []).filter(
+        field => ["annual_revenue_usd", "annual_sde_usd",
+                  "owner_hours_per_week"].includes(field)
+    );
+    if (missingFinancials.length) {
+        uw.append(node("p",
+            "Underwriting cannot calculate scenarios with the current inputs. " +
+            "Missing: " + missingFinancials.map(label).join(", ") +
+            ". Saving assumptions will record an incomplete report. " +
+            "Monthly source profit is not automatically treated as annual SDE.",
+            "muted"));
+    }
+
+    const form = node("form");
+    const fields = [
+        ["Acquisition costs (USD)", "acquisition_costs_usd"],
+        ["Working capital (USD)", "working_capital_usd"],
+        ["Added annual operating costs (USD)", "annual_added_operating_costs_usd"],
+        ["Owner replacement labor (USD/hour)", "owner_hourly_cost_usd"],
+        ["Assumed automation hours saved per week", "automation_hours_saved_per_week"],
+        ["Downside revenue decline (%)", "downside_revenue_decline_percent"]
+    ];
+    for (const [title, name] of fields) {
+        const input = addField(form, title, name, "number");
+        if (name === "downside_revenue_decline_percent") input.max = "100";
+    }
+    addField(form, "Assumption basis and notes", "notes");
+
+    const save = node("button", "Save underwriting scenario");
+    save.type = "submit";
+    const message = node("p");
+    message.setAttribute("role", "status");
+    form.append(save, message);
+    uw.append(form);
+
+    const history = node("div");
+    uw.append(history);
+
+    function renderUnderwriting(records) {
+        history.replaceChildren();
+        if (!records.length)
+            history.append(node("p", "No underwriting reports yet.", "muted"));
+
+        for (const record of [...records].reverse()) {
+            const report = record.report;
+            const card = node("div", null, "card");
+            card.append(node("h3", `Saved ${record.created_at}`));
+            card.append(node("p",
+                `Total investment: ${money(report.total_investment_usd)}`));
+            if (report.missing_inputs.length) {
+                card.append(node("p",
+                    "Scenarios unavailable. Missing opportunity inputs: " +
+                    report.missing_inputs.map(label).join(", "), "error"));
+            }
+            for (const scenario of report.scenarios) {
+                card.append(node("h3", label(scenario.name)));
+                card.append(node("p",
+                    `Annual adjusted cash flow: ${money(scenario.annual_adjusted_cash_flow_usd)}`));
+                card.append(node("p",
+                    `Cash return: ${scenario.cash_return_percent == null ?
+                        "Not available" : scenario.cash_return_percent + "%"} · ` +
+                    `Payback: ${scenario.payback_years == null ?
+                        "Not available" : scenario.payback_years + " years"}`));
+            }
+            const assumptions = section("Saved assumptions and limitations", card);
+            assumptions.append(node("pre",
+                JSON.stringify(report.assumptions, null, 2)));
+            list("Limitations", report.limitations, assumptions);
+            history.append(card);
+        }
+    }
+    const reports = [...underwriting.reports];
+    renderUnderwriting(reports);
+
+    form.addEventListener("submit", async event => {
+        event.preventDefault();
+        if (save.disabled) return;
+        save.disabled = true;
+        message.className = "muted";
+        message.textContent = "Saving…";
+        const values = new FormData(form);
+        const payload = {notes:String(values.get("notes")).trim()};
+        for (const [, name] of fields) payload[name] = Number(values.get(name));
+        try {
+            const saved = await postData(base + "/underwriting", payload);
+            reports.push(saved);
+            renderUnderwriting(reports);
+            message.textContent = "Underwriting report saved.";
+        } catch (error) {
+            message.className = "error";
+            message.textContent = error.message +
+                (error.outcomeUncertain !== false ?
+                    " Refresh history before retrying; the save outcome is uncertain." :
+                    "");
+        } finally { save.disabled = false; }
+    });
+
+    const review = section("Human review decision", panel);
+    review.append(node("p",
+        "Records your review decision and rationale. It does not purchase " +
+        "the business or change its lifecycle stage. Approval requires " +
+        "committee stage, ready research, and complete current underwriting.",
+        "muted"));
+    const decisionForm = node("form");
+    const choiceLabel = node("label", "Decision ");
+    const choice = node("select");
+    choice.name = "decision";
+    for (const [value, title] of [
+        ["defer", "Defer"],
+        ["more_research", "More research"],
+        ["reject", "Reject"],
+        ["approve", "Approve acquisition review"]
+    ]) {
+        const option = node("option", title);
+        option.value = value;
+        choice.append(option);
+    }
+    choiceLabel.append(choice);
+    decisionForm.append(choiceLabel);
+    addField(decisionForm, "Reviewer name (self-reported)", "recorded_by");
+    addField(decisionForm, "Decision rationale", "rationale");
+
+    const recordButton = node("button", "Record decision");
+    recordButton.type = "submit";
+    const decisionMessage = node("p");
+    decisionMessage.setAttribute("role", "status");
+    decisionForm.append(recordButton, decisionMessage);
+    review.append(decisionForm);
+
+    const decisionHistory = node("div");
+    review.append(decisionHistory);
+    const savedDecisions = [...decisions.decisions];
+
+    function renderDecisions() {
+        decisionHistory.replaceChildren();
+        if (!savedDecisions.length)
+            decisionHistory.append(node("p", "No recorded decisions.", "muted"));
+        for (const record of [...savedDecisions].reverse()) {
+            const card = node("div", null, "card");
+            card.append(node("h3", label(record.decision)));
+            card.append(node("small",
+                `${record.created_at} · ${record.recorded_by}`));
+            card.append(node("p", record.rationale));
+            card.append(node("small",
+                `Stage at review: ${label(record.opportunity_status_at_review)}`));
+            decisionHistory.append(card);
+        }
+    }
+    renderDecisions();
+
+    decisionForm.addEventListener("submit", async event => {
+        event.preventDefault();
+        if (recordButton.disabled) return;
+        recordButton.disabled = true;
+        decisionMessage.className = "muted";
+        decisionMessage.textContent = "Saving…";
+        const values = new FormData(decisionForm);
+        try {
+            const saved = await postData(base + "/decisions", {
+                decision:values.get("decision"),
+                recorded_by:String(values.get("recorded_by")).trim(),
+                rationale:String(values.get("rationale")).trim()
+            });
+            savedDecisions.push(saved);
+            renderDecisions();
+            decisionMessage.textContent = "Review decision recorded.";
+        } catch (error) {
+            decisionMessage.className = "error";
+            decisionMessage.textContent = error.message +
+                (error.outcomeUncertain !== false ?
+                    " Refresh history before retrying; the save outcome is uncertain." :
+                    "");
+        } finally { recordButton.disabled = false; }
+    });
+}
+async function showDetail(item) {
+    const version = ++selectionVersion;
+    const panel = $("detail");
+    panel.replaceChildren(node("h2", item.name), node("p", "Loading…"));
+    const base = `/ventures/opportunities/${encodeURIComponent(item.opportunity_id)}`;
+    try {
+        const [research, assessments, improvements, underwriting, decisions] =
+            await Promise.all([
+                get(base + "/research"),
+                get(base + "/assessments"),
+                get(base + "/improvements"),
+                get(base + "/underwriting"),
+                get(base + "/decisions")
+            ]);
+        if (version !== selectionVersion) return;
+        panel.replaceChildren(node("h2", item.name));
+        panel.append(node("p", `${money(item.asking_price_usd)} asking price`));
+        panel.append(node("span", label(item.status), "badge"));
+        panel.append(node("span",
+            item.source_current ? "Current discovery" : "Discovery not confirmed current",
+            "badge"));
+        const link = sourceLink(item.source_url);
+        if (link) {
+            const sourceParagraph = node("p");
+            sourceParagraph.append(link);
+            panel.append(sourceParagraph);
+        }
+
+        if (item.review_priority) {
+            const priority = item.review_priority;
+            const priorityCard = node("div", null, "card");
+            priorityCard.append(node("h3",
+                "Review priority: " + label(priority.group)));
+
+            const reasons = node("ul");
+            for (const reason of priority.reasons) {
+                reasons.append(node("li", reason));
+            }
+            priorityCard.append(reasons);
+
+            for (const summary of priority.financial_summaries || []) {
+                const financial = section(
+                    "Reported financial trend · " +
+                    summary.latest_reported_month.month,
+                    priorityCard
+                );
+                const first = summary.first_reported_month;
+                const latestMonth = summary.latest_reported_month;
+                const changes = summary.first_to_latest_change_percent;
+                const table = node("table");
+                const head = node("thead");
+                const headerRow = node("tr");
+                for (const title of [
+                    "Metric", first.month, latestMonth.month, "Change"
+                ]) {
+                    headerRow.append(node("th", title));
+                }
+                head.append(headerRow);
+                table.append(head);
+
+                const body = node("tbody");
+                const dollars = value => new Intl.NumberFormat("en-US", {
+                    style:"currency",
+                    currency:"USD",
+                    minimumFractionDigits:2,
+                    maximumFractionDigits:2
+                }).format(Number(value));
+
+                for (const [field, title] of [
+                    ["gross_revenue", "Monthly revenue"],
+                    ["net_profit", "Monthly net profit"]
+                ]) {
+                    const row = node("tr");
+                    row.append(
+                        node("td", title),
+                        node("td", dollars(first[field])),
+                        node("td", dollars(latestMonth[field])),
+                        node("td", changes[field] == null ?
+                            "Not available" : changes[field] + "%")
+                    );
+                    body.append(row);
+                }
+                table.append(body);
+                const wrapper = node("div", null, "table-wrap");
+                wrapper.append(table);
+                financial.append(wrapper);
+                financial.append(node("p",
+                    "Calculated from unverified source disclosures. " +
+                    "Net profit is not assumed to be SDE.",
+                    "muted"));
+                financial.append(node("small",
+                    "Source claim: " + summary.claim_id));
+            }
+
+            priorityCard.append(node("p",
+                "Absence of a warning does not establish a healthy business. " +
+                "Priority identifies review work, not purchasing approval.",
+                "muted"));
+            panel.append(priorityCard);
+        }
+
+        const latest = research.reports.at(-1);
+        if (latest) {
+            const report = latest.report;
+            const evidence = section(`Research · ${report.claims.length} claims`, panel);
+            evidence.append(node("p", `Report: ${latest.created_at}`, "muted"));
+            evidence.append(node("p", report.summary));
+            for (const claim of report.claims) {
+                const card = node("div", null, "card");
+                card.append(node("span", label(claim.evidence_status), "badge"));
+                card.append(node("p", claim.claim));
+                card.append(node("small", `Claim: ${claim.claim_id}`));
+                if (claim.evidence_notes) card.append(node("p", claim.evidence_notes, "muted"));
+                const source = sourceLink(claim.source);
+                if (source) card.append(source);
+                evidence.append(card);
+            }
+            list("Open diligence questions",
+                report.diligence_questions.map(q => q.question), evidence);
+            list("Recorded risks", report.risks.map(r =>
+                `${r.severity}: ${r.description}`), evidence);
+        } else panel.append(node("p", "Research has not been collected.", "muted"));
+
+        const drafts = section(`Assessment drafts · ${assessments.count}`, panel);
+        drafts.append(node("p",
+            "Model drafts require review. Valid claim IDs do not prove that an inference is supported.",
+            "muted"));
+        for (const saved of [...assessments.assessments].reverse()) {
+            const card = node("div", null, "card");
+            const matches = saved.assessment_key === item.assessment_key &&
+                saved.research_created_at === latest?.created_at;
+            card.append(node("span", matches ?
+                "Matches overview research/configuration" : "Historical or refresh required", "badge"));
+            card.append(node("small", `${saved.created_at} · ${saved.result.model}`));
+            const assessment = saved.result.assessment;
+            card.append(node("h3", `Thesis fit: ${label(assessment.thesis_fit)}`));
+            card.append(node("p", assessment.classification_rationale));
+            for (const finding of assessment.findings) {
+                card.append(node("p", `${label(finding.category)}: ${finding.text}`));
+                card.append(node("small", `References: ${finding.claim_ids.join(", ")}`));
+            }
+            for (const summary of saved.result.financial_summaries || []) {
+                const financial = section("Calculated source financials", card);
+                financial.append(node("pre", JSON.stringify(summary, null, 2)));
+            }
+            drafts.append(card);
+        }
+
+        const proposals = section(`Improvement proposals · ${improvements.count}`, panel);
+        proposals.open = true;
+        if (!improvements.count) proposals.append(node("p",
+            "No workflow matched the available operating-task disclosures.", "muted"));
+        for (const proposal of improvements.proposals) {
+            const card = node("div", null, "card");
+            card.append(node("h3", proposal.title));
+            card.append(node("p", proposal.current_task, "muted"));
+            list("Proposed workflow", proposal.proposed_workflow, card);
+            list("Requirements", proposal.implementation_requirements, card);
+            list("Validation", proposal.validation_steps, card);
+            card.append(node("p", `Human oversight: ${proposal.human_oversight}`));
+            card.append(node("p", "Costs and savings have not been established.", "muted"));
+            card.append(node("small", `References: ${proposal.source_claim_ids.join(", ")}`));
+            proposals.append(card);
+        }
+        renderReviewControls(item, base, underwriting, decisions, panel);
+    } catch (error) {
+        if (version === selectionVersion)
+            panel.replaceChildren(node("h2", item.name), node("p", error.message, "error"));
+    }
+}
+async function refresh() {
+    $("refresh").disabled = true;
+    $("error").textContent = "";
+    ++selectionVersion;
+    $("detail").replaceChildren(node("h2", "Select a business"));
+    try {
+        const data = await get("/ventures/overview");
+        opportunities = data.opportunities;
+        $("total").textContent = data.count;
+        $("candidates").textContent = data.research_candidate_count;
+        $("drafts").textContent = data.assessment_counts.current_draft || 0;
+        const scan = data.latest_discovery;
+        $("scan").textContent = scan ?
+            `Discovery: ${scan.status} · ${scan.finished_at} · ` +
+            (scan.snapshot_fresh ? "Snapshot fresh" : "Snapshot not confirmed fresh") +
+            (scan.error ? ` · ${scan.error}` : "") : "No discovery runs recorded.";
+        renderRows();
+    } catch (error) {
+        $("error").textContent = `Refresh failed. Displayed data may be old. ${error.message}`;
+    } finally { $("refresh").disabled = false; }
+}
+$("refresh").addEventListener("click", refresh);
+$("search").addEventListener("input", renderRows);
+$("filter").addEventListener("change", renderRows);
+refresh();
+</script>
+</body>
+</html>

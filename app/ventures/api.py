@@ -47,8 +47,10 @@ from app.ventures.decision_service import (
 )
 from app.ventures.decision_store import list_decisions
 from app.ventures.research_store import research_write_lock
-
 from app.ventures.assessment_store import list_assessments
+from app.ventures.improvement_service import build_improvement_proposals
+from app.ventures.overview import build_ventures_overview
+
 
 router = APIRouter(
     prefix="/ventures",
@@ -434,3 +436,36 @@ def ventures_assessment_history(opportunity_id: str):
         "count": len(records),
         "assessments": records,
     }
+
+
+@router.get("/opportunities/{opportunity_id}/improvements")
+def ventures_improvement_proposals(opportunity_id: str):
+    if get_opportunity(opportunity_id) is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Ventures opportunity not found.",
+        )
+
+    research = get_latest_research_report(opportunity_id)
+    if research is None:
+        return {
+            "opportunity_id": opportunity_id,
+            "status": "research_required",
+            "research_created_at": None,
+            "count": 0,
+            "proposals": [],
+        }
+
+    proposals = build_improvement_proposals(research)
+    return {
+        "opportunity_id": opportunity_id,
+        "status": "proposed" if proposals else "no_matching_disclosed_tasks",
+        "research_created_at": research["created_at"],
+        "count": len(proposals),
+        "proposals": proposals,
+    }
+
+
+@router.get("/overview")
+def ventures_overview():
+    return build_ventures_overview()

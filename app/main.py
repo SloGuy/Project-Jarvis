@@ -728,6 +728,15 @@ def market_portfolio_sell(request: TradeRequest):
             detail=str(exc),
         )
 
+@app.get("/ventures/dashboard", response_class=HTMLResponse)
+def ventures_dashboard():
+    dashboard_path = (
+        Path(__file__).resolve().parent
+        / "templates"
+        / "ventures_dashboard.html"
+    )
+    return dashboard_path.read_text(encoding="utf-8")
+
 @app.get("/market/dashboard", response_class=HTMLResponse)
 def market_dashboard():
     dashboard_path = (
