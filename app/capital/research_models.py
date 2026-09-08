@@ -48,6 +48,9 @@ class ResearchCandidate:
     )
     evaluation_notes: str | None = None
     reviewed_at: str | None = None
+    review_history: list[dict[str, Any]] = field(
+        default_factory=list
+    )
 
     def to_dict(self) -> dict[str, Any]:
         data = asdict(self)
@@ -141,4 +144,8 @@ class ResearchCandidate:
             reviewed_at=data.get(
                 "reviewed_at"
             ),
+            review_history=[
+                dict(review)
+                for review in data.get("review_history", [])
+            ],
         )

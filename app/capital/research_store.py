@@ -47,24 +47,24 @@ def _load_state_unlocked() -> dict:
             encoding="utf-8",
         ) as handle:
             payload = json.load(handle)
+    except FileNotFoundError:
+        return _default_state()
+    except (OSError, ValueError) as exc:
+        raise RuntimeError(
+            "Cannot read research state; "
+            "existing file will not be overwritten."
+        ) from exc
 
-        if (
-            isinstance(payload, dict)
-            and isinstance(
-                payload.get("candidates"),
-                dict,
-            )
-        ):
-            return payload
-
-    except (
-        FileNotFoundError,
-        json.JSONDecodeError,
-        OSError,
+    if (
+        not isinstance(payload, dict)
+        or not isinstance(payload.get("candidates"), dict)
     ):
-        pass
+        raise RuntimeError(
+            "Invalid research state structure; "
+            "existing file will not be overwritten."
+        )
 
-    return _default_state()
+    return payload
 
 
 def _save_state_unlocked(

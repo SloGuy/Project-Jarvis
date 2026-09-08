@@ -35,9 +35,26 @@ def _load_candidate(
             f"{normalized_id}"
         )
 
-    return ResearchCandidate.from_dict(
-        candidate_data
-    )
+    candidate = ResearchCandidate.from_dict(candidate_data)
+
+    if candidate.reviewed_at and not candidate.review_history:
+        candidate.review_history.append(
+            {
+                "review_number": 1,
+                "source": "legacy_latest_review",
+                "reviewed_at": candidate.reviewed_at,
+                "verdict": (
+                    candidate.verdict.value
+                    if candidate.verdict != ResearchVerdict.PENDING
+                    else None
+                ),
+                "evidence": list(candidate.evidence),
+                "concerns": list(candidate.concerns),
+                "evaluation_notes": candidate.evaluation_notes,
+            }
+        )
+
+    return candidate
 
 
 def _save_candidate(
@@ -217,6 +234,20 @@ def evaluate_research_candidate(
             candidate.status = (
                 ResearchStatus.REJECTED
             )
+
+        candidate.review_history.append(
+            {
+                "review_number": len(candidate.review_history) + 1,
+                "reviewed_at": candidate.reviewed_at,
+                "verdict": candidate.verdict.value,
+                "status": candidate.status.value,
+                "hypothesis": candidate.hypothesis,
+                "success_criteria": list(candidate.success_criteria),
+                "evidence": list(candidate.evidence),
+                "concerns": list(candidate.concerns),
+                "evaluation_notes": candidate.evaluation_notes,
+            }
+        )
 
         _save_candidate(
             state=state,
