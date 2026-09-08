@@ -54,6 +54,9 @@ class ResearchCandidate:
     hypothesis_version: int = 1
     parent_research_id: str | None = None
     revision_reason: str | None = None
+    evaluation_attachments: list[dict[str, Any]] = field(
+        default_factory=list
+    )
 
     def to_dict(self) -> dict[str, Any]:
         data = asdict(self)
@@ -156,4 +159,8 @@ class ResearchCandidate:
             ),
             parent_research_id=data.get("parent_research_id"),
             revision_reason=data.get("revision_reason"),
+            evaluation_attachments=[
+                dict(item)
+                for item in data.get("evaluation_attachments", [])
+            ],
         )
