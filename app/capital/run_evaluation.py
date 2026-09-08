@@ -96,6 +96,18 @@ def run(args, *, validation_record=None):
             "validation_plan_id": validation_record["plan_id"],
             "run_token": validation_record["run_token"],
         }
+    witness_history = None
+    witness_collection = None
+    if validation_record is not None and "witness_collection" in validation_record:
+        from app.capital.validation_collection import validate_collection
+        from app.capital.witnessed_history import WitnessedHistory
+        witness_collection = validate_collection(
+            validation_record["witness_collection"],
+            validation_record["registered_sha256"],
+        )
+        if witness_collection["status"] != "sealed":
+            raise ValueError("Witness collection is not sealed.")
+        witness_history = WitnessedHistory(witness_collection["receipts"])
     start, end = parse_time(args.start), parse_time(args.end)
     ticks = validate_plan(
         start, end, args.asset_id, args.provider,
@@ -156,10 +168,25 @@ def run(args, *, validation_record=None):
             }
             for index in range(ticks):
                 at = start + timedelta(minutes=index)
-                window = load_historical_snapshot(
-                    session, asset_id=args.asset_id,
-                    provider=args.provider, decision_at=at, **access,
-                )
+                if witness_history is None:
+                    window = load_historical_snapshot(
+                        session, asset_id=args.asset_id,
+                        provider=args.provider, decision_at=at, **access,
+                    )
+                else:
+                    from app.capital.validation_access import historical_access
+                    with historical_access(
+                        asset_id=args.asset_id, provider=args.provider,
+                        decision_at=at, **access,
+                    ) as check_times:
+                        window = witness_history.window(
+                            asset_id=args.asset_id, provider=args.provider,
+                            symbol=asset.symbol, decision_at=at,
+                        )
+                        check_times([
+                            parse_time(item["observation"]["observed_at"])
+                            for item in window["visibility_evidence"]
+                        ])
                 snapshot = window["snapshot"]
                 risk_only = index % 5 != 0
                 values = asdict(snapshot)
@@ -198,6 +225,25 @@ def run(args, *, validation_record=None):
             ],
             "windows": windows, "scenarios": {},
         }
+        if witness_collection is not None:
+            report["witness_collection"] = witness_collection
+            report["witness_evidence"] = {
+                "schema_version": 1,
+                "receipts": witness_collection["receipts"],
+            }
+            report["availability_verified"] = all(
+                bool(window["observation_ids"]) for window in windows
+            )
+            report["assumptions"] = [
+                "Synthetic schedule, not actual recorded cycle times.",
+                "Inputs reconstructed from the complete sealed receipt collection.",
+                "Both observation and witness times precede each decision.",
+                "Witnesses establish readability, not first availability.",
+                "Collection gaps and upstream quote freshness remain limitations.",
+                "Fills use stored prices plus assumed slippage.",
+                "Open positions are marked, not forcibly liquidated.",
+                "Local receipts are not independently authenticated.",
+            ]
         for name, simulation in simulations.items():
             ledger = simulation.ledger
             report["scenarios"][name] = {

@@ -58,6 +58,26 @@ def persist_assessment(plan, directory, expected_registration):
     report = json.loads(raw["report.json"])
     if report.get("validation_registration") != expected_registration:
         raise ValueError("Report registration differs from the claimed run.")
+    registered_row = registry.get_plan(expected_registration["plan_id"])
+    expected_collection = registered_row.get("witness_collection")
+    if expected_collection is not None:
+        from app.capital.validation_collection import validate_collection
+        validate_collection(
+            expected_collection, registered_row["registered_sha256"]
+        )
+        if (
+            expected_collection["status"] != "sealed"
+            or report.get("witness_collection") != expected_collection
+            or report.get("witness_evidence", {}).get("receipts")
+            != expected_collection["receipts"]
+        ):
+            raise ValueError("Report differs from registered witness collection.")
+    elif (
+        report.get("availability_verified") is True
+        or report.get("witness_collection") is not None
+        or report.get("witness_evidence") is not None
+    ):
+        raise ValueError("Witness evidence was not bound to this registration.")
     assessment = assess_report(plan, report)
     assessment.update({
         "input_report_sha256": hashes["report.json"],

@@ -28,6 +28,16 @@ def verify_witness_inputs(report):
     ):
         raise ValueError("Invalid witness evidence structure.")
 
+    collection = report.get("witness_collection")
+    if collection is not None:
+        from app.capital.validation_collection import validate_collection
+        registration = report.get("validation_registration", {})
+        validate_collection(collection, registration.get("sha256"))
+        if (
+            collection["status"] != "sealed"
+            or collection["receipts"] != evidence["receipts"]
+        ):
+            raise ValueError("Witness evidence differs from sealed collection.")
     history = WitnessedHistory(evidence["receipts"])
     windows = report["windows"]
     if not windows:
