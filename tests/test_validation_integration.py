@@ -199,6 +199,33 @@ class ValidationIntegrationTests(unittest.TestCase):
         self.assertEqual(
             attached["assessment"]["validation_status"], "insufficient_evidence"
         )
+        from types import SimpleNamespace
+        from app.capital.committee_models import CommitteeDecision
+        from app.capital.committee_service import evaluate_strategy_committee
+        experiment = SimpleNamespace(
+            research_id="synthetic_validation", hypothesis_version=1,
+            strategy_name="mean_reversion_v2", strategy_version="2.0",
+        )
+        with (
+            patch("app.capital.committee_service.require_experiment",
+                  return_value=experiment),
+            patch("app.capital.committee_service.build_graduation_gates",
+                  return_value=()),
+            patch("app.capital.committee_service.get_experiment_provenance",
+                  return_value={"status": "matched", "reasons": []}),
+        ):
+            committee = evaluate_strategy_committee(strategy_performance={
+                "experiment_id": "synthetic", "strategy_name": "mean_reversion_v2",
+                "portfolio_id": 1,
+            })
+        self.assertEqual(committee.decision, CommitteeDecision.CONTINUE)
+        self.assertFalse(committee.graduation_eligible)
+        validation_gate = next(
+            gate for gate in committee.gate_results
+            if gate.gate_name == "registered_validation"
+        )
+        self.assertEqual(validation_gate.status.value, "pending")
+        self.assertIn("insufficient", validation_gate.rationale)
         again = attach_completed(self.registered["plan_id"])
         self.assertEqual(attached, again)
         candidate = require_research_candidate(research_id="synthetic_validation")
