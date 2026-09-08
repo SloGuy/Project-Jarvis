@@ -61,7 +61,38 @@ def validate_plan(start, end, asset_id, provider, purpose, fee, slippage):
     return int(seconds / 60)
 
 
-def run(args):
+def run(args, *, validation_record=None):
+    designation = "development"
+    binding = {}
+    access = {}
+    if validation_record is not None:
+        from app.capital.validation_plan import verify_plan
+        registered = verify_plan(
+            validation_record["envelope"],
+            expected_sha256=validation_record["registered_sha256"],
+        )
+        if validation_record["status"] != "running":
+            raise ValueError("Validation plan must be claimed before execution.")
+        expected = (
+            registered["asset_id"], registered["provider"],
+            parse_time(registered["start"]), parse_time(registered["end_exclusive"]),
+            Decimal(registered["fee_bps"]), Decimal(registered["slippage_bps"]),
+        )
+        actual = (
+            args.asset_id, args.provider, parse_time(args.start),
+            parse_time(args.end), args.fee_bps, args.slippage_bps,
+        )
+        if actual != expected:
+            raise ValueError("Runner arguments differ from the registered plan.")
+        designation = "prospective_validation"
+        binding = {"validation_registration": {
+            "plan_id": validation_record["plan_id"],
+            "sha256": validation_record["registered_sha256"],
+        }}
+        access = {
+            "validation_plan_id": validation_record["plan_id"],
+            "run_token": validation_record["run_token"],
+        }
     start, end = parse_time(args.start), parse_time(args.end)
     ticks = validate_plan(
         start, end, args.asset_id, args.provider,
@@ -73,7 +104,7 @@ def run(args):
     manifest = capture_replay_manifest()
     plan = {
         "schema_version": 1,
-        "designation": "development",
+        "designation": designation, **binding,
         "purpose": args.purpose.strip(),
         "created_at": datetime.now(timezone.utc).isoformat(),
         "asset_id": args.asset_id, "provider": args.provider,
@@ -102,6 +133,11 @@ def run(args):
             ).one_or_none()
             if asset is None:
                 raise ValueError("Asset ID does not exist.")
+            if (
+                validation_record is not None
+                and asset.symbol != registered["symbol"]
+            ):
+                raise ValueError("Database asset differs from registered symbol.")
             expected_type = {"Finnhub": "stock", "CoinGecko": "crypto"}
             if asset.asset_type != expected_type[args.provider]:
                 raise ValueError("Provider and asset type do not match.")
@@ -120,7 +156,7 @@ def run(args):
                 at = start + timedelta(minutes=index)
                 window = load_historical_snapshot(
                     session, asset_id=args.asset_id,
-                    provider=args.provider, decision_at=at,
+                    provider=args.provider, decision_at=at, **access,
                 )
                 snapshot = window["snapshot"]
                 risk_only = index % 5 != 0
@@ -146,7 +182,7 @@ def run(args):
         verify_replay_manifest(manifest)
         report = {
             "mode": "single_asset_engineering_position_replay",
-            "designation": "development",
+            "designation": designation, **binding,
             "asset_id": args.asset_id, "symbol": asset.symbol,
             "provider": args.provider,
             "start": start.isoformat(), "end_exclusive": end.isoformat(),
@@ -185,7 +221,7 @@ def run(args):
         hashes["analysis.json"] = save(directory / "analysis.json", analysis)
         save(directory / "result.json", {
             "status": "completed",
-            "designation": "development",
+            "designation": designation, **binding,
             "promotion_authorized": False,
             "artifacts_sha256": hashes,
         })
@@ -199,6 +235,7 @@ def run(args):
                 ),
             )
         print("PASS: saved replay verified and analyzed.")
+        return directory
     except Exception as error:
         save(directory / "failure.json", {
             "status": "failed", "error_type": type(error).__name__,
