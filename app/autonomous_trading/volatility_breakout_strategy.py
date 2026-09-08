@@ -79,11 +79,21 @@ def get_volatility_breakout_snapshot(
         limit=LOOKBACK_OBSERVATIONS,
     )
 
+    return calculate_volatility_breakout_snapshot(
+        symbol=normalized_symbol,
+        observations=history.get("observations") or [],
+    )
+
+
+def calculate_volatility_breakout_snapshot(*, symbol, observations):
+    normalized_symbol = symbol.strip().upper()
+
+    if not normalized_symbol:
+        raise ValueError("symbol must not be empty.")
+
     observations = [
         observation
-        for observation in (
-            history.get("observations") or []
-        )
+        for observation in (observations or [])
         if (
             observation.get("price_usd") is not None
             and observation.get("observed_at") is not None
@@ -289,6 +299,7 @@ def evaluate_volatility_breakout_strategy(
     snapshot: (
         VolatilityBreakoutSnapshot | None
     ) = None,
+    confirmation_handler=None,
 ) -> StrategyCandidate:
     normalized_symbol = symbol.strip().upper()
 
@@ -329,7 +340,7 @@ def evaluate_volatility_breakout_strategy(
         and snapshot.latest_price_usd
         < snapshot.exit_average_usd
     ):
-        confirmation = update_signal_confirmation(
+        confirmation = (confirmation_handler or update_signal_confirmation)(
             symbol=normalized_symbol,
             strategy_name=STRATEGY_NAME,
             action=StrategyAction.SELL,
@@ -363,7 +374,7 @@ def evaluate_volatility_breakout_strategy(
         )
 
     if position_context.has_position:
-        update_signal_confirmation(
+        (confirmation_handler or update_signal_confirmation)(
             symbol=normalized_symbol,
             strategy_name=STRATEGY_NAME,
             action=StrategyAction.HOLD,
@@ -405,7 +416,7 @@ def evaluate_volatility_breakout_strategy(
     )
 
     if entry_signal:
-        confirmation = update_signal_confirmation(
+        confirmation = (confirmation_handler or update_signal_confirmation)(
             symbol=normalized_symbol,
             strategy_name=STRATEGY_NAME,
             action=StrategyAction.BUY,
@@ -449,7 +460,7 @@ def evaluate_volatility_breakout_strategy(
             strategy_name=STRATEGY_NAME,
         )
 
-    update_signal_confirmation(
+    (confirmation_handler or update_signal_confirmation)(
         symbol=normalized_symbol,
         strategy_name=STRATEGY_NAME,
         action=StrategyAction.HOLD,
