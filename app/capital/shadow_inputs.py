@@ -73,6 +73,9 @@ def load_shadow_inputs(session, *, asset_id, provider, decision_at):
         "quote": quote,
         "observation_ids": [row.id for row in rows],
         "observation_times": [at.isoformat() for at in times],
+        "chronological_prices": [
+            D(str(item["price_usd"])) for item in reversed(observations)
+        ],
         "availability_verified": False,
     }
 

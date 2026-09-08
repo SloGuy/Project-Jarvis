@@ -64,5 +64,49 @@ class SharedReplayTests(unittest.TestCase):
         self.assertFalse((directory / "result.json").exists())
 
 
+
+    def test_scaled_replay_reduces_entry_quantity(self):
+        from decimal import Decimal
+        with registry.locked_state(write=True) as state:
+            state["plans"].clear()
+        baseline = self.run_replay()
+        scaled = shared.run_shared(
+            allocation=inputs["allocation"](), assets=[(1, "Finnhub")],
+            start=integration["START"], end=integration["END"],
+            fee_bps="5", slippage_bps="5",
+            target_volatility_percent="0.001",
+        )
+
+        def bought(directory):
+            state = json.loads(
+                (directory / "checkpoint/shadow.json").read_text()
+            )["state"]
+            return sum(
+                Decimal(event["fill"]["quantity"])
+                for tick in state["ticks"]
+                for event in tick["result"]["events"]
+                if event["executed"] and event["side"] == "buy"
+            )
+
+        self.assertGreater(bought(scaled), 0)
+        self.assertLess(bought(scaled), bought(baseline))
+        summary = json.loads((scaled / "summary.json").read_text())
+        for limits in summary["sizing_scale_range"].values():
+            self.assertGreaterEqual(Decimal(limits["minimum"]), 0)
+            self.assertLessEqual(Decimal(limits["maximum"]), 1)
+
+    def test_halted_historical_replay_places_no_orders(self):
+        with registry.locked_state(write=True) as state:
+            state["plans"].clear()
+        directory = shared.run_shared(
+            allocation=inputs["allocation"](), assets=[(1, "Finnhub")],
+            start=integration["START"], end=integration["END"],
+            fee_bps="5", slippage_bps="5", risk_mode="halted",
+        )
+        summary = json.loads((directory / "summary.json").read_text())
+        self.assertEqual(summary["executed_orders"], 0)
+        self.assertEqual(summary["rejected_orders"], 0)
+
+
 if __name__ == "__main__":
     unittest.main()

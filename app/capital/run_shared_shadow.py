@@ -11,6 +11,7 @@ from sqlalchemy import text
 
 from app.market_db.database import SessionLocal
 from app.capital.shadow_inputs import load_shadow_inputs, shadow_configuration
+from app.capital.shadow_risk import controls, downward_volatility_scale
 from app.capital.shadow_checkpoint import (
     create_checkpoint, process_tick, verify_checkpoint,
     normalized, encode_tick, locked, read_checkpoint,
@@ -21,6 +22,7 @@ OUTPUT_DIRECTORY = ROOT / "work/shared_shadow"
 INPUT_SOURCES = (
     "app/capital/run_shared_shadow.py",
     "app/capital/shadow_inputs.py",
+    "app/capital/shadow_risk.py",
     "app/capital/allocator.py",
     "app/capital/allocation_policy.py",
 )
@@ -46,7 +48,8 @@ def parse_time(value):
     return result.astimezone(timezone.utc)
 
 
-def run_shared(*, allocation, assets, start, end, fee_bps, slippage_bps):
+def run_shared(*, allocation, assets, start, end, fee_bps, slippage_bps,
+               risk_mode="normal", target_volatility_percent=None):
     if start.utcoffset() is None or end.utcoffset() is None:
         raise ValueError("Timezone-aware start and end are required.")
     seconds = (end - start).total_seconds()
@@ -57,6 +60,12 @@ def run_shared(*, allocation, assets, start, end, fee_bps, slippage_bps):
     if not assets or len(set(assets)) != len(assets):
         raise ValueError("Provide distinct asset/provider pairs.")
     policy, caps = shadow_configuration(allocation)
+    controls(caps, risk_mode, {})
+    if target_volatility_percent is not None:
+        target_volatility_percent = Decimal(str(target_volatility_percent))
+        downward_volatility_scale(
+            [], target_volatility_percent=target_volatility_percent
+        )
     directory = OUTPUT_DIRECTORY / uuid4().hex
     directory.mkdir(parents=True)
     fingerprints = source_hashes()
@@ -68,6 +77,9 @@ def run_shared(*, allocation, assets, start, end, fee_bps, slippage_bps):
         "end_exclusive": end.isoformat(),
         "fee_bps": fee_bps, "slippage_bps": slippage_bps,
         "input_sources": fingerprints,
+        "risk_mode": risk_mode,
+        "target_observation_volatility_percent": target_volatility_percent,
+
         "allocation_sha256": hashes["allocation.json"],
         "allocation_known_at_historical_time": False,
         "historical_availability_verified": False,
@@ -87,6 +99,7 @@ def run_shared(*, allocation, assets, start, end, fee_bps, slippage_bps):
             for index in range(int(seconds / 60)):
                 at = start + timedelta(minutes=index)
                 snapshots, quotes, sources = {}, {}, []
+                scales = {name: Decimal("1") for name in caps}
                 for asset_id, provider in assets:
                     loaded = load_shadow_inputs(
                         session, asset_id=asset_id, provider=provider, decision_at=at
@@ -98,7 +111,16 @@ def run_shared(*, allocation, assets, start, end, fee_bps, slippage_bps):
                         raise ValueError(f"No reference quote for {symbol} at {at}.")
                     snapshots.update(loaded["snapshots"])
                     quotes[symbol] = loaded["quote"]
+                    volatility = None
+                    if target_volatility_percent is not None:
+                        volatility = downward_volatility_scale(
+                            loaded["chronological_prices"],
+                            target_volatility_percent=target_volatility_percent,
+                        )
+                        for name in scales:
+                            scales[name] = min(scales[name], volatility["scale"])
                     sources.append({
+                        "volatility_scaling": volatility,
                         "asset_id": asset_id, "provider": provider, "symbol": symbol,
                         "observation_ids": loaded["observation_ids"],
                         "observation_times": loaded["observation_times"],
@@ -106,6 +128,7 @@ def run_shared(*, allocation, assets, start, end, fee_bps, slippage_bps):
                 ticks.append({
                     "decision_at": at, "snapshots": snapshots, "quotes": quotes,
                     "risk_only": index % 5 != 0,
+                    "risk_mode": risk_mode, "size_scales": scales,
                 })
                 provenance.append({"decision_at": at.isoformat(), "sources": sources})
         hashes["market_inputs.json"] = save(directory / "market_inputs.json", {
@@ -131,6 +154,15 @@ def run_shared(*, allocation, assets, start, end, fee_bps, slippage_bps):
             "mode": "development_shared_shadow",
             "ticks": verification["ticks"],
             "strategies": sorted(caps),
+            "risk_mode": risk_mode,
+            "target_observation_volatility_percent": target_volatility_percent,
+            "sizing_scale_range": {
+                name: {
+                    "minimum": min(tick["size_scales"][name] for tick in ticks),
+                    "maximum": max(tick["size_scales"][name] for tick in ticks),
+                }
+                for name in caps
+            },
             "executed_orders": sum(event["executed"] for event in events),
             "rejected_orders": sum(not event["executed"] for event in events),
             "account": account,
@@ -143,6 +175,8 @@ def run_shared(*, allocation, assets, start, end, fee_bps, slippage_bps):
                 "Allocation snapshot is not proven known at historical decision time.",
                 "Synthetic schedule and assumed fills; no live execution parity.",
                 "Sampled reference marks exclude future liquidation costs.",
+                "Volatility uses observation returns with potentially irregular spacing.",
+                "Scaling is a shadow comparison, not a calibrated risk forecast.",
             ],
         }
         hashes["summary.json"] = save(directory / "summary.json", summary)
@@ -178,6 +212,10 @@ def main():
     parser.add_argument("--end", required=True)
     parser.add_argument("--fee-bps", type=Decimal, required=True)
     parser.add_argument("--slippage-bps", type=Decimal, required=True)
+    parser.add_argument(
+        "--risk-mode", choices=["normal", "reduce_only", "halted"], default="normal"
+    )
+    parser.add_argument("--target-volatility-percent", type=Decimal)
     args = parser.parse_args()
     assets = []
     for value in args.asset:
@@ -187,6 +225,8 @@ def main():
         allocation=json.loads(args.allocation.read_text()), assets=assets,
         start=parse_time(args.start), end=parse_time(args.end),
         fee_bps=args.fee_bps, slippage_bps=args.slippage_bps,
+        risk_mode=args.risk_mode,
+        target_volatility_percent=args.target_volatility_percent,
     )
 
 
