@@ -54,6 +54,9 @@ class CommitteeReport:
 
     live_capital_authorized: bool = False
     human_approval_required: bool = True
+    research_id: str | None = None
+    hypothesis_version: int | None = None
+    strategy_version: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         data = asdict(self)

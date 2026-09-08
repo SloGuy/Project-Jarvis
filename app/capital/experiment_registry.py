@@ -46,6 +46,30 @@ class ExperimentDefinition:
     duration_days: int
     starting_capital_usd: Decimal
     risk_policy_name: str
+    research_id: str | None = None
+    hypothesis_version: int | None = None
+    strategy_version: str | None = None
+
+    def __post_init__(self) -> None:
+        lineage = (
+            self.research_id,
+            self.hypothesis_version,
+            self.strategy_version,
+        )
+        if all(value is None for value in lineage):
+            return
+        if any(value is None for value in lineage):
+            raise ValueError("Supply all three lineage fields together.")
+        for value in (self.research_id, self.strategy_version):
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError("Lineage identifiers must be nonblank text.")
+            if value != value.strip():
+                raise ValueError("Lineage identifiers must be trimmed.")
+        if (
+            type(self.hypothesis_version) is not int
+            or self.hypothesis_version < 1
+        ):
+            raise ValueError("Hypothesis version must be a positive integer.")
 
     def to_dict(self) -> dict[str, Any]:
         data = asdict(self)

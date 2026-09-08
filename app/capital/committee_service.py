@@ -160,6 +160,9 @@ def evaluate_strategy_committee(
         ),
         live_capital_authorized=False,
         human_approval_required=True,
+        research_id=experiment.research_id,
+        hypothesis_version=experiment.hypothesis_version,
+        strategy_version=experiment.strategy_version,
     )
 
 
