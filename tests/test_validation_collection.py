@@ -56,6 +56,24 @@ class CollectionTests(unittest.TestCase):
             capture.assert_not_called()
         self.assertEqual(path.read_bytes(), before)
 
+    def test_registry_keeps_only_compact_reference(self):
+        self.capture()
+        row = registry.get_plan(self.plan_id)
+        value = row["witness_collection"]
+        self.assertNotIn("receipts", value)
+        self.assertEqual(value["store_checkpoint"]["count"], 1)
+        with patch.object(
+            registry, "now_utc", return_value=NOW + timedelta(days=3)
+        ):
+            collection.seal(self.plan_id)
+        sealed = registry.get_plan(self.plan_id)["witness_collection"]
+        packet = collection.materialize_collection(sealed)
+        self.assertEqual(len(packet["receipts"]), 1)
+        self.assertNotIn(
+            "receipts",
+            registry.get_plan(self.plan_id)["witness_collection"],
+        )
+
     def test_capture_seal_and_claim(self):
         self.assertEqual(self.capture(), 1)
         with patch.object(
@@ -99,7 +117,7 @@ class CollectionTests(unittest.TestCase):
         self.capture()
         path = registry.DIRECTORY / "registry.json"
         state = json.loads(path.read_text())
-        state["plans"][self.plan_id]["witness_collection"]["receipts"] = []
+        state["plans"][self.plan_id]["witness_collection"]["store_checkpoint"]["count"] = 0
         path.write_text(json.dumps(state))
         with patch.object(
             registry, "now_utc", return_value=NOW + timedelta(days=3)

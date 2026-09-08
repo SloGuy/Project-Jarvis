@@ -11,6 +11,7 @@ MAX_RECEIPTS = 10000
 
 SOURCE_FILES = (
     "app/capital/observation_witness.py",
+    "app/capital/receipt_store.py",
     "app/capital/witnessed_history.py",
     "app/capital/witness_verification.py",
     "app/capital/validation_collection.py",
@@ -35,33 +36,90 @@ def source_manifest():
     }
 
 
+
 def validate_collection(collection, plan_sha256):
-    if set(collection) != {
+    from app.capital.receipt_store import ReceiptStore
+    required = {
         "schema_version", "plan_sha256", "bound_at", "status",
-        "receipts", "sha256", "input_source_sha256",
-    }:
-        raise ValueError("Invalid collection structure.")
+        "store_checkpoint", "sha256", "input_source_sha256",
+    }
+    if set(collection) not in (required, required | {"receipts"}):
+        raise ValueError("Collection structure or integrity mismatch.")
+    body = {k: v for k, v in collection.items() if k != "sha256"}
     if (
         collection["schema_version"] != 1
         or collection["plan_sha256"] != plan_sha256
         or collection["status"] not in {"collecting", "sealed"}
-        or not isinstance(collection["receipts"], list)
-        or len(collection["receipts"]) > MAX_RECEIPTS
+        or digest(body) != collection["sha256"]
     ):
-        raise ValueError("Invalid collection binding or state.")
-    body = {k: v for k, v in collection.items() if k != "sha256"}
-    if digest(body) != collection["sha256"]:
         raise ValueError("Collection integrity mismatch.")
     if collection["input_source_sha256"] != source_manifest():
         raise ValueError("Witness processing source changed since binding.")
-    previous = timestamp(collection["bound_at"])
-    for receipt in collection["receipts"]:
-        payload = verify_receipt(receipt)
-        current = timestamp(payload["witnessed_at"])
-        if current <= previous:
-            raise ValueError("Witness times must increase.")
-        previous = current
+
+    checkpoint = collection["store_checkpoint"]
+    checkpoint_body = {
+        k: v for k, v in checkpoint.items() if k != "sha256"
+    }
+    if (
+        set(checkpoint) != {
+            "schema_version", "binding", "count", "head", "sealed", "sha256"
+        }
+        or checkpoint["schema_version"] != 1
+        or type(checkpoint["count"]) is not int
+        or not 0 <= checkpoint["count"] <= MAX_RECEIPTS
+        or type(checkpoint["sealed"]) is not bool
+        or checkpoint["sealed"] != (collection["status"] == "sealed")
+        or digest(checkpoint_body) != checkpoint["sha256"]
+        or checkpoint["binding"] != {
+            "plan_sha256": plan_sha256,
+            "bound_at": collection["bound_at"],
+            "input_source_sha256": collection["input_source_sha256"],
+        }
+    ):
+        raise ValueError("Collection checkpoint integrity mismatch.")
+
+    if "receipts" in collection:
+        receipts = collection["receipts"]
+        if not isinstance(receipts, list) or len(receipts) != checkpoint["count"]:
+            raise ValueError("Collection receipt count mismatch.")
+        previous = None
+        previous_time = timestamp(collection["bound_at"])
+        for index, receipt in enumerate(receipts, 1):
+            payload = verify_receipt(receipt)
+            when = timestamp(payload["witnessed_at"])
+            if when <= previous_time:
+                raise ValueError("Witness times must increase.")
+            previous_time = when
+            previous = digest({
+                "index": index,
+                "previous": previous,
+                "receipt": receipt,
+            })
+        if previous != checkpoint["head"]:
+            raise ValueError("Collection receipt chain mismatch.")
     return collection
+
+
+def store_for(collection):
+    from app.capital.receipt_store import ReceiptStore
+    key = collection["plan_sha256"]
+    if len(key) != 64 or any(c not in "0123456789abcdef" for c in key):
+        raise ValueError("Invalid collection storage key.")
+    return ReceiptStore(registry.DIRECTORY / "collections" / key)
+
+
+def materialize_collection(collection):
+    """Read the whole sealed collection once for the evaluation packet."""
+    validate_collection(collection, collection["plan_sha256"])
+    if collection["status"] != "sealed":
+        raise ValueError("Collection is not sealed.")
+    if "receipts" in collection:
+        return collection
+    value = registry.copy_value(collection)
+    value["receipts"] = store_for(value).export(value["store_checkpoint"])
+    refresh(value)
+    validate_collection(value, value["plan_sha256"])
+    return value
 
 
 def refresh(collection):
@@ -90,8 +148,13 @@ def bind(plan_id):
             "bound_at": now.isoformat(),
             "input_source_sha256": source_manifest(),
             "status": "collecting",
-            "receipts": [],
+            "store_checkpoint": None,
         }
+        collection["store_checkpoint"] = store_for(collection).initialize({
+            "plan_sha256": collection["plan_sha256"],
+            "bound_at": collection["bound_at"],
+            "input_source_sha256": collection["input_source_sha256"],
+        })
         refresh(collection)
         row["witness_collection"] = collection
         row["history"].append({
@@ -115,9 +178,12 @@ def capture_next(plan_id):
             raise ValueError("Collection is not open.")
         if registry.now_utc() >= timestamp(plan["end_exclusive"]):
             raise ValueError("Collection period has ended.")
-        if len(collection["receipts"]) >= MAX_RECEIPTS:
+        if collection["store_checkpoint"]["count"] >= MAX_RECEIPTS:
             raise ValueError("Receipt limit reached.")
 
+        store = store_for(collection)
+        if store.read_checkpoint() != collection["store_checkpoint"]:
+            raise ValueError("Store and registry differ; recovery is required.")
         path = capture(plan["asset_id"], plan["provider"], limit=60)
         receipt = json.loads(path.read_text())
         payload = verify_receipt(receipt)
@@ -135,10 +201,26 @@ def capture_next(plan_id):
                 or observation["provider"] != plan["provider"]
             ):
                 raise ValueError("Receipt series differs from plan.")
-        collection["receipts"].append(receipt)
+        checkpoint = collection["store_checkpoint"]
+        if checkpoint["count"]:
+            previous_path = store.directory / (
+                f"receipt_{checkpoint['count']:08d}.json"
+            )
+            previous = json.loads(previous_path.read_text())
+            if (
+                digest(previous["body"]) != previous["sha256"]
+                or previous["sha256"] != checkpoint["head"]
+            ):
+                raise ValueError("Last receipt integrity mismatch.")
+            previous_time = timestamp(
+                previous["body"]["receipt"]["payload"]["witnessed_at"]
+            )
+            if witnessed <= previous_time:
+                raise ValueError("Witness times must increase.")
+        collection["store_checkpoint"] = store.append(receipt)
         refresh(collection)
         validate_collection(collection, row["registered_sha256"])
-        count = len(collection["receipts"])
+        count = collection["store_checkpoint"]["count"]
     return count
 
 
@@ -154,17 +236,21 @@ def seal(plan_id):
         now = registry.now_utc()
         if now < timestamp(plan["end_exclusive"]):
             raise ValueError("Collection period has not ended.")
-        if not collection["receipts"]:
+        if not collection["store_checkpoint"]["count"]:
             raise ValueError("Cannot seal an empty collection.")
         if collection["status"] == "sealed":
             return collection["sha256"]
+        store = store_for(collection)
+        if store.read_checkpoint() != collection["store_checkpoint"]:
+            raise ValueError("Store and registry differ; recovery is required.")
+        collection["store_checkpoint"] = store.seal()
         collection["status"] = "sealed"
         refresh(collection)
         row["history"].append({
             "status": "collection_sealed",
             "at": now.isoformat(),
             "collection_sha256": collection["sha256"],
-            "receipt_count": len(collection["receipts"]),
+            "receipt_count": collection["store_checkpoint"]["count"],
         })
     return collection["sha256"]
 

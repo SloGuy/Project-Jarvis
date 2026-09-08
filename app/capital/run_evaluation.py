@@ -107,6 +107,8 @@ def run(args, *, validation_record=None):
         )
         if witness_collection["status"] != "sealed":
             raise ValueError("Witness collection is not sealed.")
+        from app.capital.validation_collection import materialize_collection
+        witness_collection = materialize_collection(witness_collection)
         witness_history = WitnessedHistory(witness_collection["receipts"])
     start, end = parse_time(args.start), parse_time(args.end)
     ticks = validate_plan(

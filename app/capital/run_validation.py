@@ -65,6 +65,8 @@ def persist_assessment(plan, directory, expected_registration):
         validate_collection(
             expected_collection, registered_row["registered_sha256"]
         )
+        from app.capital.validation_collection import materialize_collection
+        expected_collection = materialize_collection(expected_collection)
         if (
             expected_collection["status"] != "sealed"
             or report.get("witness_collection") != expected_collection
