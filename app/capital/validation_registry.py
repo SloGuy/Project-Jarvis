@@ -143,6 +143,14 @@ def claim_plan(plan_id):
         plan = row["envelope"]["plan"]
         if now < timestamp(plan["end_exclusive"]):
             raise ValueError("Evaluation period has not ended.")
+
+        if "witness_collection" in row:
+            from app.capital.validation_collection import validate_collection
+            collection = validate_collection(
+                row["witness_collection"], row["registered_sha256"]
+            )
+            if collection["status"] != "sealed":
+                raise ValueError("Witness collection must be sealed before claiming.")
         token = uuid4().hex
         row["status"] = "running"
         row["run_token"] = token
