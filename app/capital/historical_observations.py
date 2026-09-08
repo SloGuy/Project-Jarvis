@@ -2,6 +2,7 @@
 from datetime import datetime, timezone
 
 from sqlalchemy import select
+from app.capital.validation_access import historical_access
 
 from app.capital.mean_reversion_math import (
     LOOKBACK_OBSERVATIONS,
@@ -45,12 +46,16 @@ def historical_window_statement(
 
 
 def load_historical_snapshot(
-    session, *, asset_id: int, provider: str, decision_at: datetime
+    session, *, asset_id: int, provider: str, decision_at: datetime,
+    validation_plan_id=None, run_token=None,
 ) -> dict:
     statement = historical_window_statement(
         asset_id=asset_id, provider=provider, decision_at=decision_at
     )
-    with session.no_autoflush:
+    with historical_access(
+        asset_id=asset_id, provider=provider, decision_at=decision_at,
+        validation_plan_id=validation_plan_id, run_token=run_token,
+    ) as check_times, session.no_autoflush:
         asset = session.execute(
             select(MarketAsset.symbol, MarketAsset.asset_type)
             .where(MarketAsset.id == asset_id)
@@ -58,6 +63,11 @@ def load_historical_snapshot(
         if asset is None:
             raise ValueError(f"Unknown asset ID: {asset_id}")
         rows = session.execute(statement).all()
+        check_times([
+            row.observed_at if row.observed_at.utcoffset() is not None
+            else row.observed_at.replace(tzinfo=timezone.utc)
+            for row in rows
+        ])
 
     observations = [
         {
