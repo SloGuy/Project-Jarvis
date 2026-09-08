@@ -24,6 +24,9 @@ from app.capital.offline_verification import verify_report
 from app.capital.replay_analysis import analyze_report
 
 
+EVALUATION_DIRECTORY = Path(__file__).resolve().parents[2] / "work/evaluations"
+
+
 def encode(value):
     if isinstance(value, Decimal):
         return str(value)
@@ -98,8 +101,7 @@ def run(args, *, validation_record=None):
         start, end, args.asset_id, args.provider,
         args.purpose, args.fee_bps, args.slippage_bps,
     )
-    root = Path(__file__).resolve().parents[2]
-    directory = root / "work/evaluations" / uuid4().hex
+    directory = EVALUATION_DIRECTORY / uuid4().hex
     directory.mkdir(parents=True)
     manifest = capture_replay_manifest()
     plan = {

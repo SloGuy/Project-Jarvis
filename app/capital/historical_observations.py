@@ -73,7 +73,11 @@ def load_historical_snapshot(
         {
             # Preserve the existing history adapter's numeric conversion.
             "price_usd": float(row.price_usd),
-            "observed_at": row.observed_at.isoformat(),
+            "observed_at": (
+                row.observed_at
+                if row.observed_at.utcoffset() is not None
+                else row.observed_at.replace(tzinfo=timezone.utc)
+            ).isoformat(),
         }
         for row in rows
     ]
