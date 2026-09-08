@@ -88,6 +88,7 @@ def evaluate_mean_reversion_v2_strategy(
     symbol: str,
     position_context: PositionContext,
     snapshot: MeanReversionSnapshot | None = None,
+    confirmation_handler=None,
 ) -> StrategyCandidate:
     if position_context.has_position:
         return _hold_candidate(
@@ -102,6 +103,7 @@ def evaluate_mean_reversion_v2_strategy(
         symbol=symbol,
         position_context=position_context,
         snapshot=snapshot,
+        confirmation_handler=confirmation_handler,
     )
 
 
@@ -110,6 +112,7 @@ def evaluate_mean_reversion_strategy(
     symbol: str,
     position_context: PositionContext,
     snapshot: MeanReversionSnapshot | None = None,
+    confirmation_handler=None,
 ) -> StrategyCandidate:
     normalized_symbol = symbol.strip().upper()
 
@@ -146,7 +149,7 @@ def evaluate_mean_reversion_strategy(
         position_context.has_position
         and snapshot.z_score >= RECOVERY_Z_SCORE
     ):
-        confirmation = update_signal_confirmation(
+        confirmation = (confirmation_handler or update_signal_confirmation)(
             symbol=normalized_symbol,
             strategy_name=STRATEGY_NAME,
             action=StrategyAction.SELL,
@@ -182,7 +185,7 @@ def evaluate_mean_reversion_strategy(
         not position_context.has_position
         and snapshot.z_score <= ENTRY_Z_SCORE
     ):
-        confirmation = update_signal_confirmation(
+        confirmation = (confirmation_handler or update_signal_confirmation)(
             symbol=normalized_symbol,
             strategy_name=STRATEGY_NAME,
             action=StrategyAction.BUY,
@@ -219,7 +222,7 @@ def evaluate_mean_reversion_strategy(
             strategy_name=STRATEGY_NAME,
         )
 
-    update_signal_confirmation(
+    (confirmation_handler or update_signal_confirmation)(
         symbol=normalized_symbol,
         strategy_name=STRATEGY_NAME,
         action=StrategyAction.HOLD,
