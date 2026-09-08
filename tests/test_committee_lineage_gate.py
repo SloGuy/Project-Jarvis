@@ -26,6 +26,14 @@ class LineageGateTests(unittest.TestCase):
         )
         with (
             patch(
+                "app.capital.committee_service.build_validation_gate",
+                return_value=GraduationGate(
+                    gate_name="registered_validation", status=GateStatus.PASSED,
+                    actual_value="synthetic", required_value="synthetic",
+                    rationale="Synthetic passing validation fixture.",
+                ),
+            ),
+            patch(
                 "app.capital.committee_service.require_experiment",
                 return_value=experiment,
             ),
@@ -65,7 +73,7 @@ class LineageGateTests(unittest.TestCase):
                 ))
                 serialized = report.to_dict()
                 self.assertEqual(
-                    serialized["gate_results"][-1]["status"], "pending"
+                    next(g for g in serialized["gate_results"] if g["gate_name"] == "research_lineage")["status"], "pending"
                 )
                 self.assertFalse(serialized["live_capital_authorized"])
 
@@ -76,11 +84,11 @@ class LineageGateTests(unittest.TestCase):
         })
         self.assertEqual(report.decision, CommitteeDecision.PROMOTE)
         self.assertTrue(report.graduation_eligible)
-        self.assertEqual(report.passed_gate_count, 1)
+        self.assertEqual(report.passed_gate_count, 2)
         self.assertTrue(report.human_approval_required)
         self.assertFalse(report.live_capital_authorized)
         self.assertIn(
-            "does not verify", report.gate_results[-1].rationale
+            "does not verify", next(g for g in report.gate_results if g.gate_name == "research_lineage").rationale
         )
 
     def test_performance_failures_keep_priority(self):

@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from typing import Any
 from app.capital.experiment_provenance import get_experiment_provenance
 from app.capital.research_lineage_gate import build_research_lineage_gate
+from app.capital.committee_validation import build_validation_gate
 
 from app.capital.committee_models import (
     CommitteeDecision,
@@ -96,7 +97,10 @@ def evaluate_strategy_committee(
     )
 
     provenance = get_experiment_provenance(experiment)
-    gates = (*gates, build_research_lineage_gate(provenance))
+    gates = (
+        *gates, build_research_lineage_gate(provenance),
+        build_validation_gate(experiment),
+    )
 
     passed = tuple(
         gate
