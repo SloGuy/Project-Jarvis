@@ -72,6 +72,9 @@ def require_equal(actual, expected, label):
 
 
 def verify_report(report):
+    from app.capital.replay_manifest import verify_replay_manifest
+    if "execution_manifest" in report:
+        verify_replay_manifest(report["execution_manifest"])
     if report["mode"] != "single_asset_engineering_position_replay":
         raise ValueError("Unsupported report mode.")
     start = timestamp(report["start"])
