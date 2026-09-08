@@ -26,6 +26,37 @@ EVALUATORS = {
 }
 
 
+
+def allocation_quantity(ledger, *, strategy, price, prices, requested_percent):
+    """Limit a requested entry to remaining strategy capacity after costs."""
+    requested = D(str(requested_percent))
+    if not requested.is_finite() or not 0 <= requested <= 100:
+        raise ValueError("Requested position percent is invalid.")
+    cap = ledger.caps[strategy] / 100
+    if cap <= 0 or requested == 0:
+        return D("0")
+    account = ledger.mark(prices)
+    equity = account["total_value_usd"]
+    allocated = account["strategy_attribution"][strategy]["market_value"]
+    if equity <= 0:
+        return D("0")
+
+    fill_price = ledger.pricing.quote_fill("buy", D("1"), price)["fill_price"]
+    unit_debit = fill_price * (1 + ledger.pricing.fee_bps / 10000)
+    # The ledger checks exposure against equity reduced by fees and slippage.
+    # Reserve a few money quanta for notional and fee rounding.
+    remaining = cap * equity - allocated - D("0.00000004")
+    if remaining <= 0:
+        return D("0")
+    cap_quantity = remaining / (
+        fill_price + cap * (unit_debit - price)
+    )
+    requested_quantity = equity * requested / 100 / price
+    return min(requested_quantity, cap_quantity).quantize(
+        QUANTITY, rounding=ROUND_DOWN
+    )
+
+
 class ShadowCoordinator:
     def __init__(self, *, policy, strategy_caps, fee_bps, slippage_bps):
         if set(strategy_caps) - set(EVALUATORS):
@@ -169,6 +200,9 @@ class ShadowCoordinator:
                 "strategy": strategy, "symbol": symbol, "side": side,
                 "quantity": quantity, "confidence": confidence,
                 "rationale": rationale, "exit_rule": exit_rule, "target": target,
+                "requested_percent": (
+                    candidate.suggested_position_percent if side == "buy" else None
+                ),
             })
 
         events = []
@@ -180,6 +214,17 @@ class ShadowCoordinator:
             strategy, symbol, side = (
                 intent["strategy"], intent["symbol"], intent["side"]
             )
+            if side == "buy":
+                intent["quantity"] = allocation_quantity(
+                    self.ledger, strategy=strategy, price=prices[symbol],
+                    prices=prices, requested_percent=intent["requested_percent"],
+                )
+                if intent["quantity"] <= 0:
+                    holds.append({
+                        "strategy": strategy, "symbol": symbol,
+                        "reason": "No remaining strategy allocation.",
+                    })
+                    continue
             order_id = hashlib.sha256(json.dumps([
                 decision_at.isoformat(), strategy, symbol, side,
             ]).encode()).hexdigest()
