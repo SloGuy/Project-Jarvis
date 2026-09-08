@@ -55,6 +55,11 @@ class RegisteredRunnerTests(unittest.TestCase):
         with (
             patch.object(runner, "current_binding") as binding,
             patch.object(runner, "run", side_effect=self.fake_run) as execute,
+            patch.object(runner, "persist_assessment", return_value={
+                "assessment_sha256": "synthetic",
+                "criteria_status": "insufficient_evidence",
+                "validation_status": "insufficient_evidence",
+            }) as assess,
         ):
             runner.execute_registered(self.row["plan_id"])
             self.assertEqual(binding.call_count, 3)
@@ -64,7 +69,9 @@ class RegisteredRunnerTests(unittest.TestCase):
         row = registry.get_plan(self.row["plan_id"])
         self.assertEqual(row["status"], "completed")
         receipt = json.loads(row["history"][-1]["detail"])
-        self.assertFalse(receipt["acceptance_assessed"])
+        self.assertTrue(receipt["acceptance_assessed"])
+        self.assertEqual(receipt["assessment_sha256"], "synthetic")
+        assess.assert_called_once()
 
     def test_failure_recorded(self):
         with (

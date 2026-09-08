@@ -171,6 +171,22 @@ class ValidationIntegrationTests(unittest.TestCase):
         )
         completed = registry.get_plan(self.registered["plan_id"])
         self.assertEqual(completed["status"], "completed")
+        receipt = json.loads(completed["history"][-1]["detail"])
+        assessment_path = directory / "assessment.json"
+        assessment = json.loads(assessment_path.read_text())
+        self.assertTrue(receipt["acceptance_assessed"])
+        self.assertEqual(
+            receipt["assessment_sha256"],
+            hashlib.sha256(assessment_path.read_bytes()).hexdigest(),
+        )
+        self.assertEqual(
+            assessment["validation_status"], "insufficient_evidence"
+        )
+        self.assertFalse(assessment["promotion_authorized"])
+        self.assertEqual(
+            assessment["input_report_sha256"],
+            hashlib.sha256((directory / "report.json").read_bytes()).hexdigest(),
+        )
         self.assertFalse(result["promotion_authorized"])
         self.assertEqual(
             research_store.RESEARCH_STATE_FILE.read_bytes(), self.research_before
@@ -196,6 +212,58 @@ class ValidationIntegrationTests(unittest.TestCase):
         self.assertFalse((directory / "result.json").exists())
         self.assertEqual(
             research_store.RESEARCH_STATE_FILE.read_bytes(), self.research_before
+        )
+
+
+    def test_assessment_failure_blocks_registry_completion(self):
+        with patch(
+            "app.capital.validation_assessment.assess_report",
+            side_effect=RuntimeError("Synthetic assessment failure"),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "assessment failure"):
+                validation.execute_registered(self.registered["plan_id"])
+        row = registry.get_plan(self.registered["plan_id"])
+        self.assertEqual(row["status"], "failed")
+        self.assertIn("assessment failure", row["history"][-1]["detail"])
+        directory = next(evaluation.EVALUATION_DIRECTORY.iterdir())
+        self.assertTrue((directory / "result.json").exists())
+        self.assertFalse((directory / "assessment.json").exists())
+
+    def test_changed_packet_blocks_assessment(self):
+        original = validation.run
+
+        def changed_packet(*args, **kwargs):
+            directory = original(*args, **kwargs)
+            path = directory / "report.json"
+            path.write_bytes(path.read_bytes() + b" ")
+            return directory
+
+        with patch.object(validation, "run", side_effect=changed_packet):
+            with self.assertRaisesRegex(ValueError, "artifact hashes"):
+                validation.execute_registered(self.registered["plan_id"])
+        self.assertEqual(
+            registry.get_plan(self.registered["plan_id"])["status"], "failed"
+        )
+        directory = next(evaluation.EVALUATION_DIRECTORY.iterdir())
+        self.assertFalse((directory / "assessment.json").exists())
+
+    def test_assessment_write_failure_blocks_completion(self):
+        original = validation.run
+
+        def occupied_path(*args, **kwargs):
+            directory = original(*args, **kwargs)
+            (directory / "assessment.json").write_text("existing artifact")
+            return directory
+
+        with patch.object(validation, "run", side_effect=occupied_path):
+            with self.assertRaises(FileExistsError):
+                validation.execute_registered(self.registered["plan_id"])
+        self.assertEqual(
+            registry.get_plan(self.registered["plan_id"])["status"], "failed"
+        )
+        directory = next(evaluation.EVALUATION_DIRECTORY.iterdir())
+        self.assertEqual(
+            (directory / "assessment.json").read_text(), "existing artifact"
         )
 
 

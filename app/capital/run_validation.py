@@ -4,6 +4,7 @@ from dataclasses import asdict
 from decimal import Decimal
 import hashlib
 import json
+import os
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -31,6 +32,47 @@ def current_binding(plan):
     check_binding(
         plan, candidate, strategy.version, policy, capture_replay_manifest()
     )
+
+
+
+def persist_assessment(plan, directory, expected_registration):
+    from app.capital.validation_assessment import assess_report
+
+    names = ("plan.json", "report.json", "verification.json", "analysis.json")
+    result_raw = (directory / "result.json").read_bytes()
+    result = json.loads(result_raw)
+    if (
+        result.get("status") != "completed"
+        or result.get("designation") != "prospective_validation"
+        or result.get("validation_registration") != expected_registration
+        or result.get("promotion_authorized") is not False
+    ):
+        raise ValueError("Replay result does not match the registered run.")
+    raw = {name: (directory / name).read_bytes() for name in names}
+    hashes = {
+        name: hashlib.sha256(value).hexdigest()
+        for name, value in raw.items()
+    }
+    if result.get("artifacts_sha256") != hashes:
+        raise ValueError("Replay packet artifact hashes do not match.")
+    report = json.loads(raw["report.json"])
+    if report.get("validation_registration") != expected_registration:
+        raise ValueError("Report registration differs from the claimed run.")
+    assessment = assess_report(plan, report)
+    assessment.update({
+        "input_report_sha256": hashes["report.json"],
+        "input_result_sha256": hashlib.sha256(result_raw).hexdigest(),
+    })
+    path = directory / "assessment.json"
+    with path.open("x", encoding="utf-8") as handle:
+        json.dump(assessment, handle, indent=2, sort_keys=True, allow_nan=False)
+        handle.flush()
+        os.fsync(handle.fileno())
+    return {
+        "assessment_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        "criteria_status": assessment["criteria_status"],
+        "validation_status": assessment["validation_status"],
+    }
 
 
 def execute_registered(plan_id):
@@ -69,10 +111,12 @@ def execute_registered(plan_id):
             or result.get("promotion_authorized") is not False
         ):
             raise ValueError("Completed packet does not match the registration.")
+        assessed = persist_assessment(plan, directory, expected)
         receipt = {
+            **assessed,
             "directory": str(directory.resolve()),
             "result_sha256": hashlib.sha256(result_path.read_bytes()).hexdigest(),
-            "acceptance_assessed": False,
+            "acceptance_assessed": True,
             "promotion_authorized": False,
         }
         registry.finish_plan(
@@ -86,7 +130,8 @@ def execute_registered(plan_id):
         )
         raise
     print("REGISTERED RUN COMPLETED:", directory)
-    print("Acceptance assessment remains pending; promotion is not authorized.")
+    print("Validation assessment:", assessed["validation_status"])
+    print("Promotion is not authorized.")
     return directory
 
 
