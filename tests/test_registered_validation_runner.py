@@ -12,6 +12,11 @@ from app.capital import validation_registry as registry
 from app.capital import run_validation as runner
 from app.capital.run_evaluation import run
 
+
+def register_fixture_plan(draft):
+    return registry._register_plan(draft, validate_binding=lambda plan: None)
+
+
 fixture = runpy.run_path("tests/test_validation_plan.py")
 AFTER = datetime(2030, 1, 3, tzinfo=timezone.utc)
 
@@ -32,7 +37,7 @@ class RegisteredRunnerTests(unittest.TestCase):
             patcher.start()
             self.addCleanup(patcher.stop)
         with patch.object(registry, "now_utc", return_value=fixture["NOW"]):
-            self.row = registry.register_plan(fixture["draft"]())
+            self.row = register_fixture_plan(fixture["draft"]())
 
     def fake_run(self, args, *, validation_record):
         self.assertEqual(args.asset_id, 1)

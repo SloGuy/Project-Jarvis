@@ -86,10 +86,16 @@ def copy_value(value):
 
 
 def register_plan(draft):
+    from app.capital.run_validation import current_binding
+    return _register_plan(draft, validate_binding=current_binding)
+
+
+def _register_plan(draft, *, validate_binding):
     with locked_state(write=True) as state:
         # Creation time is assigned inside the lock, not accepted from callers.
         envelope = seal_plan(draft, now=now_utc())
         plan = envelope["plan"]
+        validate_binding(plan)
         start, end = timestamp(plan["start"]), timestamp(plan["end_exclusive"])
         for row in state["plans"].values():
             existing = row["envelope"]["plan"]

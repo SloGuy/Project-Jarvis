@@ -12,6 +12,11 @@ from app.capital import validation_registry as registry
 from app.capital import validation_access as access
 from app.capital.historical_observations import load_historical_snapshot
 
+
+def register_fixture_plan(draft):
+    return registry._register_plan(draft, validate_binding=lambda plan: None)
+
+
 fixture = runpy.run_path("tests/test_validation_plan.py")
 AFTER = datetime(2030, 1, 3, tzinfo=timezone.utc)
 INSIDE = datetime(2030, 1, 2, 15, tzinfo=timezone.utc)
@@ -28,7 +33,7 @@ class AccessTests(unittest.TestCase):
         clock.start()
         self.addCleanup(clock.stop)
         with patch.object(registry, "now_utc", return_value=fixture["NOW"]):
-            self.row = registry.register_plan(fixture["draft"]())
+            self.row = register_fixture_plan(fixture["draft"]())
 
     def test_development_period_blocked_before_database(self):
         session = Mock()

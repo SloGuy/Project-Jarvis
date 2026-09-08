@@ -51,6 +51,9 @@ class ResearchCandidate:
     review_history: list[dict[str, Any]] = field(
         default_factory=list
     )
+    validation_assessments: list[dict[str, Any]] = field(
+        default_factory=list
+    )
     hypothesis_version: int = 1
     parent_research_id: str | None = None
     revision_reason: str | None = None
@@ -159,6 +162,9 @@ class ResearchCandidate:
             ),
             parent_research_id=data.get("parent_research_id"),
             revision_reason=data.get("revision_reason"),
+            validation_assessments=[
+                dict(item) for item in data.get("validation_assessments", [])
+            ],
             evaluation_attachments=[
                 dict(item)
                 for item in data.get("evaluation_attachments", [])

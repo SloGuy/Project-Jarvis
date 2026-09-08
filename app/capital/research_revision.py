@@ -72,6 +72,7 @@ def revise_research_candidate(
             reviewed_at=None,
             review_history=[],
             evaluation_attachments=[],
+            validation_assessments=[],
             asset_universe=list(parent.asset_universe),
             data_requirements=list(parent.data_requirements),
             success_criteria=list(parent.success_criteria),

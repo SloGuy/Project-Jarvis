@@ -8,6 +8,11 @@ from unittest.mock import patch
 
 from app.capital import validation_registry as registry
 
+
+def register_fixture_plan(draft):
+    return registry._register_plan(draft, validate_binding=lambda plan: None)
+
+
 fixture = runpy.run_path("tests/test_validation_plan.py")
 draft = fixture["draft"]
 NOW = fixture["NOW"]
@@ -25,7 +30,7 @@ class RegistryTests(unittest.TestCase):
 
     def register(self, value=None):
         with patch.object(registry, "now_utc", return_value=NOW):
-            return registry.register_plan(value if value is not None else draft())
+            return register_fixture_plan(value if value is not None else draft())
 
     def test_roundtrip_and_overlap(self):
         row = self.register()

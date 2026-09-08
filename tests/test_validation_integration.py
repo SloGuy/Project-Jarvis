@@ -193,6 +193,30 @@ class ValidationIntegrationTests(unittest.TestCase):
         )
         self.assertEqual(len(SyntheticSession.commands), 2)
 
+        from app.capital.validation_research import attach_completed
+        from app.capital.research_service import require_research_candidate
+        attached = attach_completed(self.registered["plan_id"])
+        self.assertEqual(
+            attached["assessment"]["validation_status"], "insufficient_evidence"
+        )
+        again = attach_completed(self.registered["plan_id"])
+        self.assertEqual(attached, again)
+        candidate = require_research_candidate(research_id="synthetic_validation")
+        self.assertEqual(len(candidate.validation_assessments), 1)
+        self.assertEqual(candidate.status, ResearchStatus.RESEARCHING)
+        self.assertEqual(candidate.verdict, ResearchVerdict.PENDING)
+
+        original_assessment = assessment_path.read_bytes()
+        assessment_path.write_bytes(original_assessment + b" ")
+        with self.assertRaisesRegex(ValueError, "Assessment hash changed"):
+            attach_completed(self.registered["plan_id"])
+        assessment_path.write_bytes(original_assessment)
+
+        with research_store.locked_research_state(write=True) as state:
+            state["candidates"]["synthetic_validation"]["hypothesis"] = "Changed"
+        with self.assertRaisesRegex(ValueError, "Research changed"):
+            attach_completed(self.registered["plan_id"])
+
     def test_analysis_failure_preserves_failure_packet(self):
         with patch.object(
             evaluation, "analyze_report",
@@ -265,6 +289,40 @@ class ValidationIntegrationTests(unittest.TestCase):
         self.assertEqual(
             (directory / "assessment.json").read_text(), "existing artifact"
         )
+
+
+
+    def test_registration_binding_failure_preserves_registry(self):
+        draft = dict(self.registered["envelope"]["plan"])
+        draft.pop("created_at")
+        draft["research"] = dict(draft["research"])
+        draft["research"]["hypothesis"] = "Not the registered research hypothesis"
+        before = (registry.DIRECTORY / "registry.json").read_bytes()
+        with patch.object(
+            registry, "now_utc", return_value=START - timedelta(days=1)
+        ):
+            with self.assertRaisesRegex(ValueError, "Research hypothesis"):
+                registry.register_plan(draft)
+        self.assertEqual((registry.DIRECTORY / "registry.json").read_bytes(), before)
+
+    def test_revision_clears_validation_assessments(self):
+        from app.capital.research_revision import revise_research_candidate
+        with research_store.locked_research_state(write=True) as state:
+            parent = state["candidates"]["synthetic_validation"]
+            parent["status"] = "rejected"
+            parent["validation_assessments"] = [{"plan_id": "synthetic_previous"}]
+        child = revise_research_candidate(
+            parent_research_id="synthetic_validation",
+            strategy_name="synthetic_revision",
+            hypothesis="Revised synthetic hypothesis",
+            revision_reason="Synthetic test",
+        )
+        self.assertEqual(child.validation_assessments, [])
+        with research_store.locked_research_state() as state:
+            self.assertEqual(
+                state["candidates"]["synthetic_validation"]["validation_assessments"],
+                [{"plan_id": "synthetic_previous"}],
+            )
 
 
 if __name__ == "__main__":
