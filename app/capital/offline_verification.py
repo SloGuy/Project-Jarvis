@@ -115,6 +115,8 @@ def verify_report(report):
             "update_signal_confirmation",
             side_effect=AssertionError("Live confirmation during offline replay"),
         ))
+        from app.capital.witness_verification import verify_witness_inputs
+        verify_witness_inputs(report)
         for index, window in enumerate(windows):
             at = timestamp(window["decision_at"])
             if at != start + timedelta(minutes=index):
