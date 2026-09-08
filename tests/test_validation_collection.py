@@ -44,6 +44,18 @@ class CollectionTests(unittest.TestCase):
         ):
             return collection.capture_next(self.plan_id)
 
+    def test_source_change_blocks_capture_without_writes(self):
+        path = registry.DIRECTORY / "registry.json"
+        before = path.read_bytes()
+        with (
+            patch.object(collection, "source_manifest", return_value={}),
+            patch.object(collection, "capture") as capture,
+        ):
+            with self.assertRaisesRegex(ValueError, "source changed"):
+                collection.capture_next(self.plan_id)
+            capture.assert_not_called()
+        self.assertEqual(path.read_bytes(), before)
+
     def test_capture_seal_and_claim(self):
         self.assertEqual(self.capture(), 1)
         with patch.object(

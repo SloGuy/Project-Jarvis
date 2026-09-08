@@ -9,11 +9,36 @@ from app.capital.observation_witness import (
 
 MAX_RECEIPTS = 10000
 
+SOURCE_FILES = (
+    "app/capital/observation_witness.py",
+    "app/capital/witnessed_history.py",
+    "app/capital/witness_verification.py",
+    "app/capital/validation_collection.py",
+    "app/capital/validation_registry.py",
+    "app/capital/validation_access.py",
+    "app/capital/validation_plan.py",
+    "app/capital/run_evaluation.py",
+    "app/capital/run_validation.py",
+    "app/capital/offline_verification.py",
+    "app/capital/replay_analysis.py",
+    "app/capital/validation_assessment.py",
+)
+
+
+def source_manifest():
+    import hashlib
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[2]
+    return {
+        name: hashlib.sha256((root / name).read_bytes()).hexdigest()
+        for name in SOURCE_FILES
+    }
+
 
 def validate_collection(collection, plan_sha256):
     if set(collection) != {
         "schema_version", "plan_sha256", "bound_at", "status",
-        "receipts", "sha256",
+        "receipts", "sha256", "input_source_sha256",
     }:
         raise ValueError("Invalid collection structure.")
     if (
@@ -27,6 +52,8 @@ def validate_collection(collection, plan_sha256):
     body = {k: v for k, v in collection.items() if k != "sha256"}
     if digest(body) != collection["sha256"]:
         raise ValueError("Collection integrity mismatch.")
+    if collection["input_source_sha256"] != source_manifest():
+        raise ValueError("Witness processing source changed since binding.")
     previous = timestamp(collection["bound_at"])
     for receipt in collection["receipts"]:
         payload = verify_receipt(receipt)
@@ -61,6 +88,7 @@ def bind(plan_id):
             "schema_version": 1,
             "plan_sha256": row["registered_sha256"],
             "bound_at": now.isoformat(),
+            "input_source_sha256": source_manifest(),
             "status": "collecting",
             "receipts": [],
         }
