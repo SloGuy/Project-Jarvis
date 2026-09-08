@@ -19,6 +19,7 @@ from app.capital.research_workflow import (
     begin_strategy_research,
     evaluate_research_candidate,
 )
+from app.capital.research_revision import revise_research_candidate
 
 
 router = APIRouter(
@@ -184,6 +185,33 @@ def evaluate_candidate(
     try:
         candidate = evaluate_research_candidate(
             research_id=research_id,
+            **request.model_dump(),
+        )
+    except KeyError as error:
+        raise HTTPException(
+            status_code=404,
+            detail=str(error),
+        ) from error
+    except ValueError as error:
+        raise _bad_request(error) from error
+
+    return candidate.to_dict()
+
+
+class ResearchRevisionRequest(BaseModel):
+    strategy_name: str = Field(min_length=1)
+    hypothesis: str = Field(min_length=1)
+    revision_reason: str = Field(min_length=1)
+
+
+@router.post("/{research_id}/revise")
+def revise_candidate(
+    research_id: str,
+    request: ResearchRevisionRequest,
+) -> dict:
+    try:
+        candidate = revise_research_candidate(
+            parent_research_id=research_id,
             **request.model_dump(),
         )
     except KeyError as error:

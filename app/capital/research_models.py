@@ -51,6 +51,9 @@ class ResearchCandidate:
     review_history: list[dict[str, Any]] = field(
         default_factory=list
     )
+    hypothesis_version: int = 1
+    parent_research_id: str | None = None
+    revision_reason: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         data = asdict(self)
@@ -148,4 +151,9 @@ class ResearchCandidate:
                 dict(review)
                 for review in data.get("review_history", [])
             ],
+            hypothesis_version=int(
+                data.get("hypothesis_version", 1)
+            ),
+            parent_research_id=data.get("parent_research_id"),
+            revision_reason=data.get("revision_reason"),
         )
