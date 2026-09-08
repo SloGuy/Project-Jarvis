@@ -112,3 +112,54 @@ new source. Service restarts and deployment need a concrete operational review.
 
 Strategy effectiveness, sufficient paper observation, data-availability proof and
 untouched validation outcomes remain separate from engineering completion.
+
+## V3 engineering acceptance — 2026-09-08
+
+All 34 consolidated acceptance modules passed.
+Record:
+work/acceptance/f1a7c034b5144428b7ae7095c96a809f/result.json
+
+Scanner, collector, MR2 paper, MR2 risk, and breakout services
+reported successful recent exits. No manual restart was required.
+
+### Paper comparison
+
+Artifact:
+work/paper_comparisons/a0fe1b217b834908b9a1edfab6fe1cc2/comparison.json
+
+XMR, portfolio 5, September 7 16:30 to September 8 13:30 UTC:
+paper had one entry and one stop-loss exit;
+replay had one entry and no exit.
+
+Paper entry: 527.85. Its 5% stop threshold: 501.4575.
+Paper exit: 501.42, below that threshold.
+Replay entry before costs: 525.46.
+Replay stop thresholds: 499.1870 without costs;
+499.4365935 using the cost-adjusted fill.
+Lowest sampled reference after replay entry: 500.97.
+Neither replay stop threshold was crossed.
+
+The exit difference is consistent with different entry prices.
+Replay uses fresh confirmation state and fixed decision times.
+Exact paper execution parity remains unverified.
+
+The September 4 comparison preceded MR2's September 7 launch
+and cannot assess paper agreement.
+
+### Delivery boundary
+
+Implemented and tested:
+- Versioned research and evidence attachments.
+- Registered validation, assessments, and Committee gates.
+- Reproducible replay with costs and benchmark analysis.
+- Paper activity comparison.
+- Two-strategy shared shadow accounting and allocation limits.
+- Risk modes, downward sizing, and checkpoint recovery.
+
+Existing market-candidate scanning continues.
+Automatic invention of new strategies is outside this delivery.
+
+Engineering acceptance does not establish profitability.
+Historical availability remains unverified.
+Sufficient prospective evidence remains outstanding.
+This checkpoint grants no live-capital authorization.
