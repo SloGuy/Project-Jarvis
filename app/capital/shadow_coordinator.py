@@ -17,6 +17,7 @@ from app.autonomous_trading.volatility_breakout_strategy import (
     evaluate_volatility_breakout_strategy,
 )
 from app.capital.signal_replay import ReplayConfirmation
+from app.capital.shadow_risk import controls
 from app.capital.simulated_ledger import QUANTITY
 from app.capital.shared_shadow_ledger import SharedShadowLedger
 
@@ -73,12 +74,15 @@ class ShadowCoordinator:
         self.last_fingerprint = None
         self.last_result = None
 
-    def step(self, *, decision_at, snapshots, quotes, risk_only=False):
+    def step(self, *, decision_at, snapshots, quotes, risk_only=False,
+             risk_mode="normal", size_scales=None):
+        size_scales = controls(self.confirmations, risk_mode, size_scales)
         if decision_at.utcoffset() is None or type(risk_only) is not bool:
             raise ValueError("Aware decision time and boolean risk mode required.")
         fingerprint = hashlib.sha256(json.dumps({
             "at": decision_at.isoformat(),
             "risk_only": risk_only,
+            "risk_mode": risk_mode, "size_scales": size_scales,
             "snapshots": [
                 [strategy, symbol, asdict(snapshot)]
                 for (strategy, symbol), snapshot in sorted(snapshots.items())
@@ -97,6 +101,7 @@ class ShadowCoordinator:
         result = trial._step(
             decision_at=decision_at, snapshots=snapshots,
             quotes=quotes, risk_only=risk_only,
+            risk_mode=risk_mode, size_scales=size_scales,
         )
         trial.last_tick = decision_at
         trial.last_fingerprint = fingerprint
@@ -104,7 +109,8 @@ class ShadowCoordinator:
         self.__dict__.update(trial.__dict__)
         return deepcopy(result)
 
-    def _step(self, *, decision_at, snapshots, quotes, risk_only):
+    def _step(self, *, decision_at, snapshots, quotes, risk_only,
+              risk_mode, size_scales):
         for symbol, (price, observed) in quotes.items():
             if (
                 not isinstance(price, D) or not price.is_finite() or price <= 0
@@ -116,6 +122,14 @@ class ShadowCoordinator:
         prices = {symbol: quote[0] for symbol, quote in quotes.items()}
         account = self.ledger.mark(prices)
         intents, holds = [], []
+        if risk_mode == "halted":
+            return {
+                "decision_at": decision_at.isoformat(), "risk_only": risk_only,
+                "risk_mode": risk_mode, "size_scales": size_scales,
+                "events": [], "holds": [{"reason": "Shadow orders are halted."}],
+                "account": account, "mode": "shadow",
+                "paper_execution_authority": False, "live_capital_authority": False,
+            }
         for (strategy, symbol), snapshot in sorted(snapshots.items()):
             if strategy not in self.confirmations or snapshot.symbol != symbol:
                 raise ValueError("Snapshot strategy or symbol mismatch.")
@@ -186,6 +200,10 @@ class ShadowCoordinator:
                     ).quantize(QUANTITY, rounding=ROUND_DOWN)
                 elif side != "sell":
                     raise ValueError("Unsupported strategy action.")
+            if side == "buy" and risk_mode == "reduce_only":
+                holds.append({"strategy": strategy, "symbol": symbol,
+                              "reason": "Reduce-only mode blocks new entries."})
+                continue
             if quantity <= 0:
                 holds.append({"strategy": strategy, "symbol": symbol,
                               "reason": "Order quantity rounds to zero."})
@@ -219,6 +237,9 @@ class ShadowCoordinator:
                     self.ledger, strategy=strategy, price=prices[symbol],
                     prices=prices, requested_percent=intent["requested_percent"],
                 )
+                intent["quantity"] = (
+                    intent["quantity"] * size_scales[strategy]
+                ).quantize(QUANTITY, rounding=ROUND_DOWN)
                 if intent["quantity"] <= 0:
                     holds.append({
                         "strategy": strategy, "symbol": symbol,
@@ -246,6 +267,7 @@ class ShadowCoordinator:
         return {
             "decision_at": decision_at.isoformat(), "risk_only": risk_only,
             "events": events, "holds": holds,
+            "risk_mode": risk_mode, "size_scales": size_scales,
             "account": self.ledger.mark(prices),
             "mode": "shadow",
             "paper_execution_authority": False, "live_capital_authority": False,

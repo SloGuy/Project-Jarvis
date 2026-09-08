@@ -25,6 +25,7 @@ CLASSES = {
 EXTRA_SOURCES = (
     "app/capital/shadow_checkpoint.py",
     "app/capital/shadow_coordinator.py",
+    "app/capital/shadow_risk.py",
     "app/capital/shared_shadow_ledger.py",
     "app/autonomous_trading/volatility_breakout_strategy.py",
 )
@@ -91,10 +92,12 @@ def read_checkpoint(path):
     return state
 
 
-def encode_tick(*, decision_at, snapshots, quotes, risk_only=False):
+def encode_tick(*, decision_at, snapshots, quotes, risk_only=False,
+                risk_mode="normal", size_scales=None):
     return normalized({
         "decision_at": decision_at.isoformat(),
         "risk_only": risk_only,
+        "risk_mode": risk_mode, "size_scales": size_scales or {},
         "snapshots": [
             {"strategy": strategy, "symbol": symbol, "snapshot": asdict(snapshot)}
             for (strategy, symbol), snapshot in sorted(snapshots.items())
@@ -126,6 +129,8 @@ def decode_tick(value):
     return {
         "decision_at": datetime.fromisoformat(value["decision_at"]),
         "risk_only": value["risk_only"],
+        "risk_mode": value.get("risk_mode", "normal"),
+        "size_scales": value.get("size_scales", {}),
         "snapshots": snapshots,
         "quotes": {
             symbol: (Decimal(price), datetime.fromisoformat(observed))
