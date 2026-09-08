@@ -28,6 +28,7 @@ def evaluate_exit_rules(
     position_context: PositionContext,
     policy: RiskPolicy,
     momentum_reversal: bool = False,
+    now: datetime | None = None,
 ) -> ExitDecision:
     if not position_context.has_position:
         return ExitDecision(
@@ -109,7 +110,7 @@ def evaluate_exit_rules(
             )
 
         position_age = (
-            datetime.now(timezone.utc)
+            (now if now is not None else datetime.now(timezone.utc))
             - opened_at
         )
 
