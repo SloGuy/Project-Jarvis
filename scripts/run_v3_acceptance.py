@@ -8,6 +8,7 @@ from uuid import uuid4
 
 ROOT = Path(__file__).resolve().parents[1]
 TESTS = (
+    "test_collection_recovery",
     "test_receipt_store",
     "test_observation_witness",
     "test_witnessed_history",

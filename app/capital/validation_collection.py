@@ -12,6 +12,7 @@ MAX_RECEIPTS = 10000
 SOURCE_FILES = (
     "app/capital/observation_witness.py",
     "app/capital/receipt_store.py",
+    "app/capital/collection_recovery.py",
     "app/capital/witnessed_history.py",
     "app/capital/witness_verification.py",
     "app/capital/validation_collection.py",
