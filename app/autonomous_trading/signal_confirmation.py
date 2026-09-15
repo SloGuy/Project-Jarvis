@@ -73,6 +73,28 @@ def update_signal_confirmation(
     now = utc_now()
 
     with SessionLocal() as session:
+        # MR2 confirmations must belong to the current position lifecycle.
+        if strategy_name == "mean_reversion_v2":
+            from app.capital.experiment_registry import list_experiments
+            from app.market_db.models import Portfolio, PortfolioTransaction
+
+            experiments = [
+                e for e in list_experiments()
+                if e.strategy_name == strategy_name
+            ]
+            if len(experiments) != 1:
+                raise ValueError("MR2 requires exactly one experiment.")
+
+            portfolio = session.scalar(
+                select(Portfolio).where(
+                    Portfolio.name == experiments[0].portfolio_name,
+                    Portfolio.is_active.is_(True),
+                ).with_for_update()
+            )
+            if portfolio is None or portfolio.portfolio_type != "paper":
+                raise ValueError("MR2 paper portfolio is unavailable.")
+
+
         asset = session.scalar(
             select(MarketAsset)
             .where(
@@ -117,6 +139,44 @@ def update_signal_confirmation(
             if state.last_observation_at is not None
             else None
         )
+
+
+        if strategy_name == "mean_reversion_v2":
+            latest_fill = session.scalar(
+                select(PortfolioTransaction)
+                .where(
+                    PortfolioTransaction.portfolio_id == portfolio.id,
+                    PortfolioTransaction.asset_id == asset.id,
+                    PortfolioTransaction.transaction_type.in_(("buy", "sell")),
+                )
+                .order_by(
+                    PortfolioTransaction.created_at.desc(),
+                    PortfolioTransaction.id.desc(),
+                )
+                .limit(1)
+            )
+            if latest_fill is not None:
+                cutoff = _normalize_datetime(latest_fill.created_at)
+                if previous_observation_at is None or previous_observation_at <= cutoff:
+                    state.pending_action = None
+                    state.confirmation_count = 0
+                    state.first_confirmed_at = None
+                    state.last_confirmed_at = None
+                    state.last_observation_at = cutoff
+                    state.updated_at = now
+                    previous_observation_at = cutoff
+
+                if normalized_observation_at <= cutoff:
+                    session.commit()
+                    return SignalConfirmation(
+                        symbol=normalized_symbol,
+                        strategy_name=strategy_name,
+                        action=action,
+                        confirmation_count=state.confirmation_count,
+                        required_confirmations=REQUIRED_CONFIRMATIONS,
+                        confirmed=False,
+                        observation_counted=False,
+                    )
 
         observation_counted = (
             previous_observation_at is None

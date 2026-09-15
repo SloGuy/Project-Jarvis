@@ -6382,7 +6382,54 @@ async function loadWatchlist() {
                 </div>
             `;
 
-            if (!candidate) {
+
+// governance-details-v1
+const panels = [
+    ["Safety audit", audit.checks || []],
+    ...reports.map(r => [
+        r.strategy_name, r.gate_results || []
+    ])
+];
+for (const [title, checks] of panels) {
+    const box = document.createElement("details");
+    box.style.cssText = "margin-top:14px;overflow-wrap:anywhere";
+    box.open = checks.some(c =>
+        c.passed === false || c.status === "failed"
+    );
+    const heading = document.createElement("summary");
+    heading.textContent = title + " — check details";
+    box.appendChild(heading);
+    for (const c of checks) {
+        const row = document.createElement("div");
+        row.style.cssText =
+            "padding:10px;border-bottom:1px solid #293b53";
+        const state = c.status || (
+            c.passed === true ? "passed" :
+            c.passed === false ? "failed" : "unknown"
+        );
+        const label = document.createElement("strong");
+        label.textContent = state.toUpperCase() + " · " +
+            (c.check_name || c.gate_name);
+        if (state === "failed") label.className = "negative";
+        row.appendChild(label);
+        for (const [key, value] of [
+            ["Actual", c.actual_value],
+            ["Required", c.required_value],
+            ["Reason", c.rationale]
+        ]) {
+            const line = document.createElement("div");
+            line.textContent = key + ": " + (
+                value == null ? "Unavailable" :
+                typeof value === "object" ?
+                JSON.stringify(value) : String(value)
+            );
+            row.appendChild(line);
+        }
+        box.appendChild(row);
+    }
+    grid.appendChild(box);
+}
+if (!candidate) {
                 grid.querySelector(
                     "[data-capital-research-card]"
                 )?.remove();

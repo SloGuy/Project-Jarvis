@@ -258,6 +258,11 @@ class ShadowCoordinator:
             event["exit_rule"] = intent["exit_rule"]
             events.append(event)
             if event["executed"]:
+                if strategy == "mean_reversion_v2":
+                    self.confirmations[strategy].reset_after_fill(
+                        symbol=symbol, strategy_name=strategy,
+                        filled_at=decision_at,
+                    )
                 if side == "buy":
                     self.entry_state[(strategy, symbol)] = {
                         "opened_at": decision_at, "target": intent["target"],

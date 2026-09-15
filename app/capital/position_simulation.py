@@ -168,6 +168,10 @@ class PositionSimulation:
         else:
             fill = ledger.sell(reference_price=price)
             self.target, self.opened_at = None, None
+        self.confirmation.reset_after_fill(
+            symbol=self.symbol, strategy_name="mean_reversion_v2",
+            filled_at=decision_at,
+        )
         event.update(
             executed=True, fill=fill, exit_rule=exit_rule,
             account=ledger.mark(price),

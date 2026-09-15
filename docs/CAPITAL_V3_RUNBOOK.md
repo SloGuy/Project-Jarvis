@@ -163,3 +163,42 @@ Engineering acceptance does not establish profitability.
 Historical availability remains unverified.
 Sufficient prospective evidence remains outstanding.
 This checkpoint grants no live-capital authorization.
+
+
+## V3 release closeout — 2026-09-15
+
+Scope: research, registered validation, paper and shared-shadow tooling.
+No live-capital authority or strategy promotion is granted.
+
+Release acceptance: all 43 modules passed.
+Record: work/acceptance/8e33502ca4ce4c6b959db66673b559cf/result.json
+
+Operational checks: API startup and HTTP response succeeded.
+MR2 paper and risk services reported Result=success, ExecMainStatus=0.
+Safety audit passed; all four strategies remained graduation-ineligible.
+
+Changes:
+- Dashboard displays audit and Committee check details.
+- Research isolation uses explicit experiment provenance.
+- MR2 replay/shared-shadow confirmations reset after successful fills.
+- Paper confirmations use persisted fill timestamps as lifecycle boundaries.
+- Fresh-confirmation and isolated persistence regressions added to acceptance.
+
+Six-day validation:
+Plan: validation_4f2a02433bf14b9a9f45066d35a28bcb
+Packet: work/evaluations/7d0c1b754e484e99a24196496bb7c711
+Outcome: insufficient_evidence; attached to research_55f2dffb297a.
+11 completed trades; specified-cost return -0.442203805%;
+excess return -0.262022510 percentage points.
+Collection sealed; expired witness hook removed.
+
+Preserve the packet, registry, research attachment and original source.
+The validation predates the confirmation correction and is not evidence
+of corrected-version performance. Reproduce it using matching old source.
+Its generic development-window limitation text remains unchanged in the
+sealed artifact; the registered designation is prospective_validation.
+
+Limits: exact paper/replay parity and PostgreSQL concurrency behavior
+remain unproven. Lifecycle persistence tests use isolated SQLite models.
+Shared-shadow development replay is bounded to 360 ticks; registered
+validation currently supports single-asset Mean Reversion V2.

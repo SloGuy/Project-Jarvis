@@ -16,6 +16,14 @@ class ReplayConfirmation:
     def __init__(self):
         self.states = {}
 
+    def reset_after_fill(self, *, symbol, strategy_name, filled_at):
+        if filled_at.utcoffset() is None:
+            raise ValueError("Fill timestamp must include timezone.")
+        key = (symbol.strip().upper(), strategy_name)
+        previous = self.states.get(key, (None, None, 0))[0]
+        cutoff = max(previous, filled_at) if previous else filled_at
+        self.states[key] = (cutoff, None, 0)
+
     def update(self, *, symbol, strategy_name, action, observation_at):
         if observation_at.utcoffset() is None:
             raise ValueError("Observation timestamp must include timezone.")

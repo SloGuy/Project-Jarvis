@@ -86,19 +86,32 @@ def get_capital_safety_audit() -> dict[str, Any]:
         for portfolio in valid_portfolios
     ]
 
-    unauthorized_research_strategy_names = [
-        candidate.strategy_name
+    from app.capital.experiment_provenance import assess_provenance
+
+    candidates_by_id = {
+        candidate.research_id: candidate
         for candidate in research_candidates
-        if not (
-            candidate.status
-            == ResearchStatus.READY_FOR_EXPERIMENT
-            or (
-                candidate.status
-                == ResearchStatus.ARCHIVED
-                and candidate.verdict
-                == ResearchVerdict.PROMISING
-            )
+    }
+    strategies_by_name = {
+        strategy.name: strategy for strategy in strategies
+    }
+    research_isolation = []
+    for experiment in experiments:
+        result = assess_provenance(
+            experiment,
+            candidates_by_id.get(experiment.research_id),
+            strategies_by_name.get(experiment.strategy_name),
         )
+        research_isolation.append({
+            "experiment_id": experiment.experiment_id,
+            "strategy_name": experiment.strategy_name,
+            "research_id": experiment.research_id,
+            **result,
+        })
+
+    invalid_research_links = [
+        item for item in research_isolation
+        if item["status"] not in {"matched", "unlinked"}
     ]
 
     allocation_policy = (
@@ -302,18 +315,17 @@ def get_capital_safety_audit() -> dict[str, Any]:
         _check(
             name="research_execution_isolation",
             passed=(
-                set(unauthorized_research_strategy_names)
-                .isdisjoint(strategy_names)
+                not invalid_research_links
             ),
-            actual=unauthorized_research_strategy_names,
+            actual=research_isolation,
             required=(
-                "No research-only candidate registered "
-                "as executable"
+                "Explicit research links must match approved research "
+                "and registered strategy versions"
             ),
             rationale=(
-                "Research candidates cannot execute "
-                "before governed implementation and "
-                "registration."
+                "Shared strategy names do not establish execution authority. "
+                "Unlinked experiments remain unverified and require "
+                "the Committee research_lineage gate to block promotion."
             ),
         ),
     ]
