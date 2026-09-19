@@ -428,6 +428,34 @@ class ValidationIntegrationTests(unittest.TestCase):
         )
 
 
+    def test_factory_blocks_verified_insufficient_evidence(self):
+        from app.capital.validation_research import attach_completed
+        from app.capital.experiment_factory_review import build_factory_review
+
+        plan_id = self.registered["plan_id"]
+        validation.execute_registered(plan_id)
+        attach_completed(plan_id)
+
+        with research_store.locked_research_state(write=True) as state:
+            candidate = state["candidates"]["synthetic_validation"]
+            candidate["status"] = "ready_for_experiment"
+            candidate["verdict"] = "promising"
+
+        before = research_store.RESEARCH_STATE_FILE.read_bytes()
+        result = build_factory_review("synthetic_validation")
+
+        self.assertFalse(result["eligible_for_operator_review"])
+        self.assertEqual(result["validation_gate"]["status"], "pending")
+        self.assertIn("insufficient", result["validation_gate"]["rationale"])
+        self.assertIsNone(result["proposed_experiment"])
+        self.assertFalse(result["creation_authorized"])
+        self.assertFalse(result["execution_authorized"])
+        self.assertFalse(result["live_capital_authorized"])
+        self.assertEqual(
+            research_store.RESEARCH_STATE_FILE.read_bytes(), before
+        )
+
+
     def test_analysis_failure_preserves_failure_packet(self):
         with patch.object(
             evaluation, "analyze_report",

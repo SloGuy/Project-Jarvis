@@ -27,6 +27,9 @@ from app.capital.regime_performance import (
 from app.capital.allocator import (
     get_shadow_allocation,
 )
+from app.capital.experiment_factory_api import (
+    router as experiment_factory_router,
+)
 
 
 router = APIRouter(
@@ -38,6 +41,9 @@ router = APIRouter(
 router.include_router(
     research_router
 )
+
+
+router.include_router(experiment_factory_router)
 
 
 @router.get("/status")
