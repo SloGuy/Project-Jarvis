@@ -6257,6 +6257,25 @@ async function loadWatchlist() {
             const candidate =
                 activeCandidates[0];
 
+            const savedAssessments = Array.isArray(
+                candidate?.validation_assessments
+            ) ? candidate.validation_assessments : [];
+
+            const assessmentLabels = new Map([
+                ["pass", "PASS"],
+                ["fail", "FAIL"],
+                ["insufficient_evidence", "INSUFFICIENT EVIDENCE"],
+            ]);
+
+            const savedAssessmentRows = savedAssessments.map(
+                (record, index) => {
+                    const label = assessmentLabels.get(
+                        record?.assessment?.validation_status
+                    ) || "UNKNOWN";
+                    return `<div>Attempt ${index + 1}: ${label}</div>`;
+                }
+            ).join("");
+
             const names = {
                 momentum_alignment_v1:
                     "Momentum Alignment V1",
@@ -6320,10 +6339,18 @@ async function loadWatchlist() {
                             ? candidate.status
                             : "idle"}
                         <br>
-                        Verdict:
+                        Research verdict:
                         ${candidate
                             ? candidate.verdict
                             : "—"}
+                        <br>
+                        Saved validation assessments:
+                        ${savedAssessments.length}
+                        ${savedAssessmentRows || "<div>None attached.</div>"}
+                        <div style="margin-top: 8px;">
+                            Saved outcomes are not reverified by this view.
+                            Separate Committee and human review still apply.
+                        </div>
                     </div>
                 </div>
 

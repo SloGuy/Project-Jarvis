@@ -223,3 +223,33 @@ def revise_candidate(
         raise _bad_request(error) from error
 
     return candidate.to_dict()
+
+
+@router.get("/{research_id}/validations/{plan_id}/recommendation")
+def research_validation_recommendation(
+    research_id: str,
+    plan_id: str,
+) -> dict:
+    from app.capital.validation_registry import get_plan
+    from app.capital.validation_research import inspect_recommendation
+
+    try:
+        require_research_candidate(research_id=research_id)
+        registered = get_plan(plan_id)
+        bound_id = registered["envelope"]["plan"]["research"]["research_id"]
+        if bound_id != research_id:
+            raise HTTPException(
+                status_code=404,
+                detail="Validation plan does not belong to this candidate.",
+            )
+        return inspect_recommendation(plan_id)
+    except KeyError as error:
+        raise HTTPException(
+            status_code=404,
+            detail="Research candidate or validation record not found.",
+        ) from error
+    except (ValueError, RuntimeError, OSError) as error:
+        raise HTTPException(
+            status_code=409,
+            detail="Validation evidence cannot currently be verified.",
+        ) from error

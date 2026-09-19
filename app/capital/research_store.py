@@ -6,6 +6,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterator
+from copy import deepcopy
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -133,26 +134,17 @@ def locked_research_state(
             if write
             else fcntl.LOCK_SH
         )
-
-        fcntl.flock(
-            lock_handle.fileno(),
-            lock_mode,
-        )
+        fcntl.flock(lock_handle.fileno(), lock_mode)
 
         try:
             state = _load_state_unlocked()
+            original = deepcopy(state) if write else None
             yield state
 
-            if write:
-                _save_state_unlocked(
-                    state
-                )
-
+            if write and state != original:
+                _save_state_unlocked(state)
         finally:
-            fcntl.flock(
-                lock_handle.fileno(),
-                fcntl.LOCK_UN,
-            )
+            fcntl.flock(lock_handle.fileno(), fcntl.LOCK_UN)
 
 
 def get_research_state_snapshot() -> dict:

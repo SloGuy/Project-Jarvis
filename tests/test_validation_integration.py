@@ -244,6 +244,190 @@ class ValidationIntegrationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Research changed"):
             attach_completed(self.registered["plan_id"])
 
+
+    def test_verified_recommendation_preserves_state(self):
+        from app.capital.validation_research import inspect_recommendation
+
+        plan_id = self.registered["plan_id"]
+        directory = validation.execute_registered(plan_id)
+        registry_before = (registry.DIRECTORY / "registry.json").read_bytes()
+        assessment_before = (directory / "assessment.json").read_bytes()
+
+        result = inspect_recommendation(plan_id)
+
+        self.assertEqual(result["plan_id"], plan_id)
+        self.assertEqual(
+            result["plan_sha256"], self.registered["registered_sha256"]
+        )
+        self.assertEqual(result["research"]["research_id"], "synthetic_validation")
+        self.assertEqual(result["validation_status"], "insufficient_evidence")
+        self.assertEqual(result["recommendation"], "REVISE")
+        self.assertEqual(result["research_verdict"], "inconclusive")
+        self.assertIs(result["promotion_authorized"], False)
+        self.assertIs(result["human_approval_required"], True)
+        self.assertEqual(
+            result["assessment_sha256"],
+            hashlib.sha256(assessment_before).hexdigest(),
+        )
+        self.assertEqual(
+            result["report_sha256"],
+            hashlib.sha256((directory / "report.json").read_bytes()).hexdigest(),
+        )
+        self.assertEqual(result, inspect_recommendation(plan_id))
+        self.assertEqual(
+            research_store.RESEARCH_STATE_FILE.read_bytes(), self.research_before
+        )
+        self.assertEqual(
+            (registry.DIRECTORY / "registry.json").read_bytes(), registry_before
+        )
+        self.assertEqual(
+            (directory / "assessment.json").read_bytes(), assessment_before
+        )
+
+    def test_recommendation_rejects_tampered_assessment(self):
+        from app.capital.validation_research import inspect_recommendation
+
+        plan_id = self.registered["plan_id"]
+        directory = validation.execute_registered(plan_id)
+        path = directory / "assessment.json"
+        path.write_bytes(path.read_bytes() + b" ")
+
+        with self.assertRaisesRegex(ValueError, "Assessment hash changed"):
+            inspect_recommendation(plan_id)
+        self.assertEqual(
+            research_store.RESEARCH_STATE_FILE.read_bytes(), self.research_before
+        )
+
+    def test_recommendation_rejects_changed_research(self):
+        from app.capital.validation_research import inspect_recommendation
+
+        plan_id = self.registered["plan_id"]
+        validation.execute_registered(plan_id)
+        with research_store.locked_research_state(write=True) as state:
+            state["candidates"]["synthetic_validation"]["hypothesis"] = "Changed"
+        before = research_store.RESEARCH_STATE_FILE.read_bytes()
+
+        with self.assertRaisesRegex(ValueError, "Research changed"):
+            inspect_recommendation(plan_id)
+        self.assertEqual(research_store.RESEARCH_STATE_FILE.read_bytes(), before)
+
+    def test_recommendation_rejects_unfinished_run(self):
+        from app.capital.validation_research import inspect_recommendation
+
+        with self.assertRaisesRegex(ValueError, "not completed"):
+            inspect_recommendation(self.registered["plan_id"])
+        self.assertEqual(
+            research_store.RESEARCH_STATE_FILE.read_bytes(), self.research_before
+        )
+
+    def test_recommendation_blocks_source_mismatch(self):
+        from app.capital.validation_research import inspect_recommendation
+
+        plan_id = self.registered["plan_id"]
+        validation.execute_registered(plan_id)
+        changed = capture_replay_manifest()
+        changed["source_sha256"] = {
+            **changed["source_sha256"],
+            "app/capital/position_simulation.py": "0" * 64,
+        }
+
+        with patch(
+            "app.capital.replay_manifest.capture_replay_manifest",
+            return_value=changed,
+        ):
+            with self.assertRaisesRegex(ValueError, "source_sha256"):
+                inspect_recommendation(plan_id)
+        self.assertEqual(
+            research_store.RESEARCH_STATE_FILE.read_bytes(), self.research_before
+        )
+
+
+    def test_recommendation_persistence_is_idempotent(self):
+        from app.capital.validation_research import (
+            attach_completed, record_recommendation,
+        )
+        from app.capital.research_service import require_research_candidate
+
+        plan_id = self.registered["plan_id"]
+        directory = validation.execute_registered(plan_id)
+        attach_completed(plan_id)
+        before = require_research_candidate(
+            research_id="synthetic_validation"
+        ).to_dict()
+        assessment_before = (directory / "assessment.json").read_bytes()
+        registry_before = (registry.DIRECTORY / "registry.json").read_bytes()
+
+        first = record_recommendation(plan_id)
+        persisted_bytes = research_store.RESEARCH_STATE_FILE.read_bytes()
+        second = record_recommendation(plan_id)
+        after = require_research_candidate(
+            research_id="synthetic_validation"
+        ).to_dict()
+
+        self.assertEqual(first, second)
+        self.assertEqual(after["validation_recommendations"], [first])
+        self.assertEqual(first["recommendation"], "REVISE")
+        self.assertIs(first["promotion_authorized"], False)
+        self.assertIs(first["human_approval_required"], True)
+        self.assertTrue(first["recorded_at"])
+        self.assertEqual(after["updated_at"], first["recorded_at"])
+        for key in before:
+            if key not in {"updated_at", "validation_recommendations"}:
+                self.assertEqual(after[key], before[key], key)
+        self.assertEqual(
+            research_store.RESEARCH_STATE_FILE.read_bytes(), persisted_bytes
+        )
+        self.assertEqual(
+            (directory / "assessment.json").read_bytes(), assessment_before
+        )
+        self.assertEqual(
+            (registry.DIRECTORY / "registry.json").read_bytes(), registry_before
+        )
+
+    def test_persistence_rejects_conflicting_or_duplicate_records(self):
+        from app.capital.validation_research import record_recommendation
+
+        plan_id = self.registered["plan_id"]
+        validation.execute_registered(plan_id)
+        original = record_recommendation(plan_id)
+
+        for duplicate in (False, True):
+            with self.subTest(duplicate=duplicate):
+                with research_store.locked_research_state(write=True) as state:
+                    candidate = state["candidates"]["synthetic_validation"]
+                    if duplicate:
+                        candidate["validation_recommendations"] = [
+                            dict(original), dict(original)
+                        ]
+                    else:
+                        candidate["validation_recommendations"] = [{
+                            **original, "recommendation": "PASS"
+                        }]
+                before = research_store.RESEARCH_STATE_FILE.read_bytes()
+                message = "Duplicate" if duplicate else "differs"
+                with self.assertRaisesRegex(ValueError, message):
+                    record_recommendation(plan_id)
+                self.assertEqual(
+                    research_store.RESEARCH_STATE_FILE.read_bytes(), before
+                )
+
+    def test_persistence_reverifies_existing_recommendation(self):
+        from app.capital.validation_research import record_recommendation
+
+        plan_id = self.registered["plan_id"]
+        directory = validation.execute_registered(plan_id)
+        record_recommendation(plan_id)
+        before = research_store.RESEARCH_STATE_FILE.read_bytes()
+
+        path = directory / "assessment.json"
+        path.write_bytes(path.read_bytes() + b" ")
+        with self.assertRaisesRegex(ValueError, "Assessment hash changed"):
+            record_recommendation(plan_id)
+        self.assertEqual(
+            research_store.RESEARCH_STATE_FILE.read_bytes(), before
+        )
+
+
     def test_analysis_failure_preserves_failure_packet(self):
         with patch.object(
             evaluation, "analyze_report",

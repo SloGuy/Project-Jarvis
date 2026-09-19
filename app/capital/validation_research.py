@@ -80,6 +80,83 @@ def inspect_completed(plan_id):
     }
 
 
+def inspect_recommendation(plan_id):
+    """Verify one completed attempt and return an advisory recommendation."""
+    from app.capital.validation_recommendation import (
+        build_validation_recommendation,
+    )
+
+    verified = inspect_completed(plan_id)
+    research = verified["research"]
+
+    with locked_research_state() as state:
+        research_id = research["research_id"]
+        if research_id not in state["candidates"]:
+            raise KeyError(f"Unknown research candidate: {research_id}")
+        candidate = ResearchCandidate.from_dict(
+            state["candidates"][research_id]
+        )
+        require(
+            research_snapshot(candidate) == research,
+            "Research changed since validation registration.",
+        )
+
+    return {
+        "plan_id": verified["plan_id"],
+        "plan_sha256": verified["plan_sha256"],
+        "research": deepcopy(research),
+        "report_sha256": verified["report_sha256"],
+        "assessment_sha256": verified["assessment_sha256"],
+        "scope": "Single registered attempt; not aggregate promotion eligibility.",
+        **build_validation_recommendation(verified["assessment"]),
+    }
+
+
+def record_recommendation(plan_id):
+    """Persist a verified advisory recommendation without changing authority."""
+    recommendation = inspect_recommendation(plan_id)
+    research = recommendation["research"]
+
+    with locked_research_state(write=True) as state:
+        research_id = research["research_id"]
+        if research_id not in state["candidates"]:
+            raise KeyError(f"Unknown research candidate: {research_id}")
+
+        candidate = ResearchCandidate.from_dict(
+            state["candidates"][research_id]
+        )
+        require(
+            research_snapshot(candidate) == research,
+            "Research changed before recommendation persistence.",
+        )
+
+        existing = [
+            item for item in candidate.validation_recommendations
+            if item.get("plan_id") == plan_id
+        ]
+        require(len(existing) <= 1, "Duplicate recommendation records.")
+        if existing:
+            saved = {
+                key: value for key, value in existing[0].items()
+                if key != "recorded_at"
+            }
+            require(
+                saved == recommendation,
+                "Existing recommendation differs from verified evidence.",
+            )
+            return deepcopy(existing[0])
+
+        record = {
+            **deepcopy(recommendation),
+            "recorded_at": utc_now_iso(),
+        }
+        candidate.validation_recommendations.append(record)
+        candidate.updated_at = record["recorded_at"]
+        state["candidates"][research_id] = candidate.to_dict()
+
+    return deepcopy(record)
+
+
 def attach_completed(plan_id):
     verified = inspect_completed(plan_id)
     research = verified["research"]
