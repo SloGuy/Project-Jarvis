@@ -37,8 +37,6 @@ def revise_research_candidate(
             ResearchStatus.REJECTED,
         }:
             raise ValueError("Parent must require revision or be rejected.")
-        if name == parent.strategy_name:
-            raise ValueError("Use a new strategy name for the revision.")
         if thesis == parent.hypothesis.strip():
             raise ValueError("The revised hypothesis must change.")
         if parent.hypothesis_version < 1:
@@ -47,7 +45,8 @@ def revise_research_candidate(
         for row in rows.values():
             existing = ResearchCandidate.from_dict(row)
             if (
-                existing.strategy_name == name
+                existing.research_id != parent.research_id
+                and existing.strategy_name == name
                 and existing.status not in TERMINAL_RESEARCH_STATUSES
             ):
                 raise ValueError(f"Active candidate already exists: {name}")
@@ -73,10 +72,18 @@ def revise_research_candidate(
             review_history=[],
             evaluation_attachments=[],
             validation_assessments=[],
+            validation_recommendations=[],
             asset_universe=list(parent.asset_universe),
             data_requirements=list(parent.data_requirements),
             success_criteria=list(parent.success_criteria),
         )
+        if (
+            name == parent.strategy_name
+            and parent.status == ResearchStatus.REVISION_REQUIRED
+        ):
+            parent.status = ResearchStatus.ARCHIVED
+            parent.updated_at = now
+            rows[parent.research_id] = parent.to_dict()
         rows[child.research_id] = child.to_dict()
 
     return child

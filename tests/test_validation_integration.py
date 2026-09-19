@@ -516,12 +516,70 @@ class ValidationIntegrationTests(unittest.TestCase):
                 registry.register_plan(draft)
         self.assertEqual((registry.DIRECTORY / "registry.json").read_bytes(), before)
 
+    def test_same_strategy_revision_preserves_lineage(self):
+        from app.capital.research_revision import revise_research_candidate
+
+        with research_store.locked_research_state(write=True) as state:
+            parent = state["candidates"]["synthetic_validation"]
+            parent["status"] = "revision_required"
+            parent["verdict"] = "inconclusive"
+            parent["validation_assessments"] = [{"plan_id": "historical"}]
+            before = json.loads(json.dumps(parent))
+
+        child = revise_research_candidate(
+            parent_research_id="synthetic_validation",
+            strategy_name="mean_reversion_v2",
+            hypothesis="Test confirmation resets after each fill.",
+            revision_reason="Position lifecycle correction.",
+        )
+        self.assertEqual(child.strategy_name, "mean_reversion_v2")
+        self.assertEqual(child.parent_research_id, "synthetic_validation")
+        self.assertEqual(child.hypothesis_version, before["hypothesis_version"] + 1)
+        self.assertEqual(child.status, ResearchStatus.PROPOSED)
+        self.assertEqual(child.verdict, ResearchVerdict.PENDING)
+        self.assertEqual(child.validation_assessments, [])
+        self.assertEqual(child.validation_recommendations, [])
+
+        with research_store.locked_research_state() as state:
+            parent = state["candidates"]["synthetic_validation"]
+            self.assertEqual(parent["status"], "archived")
+            for key, value in before.items():
+                if key not in {"status", "updated_at"}:
+                    self.assertEqual(parent[key], value, key)
+
+        # Another eligible parent cannot create a competing active candidate.
+        with research_store.locked_research_state(write=True) as state:
+            other = dict(before)
+            other["research_id"] = "other_parent"
+            other["status"] = "rejected"
+            state["candidates"]["other_parent"] = other
+        saved = research_store.RESEARCH_STATE_FILE.read_bytes()
+
+        with self.assertRaisesRegex(ValueError, "Active candidate already exists"):
+            revise_research_candidate(
+                parent_research_id="other_parent",
+                strategy_name="mean_reversion_v2",
+                hypothesis="Another revised hypothesis.",
+                revision_reason="Duplicate protection test.",
+            )
+        self.assertEqual(research_store.RESEARCH_STATE_FILE.read_bytes(), saved)
+
     def test_revision_clears_validation_assessments(self):
         from app.capital.research_revision import revise_research_candidate
+
+        recommendation = {
+            "plan_id": "synthetic_previous",
+            "recommendation": "REVISE",
+            "promotion_authorized": False,
+        }
         with research_store.locked_research_state(write=True) as state:
             parent = state["candidates"]["synthetic_validation"]
             parent["status"] = "rejected"
-            parent["validation_assessments"] = [{"plan_id": "synthetic_previous"}]
+            parent["validation_assessments"] = [
+                {"plan_id": "synthetic_previous"}
+            ]
+            parent["validation_recommendations"] = [recommendation]
+
         child = revise_research_candidate(
             parent_research_id="synthetic_validation",
             strategy_name="synthetic_revision",
@@ -529,11 +587,20 @@ class ValidationIntegrationTests(unittest.TestCase):
             revision_reason="Synthetic test",
         )
         self.assertEqual(child.validation_assessments, [])
+        self.assertEqual(child.validation_recommendations, [])
+
         with research_store.locked_research_state() as state:
+            parent = state["candidates"]["synthetic_validation"]
             self.assertEqual(
-                state["candidates"]["synthetic_validation"]["validation_assessments"],
+                parent["validation_assessments"],
                 [{"plan_id": "synthetic_previous"}],
             )
+            self.assertEqual(
+                parent["validation_recommendations"],
+                [recommendation],
+            )
+
+
 
 
 if __name__ == "__main__":
