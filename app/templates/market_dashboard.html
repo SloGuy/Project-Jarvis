@@ -8553,5 +8553,198 @@ if (!candidate) {
     setInterval(loadMoveExplanation, 60000);
     setInterval(loadOperations, 60000);
 </script>
+<!-- portfolio-intelligence-panel-v1 -->
+<script>
+(() => {
+    "use strict";
+
+    const anchor = document.getElementById("capital-governance-grid");
+    const governance = anchor?.closest("section");
+    if (!governance || document.getElementById("portfolio-intelligence-panel")) {
+        return;
+    }
+
+    function element(tag, text, className) {
+        const node = document.createElement(tag);
+        if (text !== undefined) node.textContent = text;
+        if (className) node.className = className;
+        return node;
+    }
+
+    function line(parent, text) {
+        const node = element("div", text, "muted");
+        node.style.marginTop = "8px";
+        parent.append(node);
+    }
+
+    function percent(value) {
+        if (value === null || value === undefined || value === "") return "—";
+        const number = Number(value);
+        return Number.isFinite(number) ? `${number.toFixed(2)}%` : "—";
+    }
+
+    const section = element("section");
+    section.id = "portfolio-intelligence-panel";
+    section.style.marginBottom = "24px";
+
+    const panel = element("div", undefined, "panel");
+    panel.style.padding = "22px";
+    panel.append(element("div", "Portfolio Intelligence", "muted"));
+
+    const title = element("h2", "Concentration & Shared Holdings");
+    title.style.margin = "6px 0";
+    panel.append(title);
+
+    const status = element("div", "Loading portfolio intelligence…", "muted");
+    status.setAttribute("role", "status");
+    panel.append(status);
+
+    line(
+        panel,
+        "Indicative stored-price estimates. Recent records do not prove fresh market quotes."
+    );
+
+    const content = element("div");
+    content.style.marginTop = "18px";
+    panel.append(content);
+    section.append(panel);
+    governance.insertAdjacentElement("afterend", section);
+
+    let loading = false;
+
+    function render(data) {
+        if (
+            data.schema_version !== 1 ||
+            !Array.isArray(data.valuations?.portfolios) ||
+            !Array.isArray(data.concentration?.portfolios) ||
+            !Array.isArray(data.concentration?.shared_holdings)
+        ) {
+            throw new Error("Unexpected portfolio intelligence response.");
+        }
+
+        const fragment = document.createDocumentFragment();
+        const grid = element("div", undefined, "grid");
+        grid.style.gridTemplateColumns =
+            "repeat(auto-fit, minmax(min(100%, 240px), 1fr))";
+
+        const valuations = new Map(
+            data.valuations.portfolios.map(row => [row.portfolio_id, row])
+        );
+
+        for (const row of data.concentration.portfolios) {
+            const card = element("div", undefined, "chart-stat");
+            card.append(element("strong", row.portfolio_name));
+            const weights = row.concentration;
+
+            if (row.status === "indicative" && weights) {
+                line(card, "Indicative concentration");
+                line(card, `Cash: ${percent(weights.cash_weight_percent)}`);
+                line(card, `Invested: ${percent(weights.invested_weight_percent)}`);
+                line(
+                    card,
+                    `Largest asset: ${percent(weights.largest_asset_weight_percent)}`
+                );
+            } else {
+                line(card, "Concentration unavailable: incomplete valuation.");
+                const holdings = valuations.get(row.portfolio_id)?.holdings || [];
+                for (const holding of holdings) {
+                    if (holding.exclusion_reason) {
+                        line(
+                            card,
+                            `${holding.symbol || `Asset ${holding.asset_id}`}: ` +
+                            String(holding.coverage_note || holding.exclusion_reason)
+                                .replaceAll("_", " ")
+                        );
+                    }
+                }
+            }
+            grid.append(card);
+        }
+        fragment.append(grid);
+
+        const combined = data.concentration.combined;
+        line(
+            fragment,
+            combined?.status === "indicative"
+                ? `Combined indicative invested exposure: ${
+                    percent(combined.concentration?.invested_weight_percent)
+                }`
+                : "Combined concentration unavailable: complete portfolio coverage is required."
+        );
+
+        fragment.append(element("h3", "Shared holdings"));
+        const shared = data.concentration.shared_holdings;
+        if (!shared.length) {
+            line(fragment, "No shared holdings reported in this snapshot.");
+        }
+        for (const row of shared) {
+            const symbol = row.holdings?.find(item => item.symbol)?.symbol;
+            const names = (row.holdings || [])
+                .map(item => item.portfolio_name)
+                .join(", ");
+            line(fragment, `${symbol || `Asset ${row.asset_id}`}: ${names}`);
+        }
+        line(fragment, "Shared holdings indicate exposure overlap, not return correlation.");
+
+        fragment.append(element("h3", "Historical risk metrics"));
+        const labels = {
+            correlation: "Correlation",
+            drawdown_overlap: "Drawdown overlap",
+            risk_contribution: "Risk contribution",
+        };
+        const reasons = new Set();
+        for (const [key, label] of Object.entries(labels)) {
+            const metric = data.historical_metrics?.[key];
+            line(
+                fragment,
+                `${label}: ${String(metric?.status || "unavailable").replaceAll("_", " ")}`
+            );
+            for (const reason of metric?.reasons || []) reasons.add(reason);
+        }
+        for (const reason of reasons) line(fragment, reason);
+
+        const regime = data.market_context?.report;
+        line(
+            fragment,
+            `Separate market context: ${
+                String(regime?.combined_regime || regime?.status || "unavailable")
+                    .replaceAll("_", " ")
+            }. This is not portfolio regime exposure.`
+        );
+        line(fragment, "Read-only diagnostics. No allocation or trading authority.");
+
+        content.replaceChildren(fragment);
+        status.textContent = `Partial coverage · Snapshot: ${data.snapshot_at}`;
+    }
+
+    async function refresh() {
+        if (loading || document.hidden) return;
+        loading = true;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 20000);
+        try {
+            const response = await fetch("/capital/portfolio-intelligence", {
+                signal: controller.signal,
+                cache: "no-store",
+            });
+            if (!response.ok) throw new Error("Portfolio intelligence unavailable.");
+            render(await response.json());
+        } catch (error) {
+            content.replaceChildren();
+            status.textContent =
+                "Portfolio intelligence unavailable. Retrying on the next refresh.";
+        } finally {
+            clearTimeout(timeout);
+            loading = false;
+        }
+    }
+
+    refresh();
+    setInterval(refresh, 60000);
+    document.addEventListener("visibilitychange", () => {
+        if (!document.hidden) refresh();
+    });
+})();
+</script>
 </body>
 </html>

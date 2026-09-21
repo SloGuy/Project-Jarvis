@@ -30,6 +30,9 @@ from app.capital.allocator import (
 from app.capital.experiment_factory_api import (
     router as experiment_factory_router,
 )
+from app.capital.portfolio_intelligence_api import (
+    router as portfolio_intelligence_router,
+)
 
 
 router = APIRouter(
@@ -37,13 +40,9 @@ router = APIRouter(
     tags=["capital"],
 )
 
-
-router.include_router(
-    research_router
-)
-
-
+router.include_router(research_router)
 router.include_router(experiment_factory_router)
+router.include_router(portfolio_intelligence_router)
 
 
 @router.get("/status")
