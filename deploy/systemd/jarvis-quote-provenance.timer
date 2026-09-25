@@ -1,0 +1,11 @@
+[Unit]
+Description=Collect Paper Holdings Quote Provenance Every Minute
+
+[Timer]
+OnBootSec=1min
+OnUnitInactiveSec=60s
+AccuracySec=5s
+Unit=jarvis-quote-provenance.service
+
+[Install]
+WantedBy=timers.target
