@@ -1,28 +1,35 @@
 """Read-only portfolio intelligence with explicit evidence limitations."""
-
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 from sqlalchemy import select, text
 
 from app.capital.portfolio_concentration import analyze_concentration
 from app.capital.portfolio_intelligence_reader import read_portfolio_inputs
-from app.capital.portfolio_snapshot_valuation import value_portfolio_snapshot
+from app.capital.portfolio_provenance_valuation import value_provenance_snapshot
 
+
+PROVENANCE_DIRECTORY = (
+    Path(__file__).resolve().parents[2]
+    / "runtime"
+    / "capital"
+    / "quote_provenance"
+)
 
 PROVIDERS = {
-    ("stock", "SPY"): "Finnhub",
-    ("stock", "QQQ"): "Finnhub",
-    ("stock", "DIA"): "Finnhub",
-    ("stock", "TSLA"): "Finnhub",
-    ("stock", "AAPL"): "Finnhub",
-    ("stock", "NVDA"): "Finnhub",
-    ("stock", "CHTR"): "Finnhub Promoted Attention",
-    ("stock", "CTVA"): "Finnhub Promoted Attention",
-    ("crypto", "BTC"): "CoinGecko",
-    ("crypto", "ETH"): "CoinGecko",
-    ("crypto", "XMR"): "CoinGecko",
-    ("crypto", "XRP"): "CoinGecko",
-    ("crypto", "SOL"): "CoinGecko",
+    ("stock", "SPY"): "Finnhub REST",
+    ("stock", "QQQ"): "Finnhub REST",
+    ("stock", "DIA"): "Finnhub REST",
+    ("stock", "TSLA"): "Finnhub REST",
+    ("stock", "AAPL"): "Finnhub REST",
+    ("stock", "NVDA"): "Finnhub REST",
+    ("stock", "CHTR"): "Finnhub REST",
+    ("stock", "CTVA"): "Finnhub REST",
+    ("crypto", "BTC"): "CoinGecko REST",
+    ("crypto", "ETH"): "CoinGecko REST",
+    ("crypto", "XMR"): "CoinGecko REST",
+    ("crypto", "XRP"): "CoinGecko REST",
+    ("crypto", "SOL"): "CoinGecko REST",
 }
 
 
@@ -79,9 +86,7 @@ def get_portfolio_intelligence():
     resolved = _resolve_portfolios()
     snapshot = read_portfolio_inputs(
         portfolio_ids=sorted(resolved),
-        quote_window_start=(
-            datetime.now(timezone.utc) - timedelta(days=2)
-        ),
+        quote_window_start=datetime.now(timezone.utc),
     )
 
     actual_ids = [row["id"] for row in snapshot["portfolios"]]
@@ -105,10 +110,12 @@ def get_portfolio_intelligence():
         for asset in snapshot["assets"]
         if (asset["asset_type"], asset["symbol"]) in PROVIDERS
     }
-    valuations = value_portfolio_snapshot(
+    valuations = value_provenance_snapshot(
         snapshot=snapshot,
+        directory=PROVENANCE_DIRECTORY,
         provider_by_asset=provider_by_asset,
-        maximum_observation_age=timedelta(minutes=20),
+        maximum_provider_age=timedelta(minutes=20),
+        maximum_capture_age=timedelta(minutes=2),
     )
     concentration = analyze_concentration(valuations)
 
@@ -118,8 +125,9 @@ def get_portfolio_intelligence():
         row.update(resolved[row["portfolio_id"]])
 
     blockers = [
-        "Stored observation timestamps do not establish market quote freshness.",
-        "Surviving transactions do not establish complete historical coverage.",
+        "Current provenance valuations do not establish verified daily boundaries.",
+        "Complete accounting and external-flow coverage for return intervals "
+        "has not been established by this service.",
         "No eligible verified daily-return series is supplied by this service.",
     ]
 
@@ -148,7 +156,9 @@ def get_portfolio_intelligence():
             "report": _market_context(),
         },
         "limitations": [
-            "Current values are indicative stored-observation estimates.",
+            "Current values are indicative saved-provenance estimates.",
+            "Provider and capture ages are checked without exchange calendars.",
+            "Filesystem quotes and database balances are not one transaction.",
             "Combined concentration requires complete values for all portfolios.",
             "Provider coverage is explicit; unknown assets remain uncovered.",
             "Historical metric engines exist but current evidence is ineligible.",
