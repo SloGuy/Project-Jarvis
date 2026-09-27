@@ -1,0 +1,11 @@
+[Unit]
+Description=Refresh Jarvis Sampled Portfolio Analytics Hourly
+
+[Timer]
+OnCalendar=*-*-* *:05:00 UTC
+AccuracySec=1s
+Persistent=false
+Unit=jarvis-portfolio-sampled-report.service
+
+[Install]
+WantedBy=timers.target

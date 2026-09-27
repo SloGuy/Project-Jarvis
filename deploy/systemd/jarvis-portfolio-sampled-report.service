@@ -1,0 +1,22 @@
+[Unit]
+Description=Jarvis Sampled Portfolio Analytics Report
+After=network-online.target docker.service jarvis-portfolio-checkpoint.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=sloguy
+Group=sloguy
+WorkingDirectory=/home/sloguy/jarvis-core
+EnvironmentFile=/etc/jarvis-core.env
+Environment="PATH=/home/sloguy/jarvis-core/.venv/bin"
+Environment="PYTHONUNBUFFERED=1"
+ExecStart=/home/sloguy/jarvis-core/.venv/bin/python -m app.capital.portfolio_sampled_report_runner
+TimeoutStartSec=300
+UMask=0077
+Nice=10
+NoNewPrivileges=true
+PrivateTmp=true
+StandardOutput=journal
+StandardError=journal

@@ -83,6 +83,7 @@ def _market_context():
 
 
 def get_portfolio_intelligence():
+    from app.capital.portfolio_sampled_status import get_sampled_status
     resolved = _resolve_portfolios()
     snapshot = read_portfolio_inputs(
         portfolio_ids=sorted(resolved),
@@ -138,6 +139,7 @@ def get_portfolio_intelligence():
         "scope": "registered_experiment_paper_portfolios",
         "valuations": valuations,
         "concentration": concentration,
+        "sampled_history": get_sampled_status(resolved_portfolios=resolved),
         "historical_metrics": {
             name: {
                 "status": "unavailable",

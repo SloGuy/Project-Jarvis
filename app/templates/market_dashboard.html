@@ -8703,6 +8703,90 @@ if (!candidate) {
         }
         for (const reason of reasons) line(fragment, reason);
 
+        fragment.append(element("h3", "Sampled hourly portfolio analytics"));
+        const sampled = data.sampled_history;
+        const saved = sampled?.status === "current" ? sampled.report : null;
+        if (!saved) {
+            line(
+                fragment,
+                `Report: ${String(sampled?.status || "unavailable").replaceAll("_", " ")}`
+            );
+            line(
+                fragment,
+                String(sampled?.reason || "report_not_published").replaceAll("_", " ")
+            );
+            if (sampled?.report_as_of) {
+                line(fragment, `Last report evidence cutoff: ${sampled.report_as_of}`);
+            }
+        } else {
+            line(fragment, `Evidence cutoff: ${saved.as_of}`);
+            line(
+                fragment,
+                `Hourly checkpoints: ${saved.selected_hourly_checkpoint_count}. ` +
+                "Minimum sample: 30 aligned hourly observations."
+            );
+            line(
+                fragment,
+                "Indicative returns use actual sampling times. Missing hours are excluded."
+            );
+            const names = new Map(
+                (saved.portfolio_bindings || []).map(
+                    row => [row.portfolio_id, row.portfolio_name]
+                )
+            );
+            const name = id => names.get(id) || `Portfolio ${id}`;
+            const state = value => String(value || "unavailable").replaceAll("_", " ");
+            for (const row of saved.return_reports || []) {
+                line(
+                    fragment,
+                    `${name(row.portfolio_id)}: ${row.return_count} return intervals; ` +
+                    `${(row.excluded_intervals || []).length} excluded.`
+                );
+            }
+            for (const row of saved.analytics?.correlation?.pairs || []) {
+                const value = row.correlation == null
+                    ? state(row.status)
+                    : Number(row.correlation).toFixed(3);
+                line(
+                    fragment,
+                    `Correlation — ${name(row.left_portfolio_id)} / ` +
+                    `${name(row.right_portfolio_id)}: ${value} ` +
+                    `(${row.aligned_observations} aligned intervals)`
+                );
+            }
+            for (const row of saved.analytics?.drawdown_overlap?.pairs || []) {
+                line(
+                    fragment,
+                    `Drawdown overlap — ${name(row.left_portfolio_id)} / ` +
+                    `${name(row.right_portfolio_id)}: ` +
+                    (row.simultaneous_drawdown_percent == null
+                        ? state(row.status)
+                        : percent(row.simultaneous_drawdown_percent))
+                );
+            }
+            const risk = saved.analytics?.risk_contribution;
+            line(fragment, `Sampled risk contribution: ${state(risk?.status)}`);
+            line(
+                fragment,
+                "Risk scenario: equal fixed paper-account weights, not actual capital allocation."
+            );
+            if (risk?.status === "available_indicative") {
+                for (const row of risk.portfolios || []) {
+                    line(
+                        fragment,
+                        `${name(row.portfolio_id)}: ${percent(row.risk_contribution_percent)}`
+                    );
+                }
+            }
+            line(
+                fragment,
+                `Historical regime attribution: ${state(saved.regime_attribution?.status)}`
+            );
+            if (saved.regime_attribution?.reason) {
+                line(fragment, saved.regime_attribution.reason);
+            }
+        }
+
         const regime = data.market_context?.report;
         line(
             fragment,
