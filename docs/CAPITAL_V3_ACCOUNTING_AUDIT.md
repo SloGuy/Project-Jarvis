@@ -1,8 +1,8 @@
 # Capital V3 — Prospective Accounting Audit
 
 Status: installed in production on 2026-09-27 UTC.
-Production structural checks passed. Observation of an ordinary
-post-installation accounting operation remains pending.
+Production structural checks passed. Naturally occurring accounting
+changes were observed and their row-image chains reconciled.
 
 ## Purpose
 
@@ -105,9 +105,12 @@ Production structural verification passed at
 2026-09-27T07:21:11.839691+00:00, with no reported issues.
 Recorded baseline counts matched installation metadata.
 
-The first subsequent read found no non-baseline events.
-Verification against a naturally occurring accounting operation remains
-pending. No test trade or accounting mutation was introduced.
+At 2026-09-27T08:12:42.783864+00:00, a read-only production snapshot
+contained 27 post-baseline events. Reconciliation matched 2,313
+row-image chains against current accounting rows with no issues.
+No test trade or accounting mutation was introduced.
+This verifies observed row-image agreement, not complete history
+or transaction commit order.
 
 The combined audit test run passed 74 tests before installation.
 
