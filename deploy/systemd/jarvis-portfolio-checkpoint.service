@@ -1,0 +1,22 @@
+[Unit]
+Description=Jarvis Prospective Portfolio Evidence Checkpoint
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=sloguy
+Group=sloguy
+WorkingDirectory=/home/sloguy/jarvis-core
+EnvironmentFile=/etc/jarvis-core.env
+Environment="PATH=/home/sloguy/jarvis-core/.venv/bin"
+Environment="PYTHONUNBUFFERED=1"
+ExecStart=/home/sloguy/jarvis-core/.venv/bin/python -m app.capital.portfolio_checkpoint_runner
+TimeoutStartSec=180
+UMask=0077
+Nice=10
+NoNewPrivileges=true
+PrivateTmp=true
+StandardOutput=journal
+StandardError=journal

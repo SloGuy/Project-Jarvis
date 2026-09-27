@@ -1,0 +1,11 @@
+[Unit]
+Description=Capture Jarvis Portfolio Evidence Hourly
+
+[Timer]
+OnCalendar=*-*-* *:00:00 UTC
+AccuracySec=1s
+Persistent=false
+Unit=jarvis-portfolio-checkpoint.service
+
+[Install]
+WantedBy=timers.target
