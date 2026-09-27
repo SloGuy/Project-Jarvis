@@ -23,12 +23,17 @@ def _bounded_rows(connection, statement, maximum):
     return [dict(row) for row in rows]
 
 
-def read_portfolio_audit(*, schema, database_engine=None, maximum_rows=100000):
+def read_portfolio_audit(
+    *, schema, database_engine=None, maximum_rows=100000,
+    include_assets=False,
+):
     """Read all visible events and source rows without an incremental cursor.
 
     The row limit applies separately to events and each source table.
     This function validates event contracts, not continuity or trigger bodies.
     """
+    if type(include_assets) is not bool:
+        raise ValueError("include_assets must be a boolean.")
     schema = _schema_name(schema)
     if type(maximum_rows) is not int or not 1 <= maximum_rows <= 1000000:
         raise ValueError("maximum_rows must be an integer from 1 to 1000000.")
@@ -123,6 +128,19 @@ def read_portfolio_audit(*, schema, database_engine=None, maximum_rows=100000):
                     maximum_rows,
                 )
 
+            asset_rows = []
+            if include_assets:
+                asset_rows = _bounded_rows(
+                    connection,
+                    "SELECT asset.id AS source_row_id, "
+                    "row_to_json(asset)::text AS row_json "
+                    f"FROM {prefix}.market_assets AS asset "
+                    f"WHERE asset.id IN (SELECT asset_id FROM "
+                    f"{prefix}.portfolio_positions WHERE quantity > 0) "
+                    "ORDER BY asset.id LIMIT :limit",
+                    maximum_rows,
+                )
+
     installation["installation_id"] = installation_id
     installation["baseline_started_at"] = started.isoformat()
     installation["baseline_finished_at"] = finished.isoformat()
@@ -134,6 +152,8 @@ def read_portfolio_audit(*, schema, database_engine=None, maximum_rows=100000):
         "installation": installation,
         "events": events,
         "current_rows": current_rows,
+        "asset_rows": asset_rows,
+        "asset_metadata_requested": include_assets,
         "event_count": len(events),
         "database_snapshot": "repeatable_read",
         "database_read_only": True,
