@@ -1,7 +1,8 @@
 # Capital V3 — Prospective Accounting Audit
 
-Status: implemented and tested in isolated PostgreSQL schemas.
-Not installed in production as of this checkpoint.
+Status: installed in production on 2026-09-27 UTC.
+Production structural checks passed. Observation of an ordinary
+post-installation accounting operation remains pending.
 
 ## Purpose
 
@@ -91,16 +92,27 @@ These are point-in-time observations, not guarantees at installation.
 
 ## Deployment status
 
-Production installation is deferred until the running BTC validation has
-completed its closeout. No production audit triggers have been installed.
+Installed in public on 2026-09-27 UTC after BTC validation closeout.
 
-After closeout:
+Installation ID: f4cd92f3-6305-4b13-a38b-c6a607359e3c
 
-- Recheck database state and source integrity.
-- Run the controlled migration with --schema public.
-- Verify baseline counts and installed triggers.
-- Observe an ordinary accounting operation without creating a test trade.
-- Record the installation ID and deployment verification.
+Baseline counts:
+- portfolios: 4
+- portfolio_positions: 35
+- portfolio_transactions: 2,265
+
+Production structural verification passed at
+2026-09-27T07:21:11.839691+00:00, with no reported issues.
+Recorded baseline counts matched installation metadata.
+
+The first subsequent read found no non-baseline events.
+Verification against a naturally occurring accounting operation remains
+pending. No test trade or accounting mutation was introduced.
+
+The combined audit test run passed 74 tests before installation.
+
+Structural checks do not verify function bodies, establish complete
+historical coverage, or grant execution authority.
 
 ## Remaining Session 3 work
 
