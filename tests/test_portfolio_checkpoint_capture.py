@@ -10,6 +10,17 @@ from app.capital import portfolio_checkpoint_capture as capture
 
 class CheckpointCaptureTests(unittest.TestCase):
     def setUp(self):
+        from unittest.mock import patch as mock_patch
+        context_patch = mock_patch(
+            "app.capital.portfolio_checkpoint_capture.capture_market_context",
+            return_value={
+                "observed_at": "2026-09-27T08:40:00+00:00",
+                "scope": "spy_market_proxy_not_portfolio_regime",
+                "report": {"status": "unavailable"},
+            },
+        )
+        context_patch.start()
+        self.addCleanup(context_patch.stop)
         self.resolved = {
             3: {
                 "portfolio_name": "Test Paper",

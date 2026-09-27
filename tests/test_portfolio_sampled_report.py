@@ -98,10 +98,15 @@ class SampledReportTests(unittest.TestCase):
 
     def test_regime_is_not_fabricated(self):
         result = self.build()
-        self.assertEqual(result["regime_attribution"]["status"], "unavailable")
-        self.assertIn(
-            "contemporaneously", result["regime_attribution"]["reason"]
+        regime = result["regime_attribution"]
+        self.assertEqual(regime["status"], "insufficient_data")
+        self.assertEqual(
+            regime["scope"],
+            "sampled_returns_grouped_by_prior_spy_market_context",
         )
+        self.assertTrue(regime["portfolios"])
+        for portfolio in regime["portfolios"]:
+            self.assertEqual(portfolio["groups"], [])
 
     def test_input_records_are_preserved(self):
         records = [fixtures.record(0), fixtures.record(1)]

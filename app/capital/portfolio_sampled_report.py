@@ -14,6 +14,9 @@ from app.capital.portfolio_sampled_returns import build_sampled_returns, METHOD
 from app.capital.portfolio_sampled_analytics import analyze_sampled_returns
 
 
+from app.capital.portfolio_sampled_regime import analyze_sampled_regimes
+
+
 def build_sampled_report(*, records, portfolio_ids, as_of):
     identifiers = list(portfolio_ids)
     if (
@@ -95,14 +98,10 @@ def build_sampled_report(*, records, portfolio_ids, as_of):
                 for identifier in identifiers
             ],
         },
-        "regime_attribution": {
-            "status": "unavailable",
-            "reason": (
-                "Checkpoints do not contain contemporaneously captured "
-                "portfolio regime labels. Current market context must not "
-                "be assigned retrospectively to these returns."
-            ),
-        },
+        "regime_attribution": analyze_sampled_regimes(
+            records=records,
+            reports_by_portfolio=reports,
+        ),
         "historical_completeness_verified": False,
         "database_writes": False,
         "allocation_authority": False,

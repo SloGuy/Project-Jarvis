@@ -22,6 +22,9 @@ PROVENANCE_DIRECTORY = (
 )
 
 
+from app.capital.portfolio_sampled_regime import capture_market_context
+
+
 def capture_portfolio_checkpoint():
     """Capture evidence using actual sampling time, not a daily boundary.
 
@@ -61,11 +64,13 @@ def capture_portfolio_checkpoint():
                 record_id=record_id,
             )
 
+    market_context = capture_market_context()
     return {
         "schema_version": 1,
         "methodology": "prospective_portfolio_evidence_snapshot_v1",
         "started_at": started_at.isoformat(),
         "sampled_at": audit["sampled_at"],
+        "market_context": market_context,
         "finished_at": datetime.now(timezone.utc).isoformat(),
         "resolved_portfolios": [
             {"portfolio_id": identifier, **metadata}

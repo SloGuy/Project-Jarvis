@@ -8778,13 +8778,34 @@ if (!candidate) {
                     );
                 }
             }
+            const grouped = saved.regime_attribution;
             line(
                 fragment,
-                `Historical regime attribution: ${state(saved.regime_attribution?.status)}`
+                `Returns by prior SPY market context: ${state(grouped?.status)}`
             );
-            if (saved.regime_attribution?.reason) {
-                line(fragment, saved.regime_attribution.reason);
+            for (const portfolio of grouped?.portfolios || []) {
+                for (const group of portfolio.groups || []) {
+                    const mean = group.mean_sampled_return_percent;
+                    const description = mean == null
+                        ? "insufficient data"
+                        : `${Number(mean).toFixed(4)}% mean sampled return`;
+                    line(
+                        fragment,
+                        `${name(portfolio.portfolio_id)} · ${state(group.market_regime)}: `
+                        + `${group.observations} observations · ${description}`
+                    );
+                }
+                line(
+                    fragment,
+                    `${name(portfolio.portfolio_id)}: `
+                    + `${portfolio.excluded_intervals.length} intervals without eligible prior context`
+                );
             }
+            line(
+                fragment,
+                "SPY is a market proxy. Groups require 30 observations; "
+                + "they do not establish portfolio regime exposure or causation."
+            );
         }
 
         const regime = data.market_context?.report;
