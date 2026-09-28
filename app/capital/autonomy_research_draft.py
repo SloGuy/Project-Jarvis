@@ -42,6 +42,34 @@ def _existing(state, task_id, request):
     return None
 
 
+def check_trade_count_consistency(hypothesis, success_criteria):
+    """Reject explicit trade counts that conflict with the inherited minimum."""
+    import re
+
+    criteria = " ".join(success_criteria).lower()
+    minimum = re.search(r"at least (\d+) completed trades", criteria)
+    if minimum is None:
+        return
+    required = int(minimum.group(1))
+    text = hypothesis.lower().replace("-", " ")
+    for word, value in (
+        ("fifteen", "15"), ("thirty", "30"),
+        ("twenty", "20"), ("ten", "10"),
+    ):
+        text = re.sub(r"\b" + word + r"\b", value, text)
+    counts = re.findall(
+        r"\b(\d+)\s+(?:completed\s+)?trades\b", text
+    )
+    counts += re.findall(
+        r"\b(?:completed\s+)?trade count\s*(?:of|:|=)\s*(\d+)\b",
+        text,
+    )
+    if any(int(value) < required for value in counts):
+        raise ValueError(
+            "Proposed hypothesis conflicts with the inherited trade minimum."
+        )
+
+
 def prepare_revision_draft(*, task_id, parent_research_id, objective):
     """Generate at most one persisted draft per task identity.
 
@@ -96,10 +124,25 @@ def prepare_revision_draft(*, task_id, parent_research_id, objective):
             ),
         })
 
+    evidence.append({
+        "id": "revision-constraints",
+        "summary": (
+            "The inherited success criteria are mandatory and unchanged. "
+            "Do not lower the completed-trade minimum or weaken costs, "
+            "return, benchmark, drawdown, or data-quality requirements. "
+            "Keep historical sample counts in the rationale, not as a "
+            "replacement acceptance threshold in the new hypothesis. "
+            "A larger sample does not itself improve expected performance."
+        ),
+    })
+
     proposal = propose_research(
         objective=objective,
         strategies=[parent.strategy_name],
         evidence=evidence,
+    )
+    check_trade_count_consistency(
+        proposal["hypothesis"], parent.success_criteria,
     )
     if proposal["hypothesis"].strip() == parent.hypothesis.strip():
         raise ValueError("Model did not propose a changed hypothesis.")

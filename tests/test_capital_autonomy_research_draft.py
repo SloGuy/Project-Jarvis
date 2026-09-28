@@ -128,7 +128,7 @@ class CapitalResearchDraftTests(unittest.TestCase):
         self.assertEqual(draft["proposal"], self.proposal)
         self.assertEqual(
             [item["id"] for item in draft["model_inputs"]],
-            ["parent-research", "saved-assessment-1"],
+            ["parent-research", "saved-assessment-1", "revision-constraints"],
         )
         self.assertFalse(draft["evidence_reverified"])
         self.assertFalse(draft["promotion_authorized"])
