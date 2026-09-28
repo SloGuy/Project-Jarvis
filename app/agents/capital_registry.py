@@ -61,6 +61,7 @@ CAPITAL_AGENTS = (
         capabilities=(
             "capital.inspect_evidence",
             "capital.register_validation",
+            "capital.collect_validation",
             "capital.run_validation",
             "capital.assess_validation",
             "capital.record_learning",

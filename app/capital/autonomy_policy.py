@@ -15,6 +15,7 @@ POLICY_VERSION = "capital_paper_autonomy_v1"
 # These actions remain available while new research and entries are paused.
 PAUSED_ACTIONS = frozenset({
     "capital.inspect_evidence",
+    "capital.collect_validation",
     "capital.pause_paper",
     "capital.demote_paper",
     "capital.retire_paper",

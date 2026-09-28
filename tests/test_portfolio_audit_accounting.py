@@ -19,6 +19,8 @@ from app.market_db.models import (
     PortfolioTransaction,
 )
 from app.market_db import paper_trading
+from app.capital.experiment_factory_store import ExperimentFactoryRecord
+from app.capital.paper_lifecycle_store import PaperLifecycleRecord
 from app.market_db.migrate_portfolio_audit import migrate_portfolio_audit
 
 
@@ -51,6 +53,8 @@ class AccountingAuditTests(unittest.TestCase):
             Portfolio,
             PortfolioPosition,
             PortfolioTransaction,
+            ExperimentFactoryRecord,
+            PaperLifecycleRecord,
         ):
             model.__table__.create(self.engine)
 

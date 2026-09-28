@@ -82,10 +82,36 @@ def _snapshot_context(
 def run_mean_reversion_v2_paper_cycle(
     *,
     risk_only: bool = False,
+    portfolio_id: int | None = None,
 ) -> dict[str, Any]:
-    portfolio_record = (
-        get_or_create_mean_reversion_v2_portfolio()
-    )
+    managed = portfolio_id is not None
+    if managed:
+        from sqlalchemy import select
+        from app.market_db.database import SessionLocal
+        from app.market_db.models import Portfolio
+        from app.capital.paper_lifecycle_store import PaperLifecycleRecord
+
+        if type(portfolio_id) is not int or portfolio_id <= 0:
+            raise ValueError("Invalid managed portfolio ID.")
+        with SessionLocal() as session:
+            lifecycle = session.scalar(
+                select(PaperLifecycleRecord).where(
+                    PaperLifecycleRecord.portfolio_id == portfolio_id
+                )
+            )
+            portfolio_record = session.get(Portfolio, portfolio_id)
+            if (
+                lifecycle is None
+                or lifecycle.status not in {"active", "paused", "demoted"}
+                or lifecycle.execution_mode != "paper"
+                or portfolio_record is None
+                or portfolio_record.portfolio_type != "paper"
+                or not portfolio_record.is_active
+            ):
+                raise ValueError("Managed paper portfolio is unavailable.")
+            session.expunge(portfolio_record)
+    else:
+        portfolio_record = get_or_create_mean_reversion_v2_portfolio()
 
     portfolio = get_portfolio_summary(
         portfolio_id=portfolio_record.id,
@@ -102,7 +128,7 @@ def run_mean_reversion_v2_paper_cycle(
     }
 
     symbols = sorted(
-        set(get_mean_reversion_universe())
+        ({"BTC"} if managed else set(get_mean_reversion_universe()))
         | set(positions_by_symbol)
     )
     results: list[dict[str, Any]] = []
@@ -194,13 +220,6 @@ def run_mean_reversion_v2_paper_cycle(
             portfolio_id=portfolio_record.id,
         )
 
-        pipeline = process_candidate(
-            candidate=candidate,
-            portfolio_id=portfolio_record.id,
-            portfolio_summary=current_portfolio,
-            policy=MEAN_REVERSION_V2_1000_POLICY,
-        )
-
         exit_rule = None
 
         if risk_exit.should_exit:
@@ -209,6 +228,13 @@ def run_mean_reversion_v2_paper_cycle(
             if strategy_exit_rule is None:
                 raise RuntimeError("V2 sell has no exit rule.")
             exit_rule = strategy_exit_rule
+
+        pipeline = process_candidate(
+            candidate=candidate,
+            portfolio_id=portfolio_record.id,
+            portfolio_summary=current_portfolio,
+            policy=MEAN_REVERSION_V2_1000_POLICY,
+        )
 
         if pipeline.execution_status == "executed":
             if (

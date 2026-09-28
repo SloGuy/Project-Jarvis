@@ -103,7 +103,15 @@ def _resolve_portfolio_id(
 def _locked_active_portfolio(
     session: Any,
     portfolio_id: int,
+    operation: str | None = None,
 ) -> Portfolio:
+    from app.capital.paper_execution_guard import (
+        lock_managed_lifecycle,
+        require_managed_operation,
+    )
+    lifecycle = lock_managed_lifecycle(
+        session=session, portfolio_id=portfolio_id,
+    )
     portfolio = session.scalar(
         select(Portfolio)
         .where(
@@ -123,6 +131,9 @@ def _locked_active_portfolio(
             "Only paper portfolios can use simulated transactions."
         )
 
+    require_managed_operation(
+        lifecycle=lifecycle, portfolio=portfolio, operation=operation,
+    )
     return portfolio
 
 
@@ -421,6 +432,7 @@ def buy_asset(
         portfolio = _locked_active_portfolio(
             session=session,
             portfolio_id=resolved_portfolio_id,
+            operation="buy",
         )
         asset = _resolve_active_asset(
             session=session,
@@ -436,6 +448,19 @@ def buy_asset(
             trade_quantity * execution_price
         ).quantize(MONEY_QUANTUM)
         cash_required = trade_total + fees
+
+        from app.capital.paper_execution_guard import (
+            lock_managed_lifecycle, require_managed_buy,
+        )
+        require_managed_buy(
+            session=session,
+            lifecycle=lock_managed_lifecycle(
+                session=session, portfolio_id=portfolio.id,
+            ),
+            portfolio=portfolio,
+            asset=asset,
+            cash_required=cash_required,
+        )
 
         if portfolio.cash_balance_usd < cash_required:
             raise PaperTradingError(
@@ -539,6 +564,7 @@ def sell_asset(
         portfolio = _locked_active_portfolio(
             session=session,
             portfolio_id=resolved_portfolio_id,
+            operation="sell",
         )
         asset = _resolve_active_asset(
             session=session,
