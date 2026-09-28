@@ -24,6 +24,7 @@ def revise_research_candidate(
     revision_reason: str,
     request_key: str | None = None,
     proposed_by: str | None = None,
+    expected_parent_snapshot: dict | None = None,
 ) -> ResearchCandidate:
     parent_id = _required_text(parent_research_id, "parent_research_id")
     name = _required_text(strategy_name, "strategy_name")
@@ -51,6 +52,11 @@ def revise_research_candidate(
         "proposed_by": proposed_by,
     }
 
+    if expected_parent_snapshot is not None:
+        if not isinstance(expected_parent_snapshot, dict):
+            raise ValueError("Expected parent snapshot must be a dictionary.")
+        request["expected_parent_snapshot"] = deepcopy(expected_parent_snapshot)
+
     with locked_research_state(write=True) as state:
         rows = state["candidates"]
         requests = state.get("revision_requests", {})
@@ -70,6 +76,12 @@ def revise_research_candidate(
 
         if parent_id not in rows:
             raise KeyError(f"Unknown research candidate: {parent_id}")
+
+        if (
+            expected_parent_snapshot is not None
+            and rows[parent_id] != request["expected_parent_snapshot"]
+        ):
+            raise ValueError("Parent changed since the revision was drafted.")
 
         parent = ResearchCandidate.from_dict(rows[parent_id])
         if parent.status not in {

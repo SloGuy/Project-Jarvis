@@ -303,7 +303,17 @@ def create_task(
     priority: TaskPriority = (
         TaskPriority.NORMAL
     ),
+    request_key: str | None = None,
 ) -> AgentTask:
+    if request_key is not None:
+        if (
+            not isinstance(request_key, str)
+            or not request_key.strip()
+            or len(request_key) > 200
+        ):
+            raise ValueError("Invalid task request key.")
+        request_key = request_key.strip()
+
     normalized_title = (
         title.strip()
     )
@@ -357,6 +367,28 @@ def create_task(
             "tasks",
             {},
         )
+
+        if request_key is not None:
+            requests = state.setdefault("task_request_keys", {})
+            if not isinstance(requests, dict):
+                raise RuntimeError("Invalid task request store.")
+            binding = {
+                "title": task.title,
+                "objective": task.objective,
+                "assigned_agent_id": task.assigned_agent_id,
+                "priority": task.priority.value,
+            }
+            if request_key in requests:
+                saved = requests[request_key]
+                if saved["request"] != binding:
+                    raise ValueError("Task request key has different inputs.")
+                if saved["task_id"] not in tasks:
+                    raise RuntimeError("Previously created task is missing.")
+                return _task_from_record(tasks[saved["task_id"]])
+            requests[request_key] = {
+                "request": binding,
+                "task_id": task.task_id,
+            }
 
         tasks[
             task.task_id
@@ -468,6 +500,7 @@ def claim_task(
     *,
     task_id: str,
     agent_id: str,
+    maximum_execution_attempts: int | None = None,
 ) -> AgentTask:
     normalized_agent_id = (
         agent_id
@@ -519,6 +552,15 @@ def claim_task(
                 "Only queued tasks can be claimed."
             )
 
+        if maximum_execution_attempts is not None:
+            if (
+                type(maximum_execution_attempts) is not int
+                or maximum_execution_attempts < 1
+            ):
+                raise ValueError("Invalid task execution limit.")
+            if task.execution_attempts >= maximum_execution_attempts:
+                raise ValueError("Task execution attempt limit reached.")
+
         now = utc_now_iso()
 
         task.status = (
@@ -552,6 +594,7 @@ def heartbeat_task(
     *,
     task_id: str,
     agent_id: str,
+    expected_execution_attempt: int | None = None,
 ) -> AgentTask:
     normalized_agent_id = (
         agent_id
@@ -581,6 +624,15 @@ def heartbeat_task(
         task = _task_from_record(
             record
         )
+
+        if expected_execution_attempt is not None:
+            if (
+                type(expected_execution_attempt) is not int
+                or expected_execution_attempt < 1
+                or task.execution_attempts != expected_execution_attempt
+            ):
+                raise ValueError("Task execution attempt no longer matches.")
+
 
         assigned_agent_id = (
             task.assigned_agent_id
@@ -687,6 +739,7 @@ def complete_task(
     *,
     task_id: str,
     result: str,
+    expected_execution_attempt: int | None = None,
 ) -> AgentTask:
     with _state_lock():
         state = (
@@ -710,6 +763,15 @@ def complete_task(
         task = _task_from_record(
             record
         )
+
+        if expected_execution_attempt is not None:
+            if (
+                type(expected_execution_attempt) is not int
+                or expected_execution_attempt < 1
+                or task.execution_attempts != expected_execution_attempt
+            ):
+                raise ValueError("Task execution attempt no longer matches.")
+
 
         if (
             task.status
@@ -875,6 +937,7 @@ def fail_task(
     *,
     task_id: str,
     error: str,
+    expected_execution_attempt: int | None = None,
 ) -> AgentTask:
     with _state_lock():
         state = (
@@ -898,6 +961,15 @@ def fail_task(
         task = _task_from_record(
             record
         )
+
+        if expected_execution_attempt is not None:
+            if (
+                type(expected_execution_attempt) is not int
+                or expected_execution_attempt < 1
+                or task.execution_attempts != expected_execution_attempt
+            ):
+                raise ValueError("Task execution attempt no longer matches.")
+
 
         if (
             task.status
