@@ -1,3 +1,6 @@
+"""Research revisions with optional atomic request deduplication."""
+
+from copy import deepcopy
 from dataclasses import replace
 from uuid import uuid4
 
@@ -19,6 +22,8 @@ def revise_research_candidate(
     strategy_name: str,
     hypothesis: str,
     revision_reason: str,
+    request_key: str | None = None,
+    proposed_by: str | None = None,
 ) -> ResearchCandidate:
     parent_id = _required_text(parent_research_id, "parent_research_id")
     name = _required_text(strategy_name, "strategy_name")
@@ -26,8 +31,43 @@ def revise_research_candidate(
     thesis = _required_text(hypothesis, "hypothesis")
     reason = _required_text(revision_reason, "revision_reason")
 
+    if request_key is not None:
+        if not isinstance(request_key, str):
+            raise ValueError("request_key must be text.")
+        request_key = _required_text(request_key, "request_key")
+        if len(request_key) > 200:
+            raise ValueError("request_key exceeds 200 characters.")
+
+    if proposed_by is not None:
+        if not isinstance(proposed_by, str):
+            raise ValueError("proposed_by must be text.")
+        proposed_by = _required_text(proposed_by, "proposed_by")
+
+    request = {
+        "parent_research_id": parent_id,
+        "strategy_name": name,
+        "hypothesis": thesis,
+        "revision_reason": reason,
+        "proposed_by": proposed_by,
+    }
+
     with locked_research_state(write=True) as state:
         rows = state["candidates"]
+        requests = state.get("revision_requests", {})
+        if not isinstance(requests, dict):
+            raise RuntimeError("Invalid revision request store.")
+
+        if request_key is not None and request_key in requests:
+            saved = requests[request_key]
+            if saved["request"] != request:
+                raise ValueError("Request key was used for another revision.")
+            result = saved["result"]
+            if result["research_id"] not in rows:
+                raise RuntimeError("Previously created revision is missing.")
+            # Return the original creation result even if later reviews
+            # have changed the candidate. Do not reset its current state.
+            return ResearchCandidate.from_dict(deepcopy(result))
+
         if parent_id not in rows:
             raise KeyError(f"Unknown research candidate: {parent_id}")
 
@@ -61,6 +101,9 @@ def revise_research_candidate(
             hypothesis_version=parent.hypothesis_version + 1,
             parent_research_id=parent.research_id,
             revision_reason=reason,
+            proposed_by=(
+                parent.proposed_by if proposed_by is None else proposed_by
+            ),
             status=ResearchStatus.PROPOSED,
             verdict=ResearchVerdict.PENDING,
             created_at=now,
@@ -84,6 +127,15 @@ def revise_research_candidate(
             parent.status = ResearchStatus.ARCHIVED
             parent.updated_at = now
             rows[parent.research_id] = parent.to_dict()
-        rows[child.research_id] = child.to_dict()
+
+        result = child.to_dict()
+        rows[child.research_id] = result
+
+        if request_key is not None:
+            requests[request_key] = {
+                "request": deepcopy(request),
+                "result": deepcopy(result),
+            }
+            state["revision_requests"] = requests
 
     return child

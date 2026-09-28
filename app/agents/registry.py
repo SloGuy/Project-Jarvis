@@ -58,6 +58,11 @@ AGENTS = (
 )
 
 
+from app.agents.capital_registry import get_capital_agents
+
+AGENTS = AGENTS + get_capital_agents()
+
+
 def get_agents() -> tuple[AgentDefinition, ...]:
     return AGENTS
 
