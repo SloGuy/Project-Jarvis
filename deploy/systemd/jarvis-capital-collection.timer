@@ -1,0 +1,11 @@
+[Unit]
+Description=Schedule Jarvis Capital Collection Worker
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=60s
+AccuracySec=5s
+Unit=jarvis-capital-collection.service
+
+[Install]
+WantedBy=timers.target

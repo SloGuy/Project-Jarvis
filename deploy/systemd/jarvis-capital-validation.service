@@ -1,0 +1,20 @@
+[Unit]
+Description=Jarvis Capital Validation Worker
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=sloguy
+Group=sloguy
+WorkingDirectory=/home/sloguy/jarvis-core
+EnvironmentFile=/etc/jarvis-core.env
+Environment="PATH=/home/sloguy/jarvis-core/.venv/bin:/usr/bin:/bin"
+Environment="PYTHONUNBUFFERED=1"
+ExecStart=/home/sloguy/jarvis-core/.venv/bin/python -m app.capital.autonomy_validation_worker
+TimeoutStartSec=3600
+Nice=10
+NoNewPrivileges=true
+PrivateTmp=true
+UMask=0077
