@@ -202,3 +202,76 @@ Limits: exact paper/replay parity and PostgreSQL concurrency behavior
 remain unproven. Lifecycle persistence tests use isolated SQLite models.
 Shared-shadow development replay is bounded to 360 ticks; registered
 validation currently supports single-asset Mean Reversion V2.
+
+
+## V3 autonomous operations acceptance — 2026-10-06
+
+Jarvis Capital V3 and its subsequent autonomous operating layer
+completed operational acceptance.
+
+### Organization state
+
+- Four registered strategies.
+- Four running isolated paper experiments.
+- Four independently resolved paper portfolios.
+- Capital API status: success.
+- Capital safety audit: 11 of 11 checks passed.
+- Live capital: disabled.
+- Human approval: required.
+
+### Autonomous workers
+
+The following systemd workers and timers were installed, enabled,
+and observed completing successfully:
+
+- Capital Research Worker.
+- Capital Validation Worker.
+- Capital Collection Worker.
+- Capital Lifecycle Worker.
+- Capital Paper Worker.
+
+Every worker reported `live_capital_authorized: false`.
+
+Idle and no-work outcomes were treated as valid governed states.
+No worker created work, experiments, portfolios, or trades without
+an eligible upstream record.
+
+### Verification
+
+- Capital autonomy regression suite passed.
+- Registered validation regression suite passed.
+- Experiment Factory regression suite passed.
+- Committee validation and research-lineage gates passed.
+- All ten autonomous worker service/timer units passed
+  `systemd-analyze verify`.
+- The deployed workers reported `Result=success` and
+  `ExecMainStatus=0`.
+
+### Committee state
+
+- `mean_reversion_v2`: continue; not graduation eligible.
+- `momentum_alignment_v1`: revise; not graduation eligible.
+- `mean_reversion_v1`: continue; not graduation eligible.
+- `volatility_breakout_v1`: continue; not graduation eligible.
+
+No strategy has live-capital authorization.
+
+### Legacy lineage boundary
+
+The four experiments predate the complete V3 research-provenance
+workflow and remain marked as unlinked. They may continue collecting
+isolated paper evidence, but an unlinked experiment cannot satisfy the
+Committee research-lineage gate or claim promotion authority.
+
+Future autonomous experiments must originate from approved,
+versioned research, registered validation, and Experiment Factory
+review.
+
+### Acceptance decision
+
+Jarvis Capital V3 is operationally complete as a governed,
+paper-only quantitative research and experimentation organization.
+
+This decision establishes engineering and operational readiness.
+It does not establish strategy profitability, graduation eligibility,
+broker readiness, or authority to deploy real capital.
