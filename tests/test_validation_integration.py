@@ -207,21 +207,23 @@ class ValidationIntegrationTests(unittest.TestCase):
             strategy_name="mean_reversion_v2", strategy_version="2.0",
         )
         with (
-            patch("app.capital.committee_service.require_experiment",
-                  return_value=experiment),
-            patch("app.capital.committee_service.build_graduation_gates",
-                  return_value=()),
             patch(
-                "app.capital.committee_service.build_corporate_action_gate",
-                return_value=None,
+                "app.capital.committee_service.require_experiment",
+                return_value=experiment,
+            ),
+            patch(
+                "app.capital.committee_service.build_graduation_gates",
+                return_value=(),
+            ),
+            patch(
+                "app.capital.committee_service.get_experiment_provenance",
+                return_value={"status": "matched", "reasons": []},
             ),
             patch(
                 "app.capital.committee_service.build_corporate_action_gate",
                 return_value=None,
                 create=True,
             ),
-            patch("app.capital.committee_service.get_experiment_provenance",
-                  return_value={"status": "matched", "reasons": []}),
         ):
             committee = evaluate_strategy_committee(strategy_performance={
                 "experiment_id": "synthetic", "strategy_name": "mean_reversion_v2",
