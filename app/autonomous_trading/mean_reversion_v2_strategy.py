@@ -16,7 +16,10 @@ from app.autonomous_trading.strategy import (
     StrategyCandidate,
     create_strategy_candidate,
 )
-from app.market_db.history import get_market_history
+def get_market_history(**arguments):
+    from app.market_db.history import get_market_history as read_history
+
+    return read_history(**arguments)
 
 
 STRATEGY_NAME = "mean_reversion_v2"

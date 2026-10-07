@@ -11,12 +11,19 @@ from app.capital.autonomy_validation_registration import PREFIX
 from app.capital import validation_collection as collection
 from app.capital import validation_registry as registry
 from app.capital.observation_witness import digest, verify_receipt
-from app.capital.run_validation import current_binding
 from app.capital.validation_plan import timestamp
 
 
 WARMUP = timedelta(minutes=30)
 CAPTURE_INTERVAL = timedelta(minutes=2)
+
+
+def current_binding(plan):
+    from app.capital.run_validation import (
+        current_binding as check_binding,
+    )
+
+    return check_binding(plan)
 
 
 def _authorize():
@@ -32,6 +39,21 @@ def _advance(plan_id):
     _authorize()
     row = registry.get_plan(plan_id)
     plan = row["envelope"]["plan"]
+    if plan["schema_version"] == 2:
+        from app.capital.validation_provider_capture import (
+            capture_provider_cycle,
+        )
+
+        if (
+            not plan["created_by"].startswith(PREFIX)
+            or row["status"] != "registered"
+        ):
+            return {
+                "plan_id": plan_id,
+                "status": "skipped",
+            }
+
+        return capture_provider_cycle(plan_id)
     if (
         not plan["created_by"].startswith(PREFIX)
         or row["status"] != "registered"

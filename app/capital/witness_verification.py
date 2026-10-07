@@ -10,6 +10,12 @@ def normalized(value):
 
 
 def verify_witness_inputs(report):
+    if "provider_evidence" in report:
+        from app.capital.validation_provider_verification import (
+            verify_provider_inputs,
+        )
+        return verify_provider_inputs(report)
+
     evidence = report.get("witness_evidence")
     claimed = report.get("availability_verified", False)
     if type(claimed) is not bool:

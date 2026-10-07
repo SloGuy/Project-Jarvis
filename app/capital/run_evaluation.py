@@ -8,13 +8,10 @@ import json
 from pathlib import Path
 from uuid import uuid4
 
-from sqlalchemy import select, text
+from contextlib import contextmanager
+from types import SimpleNamespace
 
-from app.market_db.database import SessionLocal
-from app.market_db.models import MarketAsset
-from app.capital.historical_observations import (
-    COLLECTED_PROVIDERS, load_historical_snapshot,
-)
+COLLECTED_PROVIDERS = frozenset({"Finnhub", "CoinGecko"})
 from app.capital.position_simulation import PositionSimulation
 from app.capital.policies import MEAN_REVERSION_V2_1000_POLICY as POLICY
 from app.capital.replay_manifest import (
@@ -25,6 +22,63 @@ from app.capital.replay_analysis import analyze_report
 
 
 EVALUATION_DIRECTORY = Path(__file__).resolve().parents[2] / "work/evaluations"
+
+
+def SessionLocal():
+    from app.market_db.database import SessionLocal as create_session
+
+    return create_session()
+
+
+def load_historical_snapshot(session, **arguments):
+    from app.capital.historical_observations import (
+        load_historical_snapshot as load,
+    )
+
+    return load(session, **arguments)
+
+
+@contextmanager
+def evaluation_source(*, asset_id, provider, registered=None):
+    expected_type = {"Finnhub": "stock", "CoinGecko": "crypto"}
+
+    if registered is not None and registered["schema_version"] == 2:
+        if (
+            registered["asset_id"] != asset_id
+            or registered["provider"] != provider
+        ):
+            raise ValueError("Provider source differs from registered plan.")
+
+        yield None, SimpleNamespace(
+            symbol=registered["symbol"],
+            asset_type=expected_type[provider],
+        )
+        return
+
+    from sqlalchemy import select, text
+    from app.market_db.models import MarketAsset
+
+    with SessionLocal() as session:
+        session.execute(text(
+            "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"
+        ))
+        session.execute(text("SET LOCAL statement_timeout = '30s'"))
+
+        asset = session.execute(
+            select(MarketAsset.symbol, MarketAsset.asset_type)
+            .where(MarketAsset.id == asset_id)
+        ).one_or_none()
+
+        if asset is None:
+            raise ValueError("Asset ID does not exist.")
+
+        if registered is not None and asset.symbol != registered["symbol"]:
+            raise ValueError("Database asset differs from registered symbol.")
+
+        if asset.asset_type != expected_type[provider]:
+            raise ValueError("Provider and asset type do not match.")
+
+        yield session, asset
 
 
 def encode(value):
@@ -96,6 +150,52 @@ def run(args, *, validation_record=None):
             "validation_plan_id": validation_record["plan_id"],
             "run_token": validation_record["run_token"],
         }
+    provider_history = None
+    provider_evidence = None
+    if (
+        validation_record is not None
+        and registered["schema_version"] == 2
+    ):
+        from app.capital.validation_provider_collection import (
+            materialize_provider_collection,
+            quote_directory,
+        )
+        from app.capital.validation_provider_replay import (
+            ProviderReplayHistory,
+        )
+        from app.capital.validation_provider_verification import (
+            open_provider_packet,
+        )
+
+        materialized = materialize_provider_collection(
+            validation_record
+        )
+        provider_evidence = {
+            "schema_version": 1,
+            "envelope": validation_record["envelope"],
+            "registered_sha256": (
+                validation_record["registered_sha256"]
+            ),
+            "collection": materialized["collection"],
+            "receipts": materialized["receipts"],
+        }
+
+        # Validate the embedded chain against the retained collection.
+        with open_provider_packet(
+            provider_evidence,
+            expected_sha256=validation_record["registered_sha256"],
+            expected_collection=validation_record["provider_collection"],
+        ):
+            pass
+
+        provider_history = ProviderReplayHistory(
+            directory=quote_directory(validation_record),
+            receipts=materialized["receipts"],
+            envelope=validation_record["envelope"],
+            expected_sha256=validation_record["registered_sha256"],
+            expected_bound_at=materialized["collection"]["bound_at"],
+        )
+
     witness_history = None
     witness_collection = None
     if validation_record is not None and "witness_collection" in validation_record:
@@ -138,25 +238,13 @@ def run(args, *, validation_record=None):
     try:
         windows = []
         last_price = None
-        with SessionLocal() as session:
-            session.execute(text(
-                "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"
-            ))
-            session.execute(text("SET LOCAL statement_timeout = '30s'"))
-            asset = session.execute(
-                select(MarketAsset.symbol, MarketAsset.asset_type)
-                .where(MarketAsset.id == args.asset_id)
-            ).one_or_none()
-            if asset is None:
-                raise ValueError("Asset ID does not exist.")
-            if (
-                validation_record is not None
-                and asset.symbol != registered["symbol"]
-            ):
-                raise ValueError("Database asset differs from registered symbol.")
-            expected_type = {"Finnhub": "stock", "CoinGecko": "crypto"}
-            if asset.asset_type != expected_type[args.provider]:
-                raise ValueError("Provider and asset type do not match.")
+        with evaluation_source(
+            asset_id=args.asset_id,
+            provider=args.provider,
+            registered=(
+                registered if validation_record is not None else None
+            ),
+        ) as (session, asset):
 
             simulations = {
                 "zero_cost": PositionSimulation(
@@ -170,7 +258,22 @@ def run(args, *, validation_record=None):
             }
             for index in range(ticks):
                 at = start + timedelta(minutes=index)
-                if witness_history is None:
+                if provider_history is not None:
+                    from app.capital.validation_access import historical_access
+                    with historical_access(
+                        asset_id=args.asset_id,
+                        provider=args.provider,
+                        decision_at=at,
+                        **access,
+                    ) as check_times:
+                        window = provider_history.window(
+                            decision_at=at.isoformat()
+                        )
+                        check_times([
+                            parse_time(item["observed_at"])
+                            for item in window["provider_input"]["observations"]
+                        ])
+                elif witness_history is None:
                     window = load_historical_snapshot(
                         session, asset_id=args.asset_id,
                         provider=args.provider, decision_at=at, **access,
@@ -201,6 +304,10 @@ def run(args, *, validation_record=None):
                     "observation_ids": window["observation_ids"],
                     "snapshot": values,
                 })
+                if provider_history is not None:
+                    windows[-1]["provider_input"] = (
+                        window["provider_input"]
+                    )
                 for simulation in simulations.values():
                     simulation.step(
                         snapshot, decision_at=at, risk_only=risk_only
@@ -227,6 +334,25 @@ def run(args, *, validation_record=None):
             ],
             "windows": windows, "scenarios": {},
         }
+        if provider_evidence is not None:
+            report["provider_evidence"] = provider_evidence
+            report["availability_verified"] = all(
+                bool(window["observation_ids"])
+                for window in windows
+            )
+            report["assumptions"] = [
+                "Synthetic schedule, not actual recorded cycle times.",
+                "Inputs reconstructed from sealed provider-time receipts.",
+                "Provider, capture, and logging times precede decisions.",
+                "Freshness uses the registered provider and capture limits.",
+                "Repeated provider timestamps do not inflate history.",
+                "Missing or stale latest inputs have no older-quote fallback.",
+                "Fills use stored prices plus assumed slippage.",
+                "Open positions are marked, not forcibly liquidated.",
+                "Local receipts are not independently authenticated.",
+                "Feed completeness and live execution parity are unverified.",
+            ]
+
         if witness_collection is not None:
             report["witness_collection"] = witness_collection
             report["witness_evidence"] = {

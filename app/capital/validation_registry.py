@@ -137,26 +137,54 @@ def get_plan(plan_id):
 def claim_plan(plan_id):
     with locked_state(write=True) as state:
         row = state["plans"][plan_id]
+
         if row["status"] != "registered":
             raise ValueError("Plan has already been claimed.")
+
         now = now_utc()
         plan = row["envelope"]["plan"]
+
         if now < timestamp(plan["end_exclusive"]):
             raise ValueError("Evaluation period has not ended.")
 
-        if "witness_collection" in row:
-            from app.capital.validation_collection import validate_collection
-            collection = validate_collection(
-                row["witness_collection"], row["registered_sha256"]
+        if plan["schema_version"] == 2:
+            from app.capital.validation_provider_collection import (
+                materialize_provider_collection,
             )
-            if collection["status"] != "sealed":
-                raise ValueError("Witness collection must be sealed before claiming.")
+
+            # Verify retained checkpoint, complete receipt chain,
+            # plan bindings, source fingerprints, and sealed state.
+            materialize_provider_collection(row)
+
+        else:
+            if "provider_collection" in row:
+                raise ValueError(
+                    "Legacy plan cannot claim provider-time evidence."
+                )
+
+            if "witness_collection" in row:
+                from app.capital.validation_collection import (
+                    validate_collection,
+                )
+
+                collection = validate_collection(
+                    row["witness_collection"],
+                    row["registered_sha256"],
+                )
+
+                if collection["status"] != "sealed":
+                    raise ValueError(
+                        "Witness collection must be sealed before claiming."
+                    )
+
         token = uuid4().hex
         row["status"] = "running"
         row["run_token"] = token
         row["history"].append({
-            "status": "running", "at": now.isoformat(),
+            "status": "running",
+            "at": now.isoformat(),
         })
+
     return copy_value(row)
 
 

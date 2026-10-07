@@ -57,6 +57,15 @@ def inspect_completed(plan_id):
     report = json.loads(raw["report.json"])
     require(report.get("validation_registration") == expected,
             "Report references another registration.")
+    from app.capital.run_validation import verify_registered_evidence
+
+    verify_registered_evidence(
+        plan,
+        report,
+        row,
+        expected,
+        expected_status="completed",
+    )
     recomputed = assess_report(plan, report)
     recomputed.update({
         "input_report_sha256": digest(raw["report.json"]),

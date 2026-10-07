@@ -4,11 +4,10 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 
 from app.autonomous_trading.strategy import StrategyAction
-from app.market_db.database import SessionLocal
-from app.market_db.models import (
-    AutonomousStrategyState,
-    MarketAsset,
-)
+def SessionLocal():
+    from app.market_db.database import SessionLocal as create_session
+
+    return create_session()
 
 
 REQUIRED_CONFIRMATIONS = 3
@@ -58,6 +57,11 @@ def update_signal_confirmation(
 
     This function does not create proposals or execute trades.
     """
+
+    from app.market_db.models import (
+        AutonomousStrategyState,
+        MarketAsset,
+    )
 
     normalized_symbol = symbol.strip().upper()
 

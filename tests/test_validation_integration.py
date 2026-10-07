@@ -211,6 +211,15 @@ class ValidationIntegrationTests(unittest.TestCase):
                   return_value=experiment),
             patch("app.capital.committee_service.build_graduation_gates",
                   return_value=()),
+            patch(
+                "app.capital.committee_service.build_corporate_action_gate",
+                return_value=None,
+            ),
+            patch(
+                "app.capital.committee_service.build_corporate_action_gate",
+                return_value=None,
+                create=True,
+            ),
             patch("app.capital.committee_service.get_experiment_provenance",
                   return_value={"status": "matched", "reasons": []}),
         ):

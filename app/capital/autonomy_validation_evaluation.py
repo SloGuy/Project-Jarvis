@@ -51,15 +51,36 @@ def _process(plan_id):
         if registry.now_utc() < timestamp(plan["end_exclusive"]):
             return {"plan_id": plan_id, "status": "waiting_for_deadline"}
 
-        witness = row.get("witness_collection")
-        if witness is None:
-            raise ValueError("Validation has no bound collection.")
+        if plan["schema_version"] == 2:
+            from app.capital.validation_provider_collection import (
+                materialize_provider_collection,
+                validate_provider_collection,
+            )
 
-        validate_collection(witness, row["registered_sha256"])
-        if witness["status"] != "sealed":
-            return {"plan_id": plan_id, "status": "waiting_for_seal"}
-        if store_for(witness).read_checkpoint() != witness["store_checkpoint"]:
-            raise ValueError("Sealed collection checkpoint differs.")
+            collection = validate_provider_collection(row)
+            if collection["status"] != "sealed":
+                return {"plan_id": plan_id, "status": "waiting_for_seal"}
+
+            # Check the full retained chain before execution.
+            materialize_provider_collection(row)
+        else:
+            if "provider_collection" in row:
+                raise ValueError(
+                    "Legacy plans cannot use provider collections."
+                )
+
+            witness = row.get("witness_collection")
+            if witness is None:
+                raise ValueError("Validation has no bound collection.")
+
+            validate_collection(witness, row["registered_sha256"])
+            if witness["status"] != "sealed":
+                return {"plan_id": plan_id, "status": "waiting_for_seal"}
+            if (
+                store_for(witness).read_checkpoint()
+                != witness["store_checkpoint"]
+            ):
+                raise ValueError("Sealed collection checkpoint differs.")
 
         _authorize("capital.run_validation")
         execute_registered(plan_id)

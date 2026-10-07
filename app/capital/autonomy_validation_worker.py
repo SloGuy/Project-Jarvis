@@ -76,13 +76,18 @@ def _cycle():
         plan = row["envelope"]["plan"]
         candidate = candidates.get(plan["research"]["research_id"])
 
+        collection_key = (
+            "provider_collection"
+            if plan["schema_version"] == 2
+            else "witness_collection"
+        )
         needs_recording = (
             row["status"] == "completed" and not _recorded(candidate, row)
         )
         ready_to_execute = (
             row["status"] == "registered"
             and now >= timestamp(plan["end_exclusive"])
-            and row.get("witness_collection", {}).get("status") == "sealed"
+            and row.get(collection_key, {}).get("status") == "sealed"
         )
         if needs_recording or ready_to_execute:
             return process_validation(row["plan_id"])
