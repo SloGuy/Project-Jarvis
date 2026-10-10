@@ -26,6 +26,12 @@ def _now():
     return datetime.now(timezone.utc).isoformat()
 
 
+def run_trade_research_cycle():
+    from app.capital.trade_research_cycle import run_trade_research_cycle as run
+
+    return run()
+
+
 def _cycle():
     policy = read_operating_policy()
     if not policy.enabled:
@@ -43,43 +49,55 @@ def _cycle():
         ),
         key=lambda task: (task.created_at, task.task_id),
     )
-    if not queued:
+
+    if queued:
+        completed = run_research_task(queued[0])
+        return {
+            "status": "completed",
+            "processed_count": 1,
+            "task_id": completed.task_id,
+            "task_status": completed.status.value,
+            "execution_attempt": completed.execution_attempts,
+            "scheduling": scheduling,
+            "recovery": recovery,
+        }
+
+    if scheduling["status"] == "work_pending":
         return {
             "status": "idle",
+            "reason": "revision_work_pending",
             "processed_count": 0,
             "scheduling": scheduling,
             "recovery": recovery,
         }
 
-    task = queued[0]
-    completed = run_research_task(task)
+    trade_research = run_trade_research_cycle()
+    processing = trade_research["processing"]
+    processed_count = processing["processed_count"]
+    status = (
+        "completed" if processed_count
+        else "partial" if trade_research["diagnostic_failure_count"]
+        else processing["status"]
+    )
     return {
-        "status": "completed",
-        "processed_count": 1,
-        "task_id": completed.task_id,
-        "task_status": completed.status.value,
-        "execution_attempt": completed.execution_attempts,
+        "status": status,
+        "processed_count": processed_count,
+        "scope": "trade_diagnosis_and_advisory_research",
         "scheduling": scheduling,
-            "recovery": recovery,
+        "recovery": recovery,
+        "trade_research": trade_research,
     }
 
 
 def run_once(*, directory=None):
-    """Run one cycle; callers schedule subsequent cycles.
-
-    Task heartbeat and attempt checks live in the research runner.
-    The process lock covers both selection and execution.
-    """
+    """Serialize selection and model execution across worker processes."""
     root = Path(directory) if directory is not None else STATE_DIRECTORY
     root.mkdir(parents=True, exist_ok=True)
     started_at = _now()
 
     with (root / "worker.lock").open("a+", encoding="utf-8") as lock:
         try:
-            fcntl.flock(
-                lock.fileno(),
-                fcntl.LOCK_EX | fcntl.LOCK_NB,
-            )
+            fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             return {
                 "status": "busy",
@@ -95,7 +113,7 @@ def run_once(*, directory=None):
                 **result,
                 "started_at": started_at,
                 "finished_at": _now(),
-                "scope": "research_revision_cycle",
+                "scope": result.get("scope", "research_revision_cycle"),
                 "live_capital_authorized": False,
             }
         finally:
@@ -106,6 +124,8 @@ def main():
     try:
         result = run_once()
     except Exception as error:
+        import traceback
+        traceback.print_exc(file=sys.stderr)
         print(json.dumps({
             "status": "failed",
             "error_type": type(error).__name__,
