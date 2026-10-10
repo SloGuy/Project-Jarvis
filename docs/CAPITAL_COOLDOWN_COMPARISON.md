@@ -49,6 +49,8 @@ provider data or archive source files.
 
 ## Validation performed
 
+Marked analysis: 8 tests.
+Comparison assessment: 13 tests.
 Cooldown behavior: 8 tests.
 Comparison behavior: 9 tests.
 Configuration manifest: 11 tests.
@@ -71,9 +73,22 @@ collection begins, including the source manifest, asset universe,
 period, schedule, costs, benchmark, full acceptance criteria, and
 sample-size and inconclusive-result rules.
 
-Marked equity, return, drawdown, benchmark comparison and data-quality
-assessment still need a comparison assessment path. Current realized
-profit factor excludes remaining open positions.
+Marked equity, return, sampled drawdown, benchmark comparison and
+data-quality analysis are implemented and tested against the existing
+verified replay analysis.
+
+Development assessment preserves the source acceptance criteria.
+Both accounts require sufficient samples. The intervention must meet
+the source performance criteria and supplied profit-factor minimum,
+and its profit factor must strictly exceed the baseline.
+
+Missing marks, undefined profit factors, inadequate samples and
+unverified availability remain insufficient evidence. Failed checks
+remain visible when evidence is insufficient.
+
+A development criteria pass does not become a validated strategy pass.
+Prospective registration and autonomous assessment persistence remain
+to be implemented. Realized profit factor excludes open positions.
 
 The full-period runtime and operational collection cadence remain
 to be checked.
