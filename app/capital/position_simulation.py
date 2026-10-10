@@ -1,5 +1,6 @@
 """Single-asset position simulation; no database-backed execution."""
 from dataclasses import replace
+from datetime import timedelta
 from decimal import Decimal as D
 
 from app.autonomous_trading.strategy import PositionContext
@@ -17,7 +18,14 @@ from app.capital.simulated_ledger import SimulatedLedger, QUANTITY
 
 
 class PositionSimulation:
-    def __init__(self, *, symbol, policy, fee_bps, slippage_bps):
+    def __init__(
+        self, *, symbol, policy, fee_bps, slippage_bps,
+        loss_reentry_cooldown=False,
+    ):
+        if type(loss_reentry_cooldown) is not bool:
+            raise ValueError("Cooldown setting must be a boolean.")
+        self.loss_reentry_cooldown = loss_reentry_cooldown
+        self.cooldown_until = None
         self.symbol = symbol.strip().upper()
         if not self.symbol:
             raise ValueError("Symbol is required.")
@@ -102,6 +110,21 @@ class PositionSimulation:
             if candidate.action.value != "buy":
                 event["reasons"] = [candidate.rationale]
                 return event
+            # Confirmations still follow the original entry rules.
+            # Only execution of a new entry is blocked.
+            if (
+                not held
+                and self.loss_reentry_cooldown
+                and self.cooldown_until is not None
+                and decision_at < self.cooldown_until
+            ):
+                event["reasons"] = [
+                    "Same-asset losing-trade cooldown is active."
+                ]
+                event["cooldown_until"] = (
+                    self.cooldown_until.isoformat()
+                )
+                return event
             action = TradeAction.BUY
             quantity = (
                 mark["equity"] * candidate.suggested_position_percent
@@ -168,6 +191,15 @@ class PositionSimulation:
         else:
             fill = ledger.sell(reference_price=price)
             self.target, self.opened_at = None, None
+            # This account's completed fill supplies the outcome.
+            # No external journals or future outcomes are consulted.
+            if (
+                self.loss_reentry_cooldown
+                and fill["realized_pnl"] < 0
+            ):
+                self.cooldown_until = (
+                    decision_at + timedelta(seconds=3600)
+                )
         self.confirmation.reset_after_fill(
             symbol=self.symbol, strategy_name="mean_reversion_v2",
             filled_at=decision_at,
