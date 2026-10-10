@@ -23,6 +23,10 @@ COMPARISON_SOURCES = (
     "app/capital/cooldown_verification.py",
     "app/capital/cooldown_analysis.py",
     "app/capital/cooldown_assessment.py",
+    "app/capital/cooldown_contract.py",
+    "app/capital/cooldown_registration.py",
+    "app/capital/autonomy_trade_research.py",
+    "app/capital/trade_research_runner.py",
     "app/capital/trade_research_design.py",
 )
 

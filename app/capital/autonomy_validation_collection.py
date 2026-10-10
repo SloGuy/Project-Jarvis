@@ -8,6 +8,7 @@ from app.agents.capital_registry import VALIDATION_AGENT_ID
 from app.capital.autonomy_control import read_operating_policy
 from app.capital.autonomy_policy import authorize_capital_action
 from app.capital.autonomy_validation_registration import PREFIX
+from app.capital.cooldown_registration import PREFIX as COOLDOWN_PREFIX
 from app.capital import validation_collection as collection
 from app.capital import validation_registry as registry
 from app.capital.observation_witness import digest, verify_receipt
@@ -45,7 +46,7 @@ def _advance(plan_id):
         )
 
         if (
-            not plan["created_by"].startswith(PREFIX)
+            not plan["created_by"].startswith((PREFIX, COOLDOWN_PREFIX))
             or row["status"] != "registered"
         ):
             return {
@@ -146,8 +147,16 @@ def run_collection_cycle():
                     plan_id for plan_id, row in state["plans"].items()
                     if (
                         row["status"] == "registered"
-                        and row["envelope"]["plan"]["created_by"].startswith(
-                            PREFIX
+                        and (
+                            row["envelope"]["plan"]["created_by"].startswith(
+                                PREFIX
+                            )
+                            or (
+                                row["envelope"]["plan"]["schema_version"] == 2
+                                and row["envelope"]["plan"][
+                                    "created_by"
+                                ].startswith(COOLDOWN_PREFIX)
+                            )
                         )
                     )
                 )

@@ -185,6 +185,7 @@ def capture_provider_cycle(plan_id):
                 }
 
         check_current_binding(plan)
+        require_provider_plan(row)
         authorize_collection()
 
         directory = quote_directory(row)
@@ -206,6 +207,7 @@ def capture_provider_cycle(plan_id):
             }
 
         check_current_binding(plan)
+        require_provider_plan(row)
         authorize_collection()
 
         receipt = make_validation_quote_receipt(

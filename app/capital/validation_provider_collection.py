@@ -62,6 +62,11 @@ def require_provider_plan(row):
         verify_sources=True,
     )
 
+    from app.capital.cooldown_registration import (
+        verify_collection_contract,
+    )
+
+    verify_collection_contract(row)
     return plan
 
 
@@ -164,6 +169,10 @@ def bind_provider_collection(plan_id):
             "status": "collecting",
             "store_checkpoint": None,
         }
+
+        # Check the proposed binding time before creating collection files.
+        proposed = {**row, "provider_collection": collection}
+        require_provider_plan(proposed)
 
         collection["store_checkpoint"] = (
             store_for(row, collection).initialize()
